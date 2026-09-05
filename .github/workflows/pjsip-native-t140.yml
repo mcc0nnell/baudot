@@ -16,6 +16,13 @@ on:
 permissions:
   contents: read
 
+# Native oracle experiments are intentionally bounded. A corrected PR head
+# supersedes any older experiment for the same ref so stale implementation
+# processes cannot hold the qualification lane open.
+concurrency:
+  group: pjsip-native-t140-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   native-t140-wire-evidence:
     runs-on: ubuntu-latest
