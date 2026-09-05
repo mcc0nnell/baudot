@@ -103,6 +103,8 @@ The executable handoff trial keeps the iTRS-derived logical SIP URI as the SIP R
 
 The trial proves local route consumption and SIP transaction behavior only. It does not claim live iTRS access or production VRS interoperability.
 
+The clean-room fixture validator also recomputes ENUM owner derivation, alias traversal, NAPTR order/preference selection, `E2U+sip` validation, and synthetic SIP NAPTR/SRV discovery from fixture data rather than trusting canned expected output.
+
 ## Scenario status
 
 Scenarios may be:
@@ -113,6 +115,25 @@ Scenarios may be:
 - `regressed` — previously proven behavior is known to diverge.
 
 Documentation alone cannot promote a scenario to `proven`.
+
+## Evidence discipline
+
+The testkit is deliberately implementation-independent. A reference adapter can produce observations, but it does not become normative merely because it runs first or is maintained in this repository.
+
+A mature testkit claim should be reviewable as:
+
+```text
+portable scenario
+    -> implementation A
+    -> implementation B
+    -> preserved observations
+    -> independent reducer
+    -> same bounded claim
+```
+
+Claim boundaries travel with the scenario. A green signaling test does not become a media-readiness claim; a route result does not become proof of transport success; implementation agreement does not become correctness by majority vote.
+
+The broader project model, including clean-room donor discipline and the informal **Apache-style proof** framing, is documented in [`../docs/evidence-and-governance.md`](../docs/evidence-and-governance.md).
 
 ## ACE Omni integration
 
