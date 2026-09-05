@@ -1,6 +1,6 @@
 # ADR-0002: PJSIP as a native RTT media oracle
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-05
 - Decision owners: Baudot maintainers
 
@@ -16,9 +16,9 @@ replacement signaling success
 => old leg may be released
 ```
 
-but it does not yet show a third implementation generating the positive RTT traffic through its own media stack.
+but it does not by itself show a third implementation generating the positive RTT traffic through its own media stack.
 
-PJSIP/PJPROJECT 2.17 provides a useful next threshold. At the pinned release commit `5a457451fa2712ba18e12b01738e8ff3af2b26fd`:
+PJSIP/PJPROJECT 2.17 provides that next implementation boundary. At the pinned release commit `5a457451fa2712ba18e12b01738e8ff3af2b26fd`:
 
 - PJMEDIA advertises T.140 text media;
 - PJSUA2 exposes `Call::sendText()`;
@@ -27,7 +27,7 @@ PJSIP/PJPROJECT 2.17 provides a useful next threshold. At the pinned release com
 
 PJSIP therefore adds the most value to Baudot first as a **native RTT media implementation**, not as a replacement for JAIN SIP or Elixip.
 
-The upstream source distribution contains GPLv2 terms. This ADR does not make a legal determination about all possible PJSIP licensing arrangements. It does require Baudot to keep the initial qualification lane external and ephemeral: no vendored PJSIP source, no committed PJSIP binary, and no distribution of the linked qualification executable as a Baudot release artifact without separate licensing review.
+The upstream source distribution contains GPLv2 terms. This ADR does not make a legal determination about all possible PJSIP licensing arrangements. It requires Baudot to keep the initial qualification lane external and ephemeral: no vendored PJSIP source, no committed PJSIP binary, and no distribution of the linked qualification executable as a Baudot release artifact without separate licensing review.
 
 ## Decision
 
@@ -46,15 +46,16 @@ A different release, moving branch, dirty checkout, fork, or patched source is n
 
 PJSIP does not define Baudot verdict semantics. It supplies implementation behavior and wire evidence.
 
-### 2. The first experiment isolates native media from transfer policy
+### 2. Native media is qualified independently from transfer policy
 
-Before PJSIP participates in a REFER handoff, it must pass a smaller qualification:
+Before PJSIP participates in a REFER handoff, Baudot qualifies the smaller native-media behavior:
 
 ```text
 PJSIP/PJSUA2 UAC
   -> requests exactly one text stream
   -> JAIN SIP Baudot UAS selects direct PT 98 t140/1000
   -> SIP dialog reaches confirmed state
+  -> PJSIP reports the native text media active
   -> PJSIP invokes Call::sendText("H")
   -> PJMEDIA emits the resulting RTP traffic
   -> Baudot preserves the raw datagram(s)
@@ -62,6 +63,8 @@ PJSIP/PJSUA2 UAC
 ```
 
 The JAIN receiver deliberately does not classify the packet as valid RTP/T.140. Java may record only signaling facts, packet receipt, byte counts, and hashes. The Python RFC 4103/T.140 reference owns the terminal semantic reduction.
+
+Both implementation processes are externally time-bounded. A stalled sender or observer is a failed observation, never implicit success.
 
 ### 3. Direct T.140 is selected for the qualification lane
 
@@ -88,14 +91,14 @@ If later scenarios use PJSIP signaling, that does not erase the role distinction
 
 Baudot may keep a small Baudot-owned PJSUA2 driver source file that exercises the public native text API. CI may build that driver against the exact external PJSIP checkout to execute the experiment.
 
-The initial lane will preserve:
+The lane preserves:
 
 - exact upstream repository/release/commit identity;
 - clean-checkout evidence;
 - Baudot driver source hash;
 - compiler and CMake versions;
 - linked executable hash;
-- process stdout/stderr and exit status;
+- bounded process stdout/stderr and exit status;
 - raw SIP offer/answer evidence;
 - raw received RTP datagrams;
 - independent reference reduction; and
@@ -109,14 +112,37 @@ A successful run establishes only that the pinned PJSIP 2.17 implementation, thr
 
 It does not establish full PJSIP, SIP, RTP, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, or production conformance.
 
+## Acceptance evidence
+
+The initial PJSIP 2.17 qualification passed on 2026-09-05 against commit `5a457451fa2712ba18e12b01738e8ff3af2b26fd`.
+
+The accepted evidence chain records these facts separately:
+
+```text
+exact clean PJSIP 2.17 checkout
+-> one PJSUA2 text stream offered
+-> Baudot selects direct PT 98 t140/1000
+-> SIP ACK observed
+-> PJSIP native text media reports active
+-> Call::sendText("H") invoked
+-> two PT 98 datagrams preserved
+-> first non-empty datagram independently reduced to T.140 "H"
+-> rttReady=true in the independent terminal reducer
+```
+
+The first non-empty packet is preserved as `rtt-datagram-001.bin`; the second observed packet carries an empty T.140 block. The outer evidence manifest independently re-verifies the implementation identity, build metadata, process observations, SIP evidence, terminal reduction, and both datagrams.
+
+This evidence accepts the architecture decision and the pinned native-media oracle profile. It does not promote the profile to SIP, RTP, RFC 4103, T.140, or production conformance.
+
 ## Next threshold
 
-After native-media qualification is stable, replace the Baudot-owned positive media stimulus in a `BAUDOT-INTEROP-004` replacement leg with the qualified PJSIP native text endpoint.
+Replace the Baudot-owned positive media stimulus in a `BAUDOT-INTEROP-004` replacement leg with the qualified PJSIP native text endpoint.
 
-That future transfer experiment should preserve the same policy invariant:
+That transfer experiment must preserve the same policy invariant:
 
 ```text
 replacement ACK
+-> native PJSIP text media active
 -> native PJSIP RTT emission
 -> independent Baudot T.140 observation
 -> only then old-leg release
