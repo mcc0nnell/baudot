@@ -14,6 +14,17 @@ Initial implementations:
 
 No SpanDSP or minimodem source is vendored into Baudot.
 
+## Upstream provenance
+
+The accepted oracle pins and their upstream-declared license provenance are recorded in [`upstream.json`](upstream.json).
+
+| Implementation | Accepted source pin | Baudot role | Upstream-declared license | Integration boundary |
+| --- | --- | --- | --- | --- |
+| `freeswitch/spandsp` | `8f1e1646bdec99eac5fd2cd92c35563f736b9b89` / 3.1.1 | primary external V.18 DSP oracle | library: LGPL 2.1; test suite and some supporting code: GPL 2 | external pinned checkout, built ephemerally for qualification; not vendored |
+| `kamalmostafa/minimodem` | `bb2f34cf5148f101563aa926e201d306edbacbd3` | independent secondary TDD generator/decoder | GPL 3 or later | external pinned checkout, built ephemerally for qualification; not vendored |
+
+These fields record what the pinned upstream projects declare about their own source. They do not make either implementation normative, move external source into Baudot, or change Baudot's semantic-authority boundary. Any future distribution or packaging step that conveys external binaries or source should evaluate the applicable upstream license obligations separately.
+
 ## Initial profile
 
 The first admitted profile is US Weitbrecht TTY:
