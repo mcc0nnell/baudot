@@ -20,12 +20,12 @@ The project starts at the semantic boundary: **T.140 real-time text behavior and
 T.140 semantics
       │
       ▼
-normative vectors
+canonical vectors
       │
       ▼
 baudot-testkit
       │
-      ├── SIP / RFC 4103 adapter
+      ├── SIP / RFC 4103 runtime adapter
       ├── WebRTC/application adapter
       └── research-runtime adapter
                 │
@@ -37,7 +37,9 @@ The first cross-project research integration is with ACE Omni: Omni can execute 
 
 ## Current vertical slice
 
-The first transport harness uses JAIN SIP for signaling and Sandia Wiretap as an external controlled-network substrate. It records signaling and media-path reachability independently so a run can prove states such as:
+Baudot now has a routed transport harness using JAIN SIP for signaling and Sandia Wiretap as an external controlled-network substrate. Caller and callee run in separate Linux network namespaces, and signaling, generic media reachability, and RTT are preserved as independent observations.
+
+The first routed invariant is:
 
 ```text
 scenarioResult=PASS
@@ -45,13 +47,29 @@ callState=CALL_ESTABLISHED
 mediaState=MEDIA_FAILED
 ```
 
-That means the experiment successfully reproduced a call whose SIP dialog established while its media path did not. The current media check is a correlated UDP heartbeat, not RTP or RFC 4103 conformance.
+That proves a complete SIP `INVITE -> 200 -> ACK` exchange can remain healthy while an independently routed media path is unavailable. The SIP leg uses RFC 3581 `rport` so responses return over Wiretap's transparent UDP flow.
 
-See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the boundary, distributed caller/callee roles, Wiretap route model, and evidence bundle.
+The next slice binds Baudot's canonical RFC 4103 primary `text/t140` vectors to the same routed runtime without introducing a second packet serializer. The Python reference implementation materializes exact canonical RTP bytes; the Java runtime replays those bytes and independently validates the packet observed at the receiver.
+
+The routed RFC 4103 primary scenario proves:
+
+```text
+scenarioResult=PASS
+callState=CALL_ESTABLISHED
+mediaState=MEDIA_FAILED
+rttState=RTT_RECEIVED
+sdpNegotiated=false
+```
+
+`RTT_RECEIVED` is intentionally **not** the same as `RTT_READY`: this scenario proves narrow primary `text/t140` RTP transport, but does not perform SDP `text/t140` negotiation. RFC 2198 redundancy, recovery, RTCP, buffering/timing behavior, and complete RFC 4103 sender/receiver behavior remain separate evidence layers.
+
+See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed topology, caller/callee roles, state model, canonical RFC 4103 runtime binding, and evidence bundle.
 
 ## Status
 
-Early design and testkit bootstrap. No RFC 4103, T.140, SIP, or implementation conformance claim is made yet.
+Baudot has executable T.140 presentation vectors, RFC 4103 primary RTP vectors, routed SIP/Wiretap transport evidence, and a routed canonical primary `text/t140` proof. These are deliberately narrow evidence boundaries, not project-wide conformance claims.
+
+No complete RFC 4103, T.140, SIP, WebRTC, accessibility, NAT/SBC, browser, or production-network conformance claim is made yet.
 
 ## Project name
 
