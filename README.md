@@ -96,20 +96,22 @@ Baudot treats VRS/interpreter services, RTT, captions, SIP/PSTN, WebRTC, confere
 
 A motivating long-term case is a VRS provider participating in a call whose hearing endpoint is on a mainstream video platform such as FaceTime. **FaceTime is a prospective federation peer, not a current protocol dependency or conformance claim.** Baudot will use documented interoperability surfaces only; deeper closed-platform integration belongs behind a supportable platform adapter.
 
-The near-term proving path is deliberately open: first model caller + interpreter + destination, then prove SIP/WebRTC federation, then experiment with native calling surfaces such as CallKit/LiveCommunicationKit. Closed-platform adapters come only after the missing interoperability boundary is precisely demonstrated.
+The near-term proving path is deliberately open: first model caller + interpreter + destination, prove the SIP and WebRTC endpoint boundaries independently, then join their media behavior through an explicit gateway. Native calling surfaces such as CallKit/LiveCommunicationKit come after that open gateway is evidenced. Closed-platform adapters come only after the missing interoperability boundary is precisely demonstrated.
 
 That path now has two runnable federation slices:
 
 - `BAUDOT-FED-001` reduces caller + interpreter + destination readiness and security claims without provider-specific semantics.
-- `BAUDOT-FED-002` joins a live JAIN SIP caller-to-interpreter gate to an RFC 8865/T.140 destination boundary. The right-hand boundary is deliberately a reference boundary, **not** a claimed browser implementation.
+- `BAUDOT-FED-002` joins a live JAIN SIP caller-to-interpreter evidence gate with an RFC 8865/T.140 destination boundary and a real headless Chromium `RTCPeerConnection` endpoint exercise. The browser run preserves ICE, DTLS, SCTP, selected candidate-pair, `t140` data-channel, and delivered UTF-8 facts, then independently reduces the received T.140 bytes.
 
-Run the open-boundary lab with:
+Run the open SIP/interpreter boundary with:
 
 ```bash
 bash scripts/run-fed002-open-boundary.sh
 ```
 
-The dedicated `federation-lab` workflow preserves the resulting evidence bundle. Promotion beyond `runnable` explicitly requires a repeatable real-browser `RTCPeerConnection` run with ICE, DTLS, SCTP/data-channel state, the `t140` subprotocol, and independently parsed T.140 evidence.
+The dedicated `federation-lab` workflow additionally executes the real Chromium peer and preserves the complete FED-002 evidence bundle.
+
+The remaining gateway threshold is stricter than "both sides work": Baudot still needs one evidence-preserving process that actually carries the relevant accessibility media from the SIP/interpreter side into the WebRTC data channel without collapsing SIP success, interpreter readiness, ICE/DTLS/SCTP state, T.140 semantics, or termination/security facts into one result. A successful browser loopback is a real-browser execution fact, not WebRTC or RFC 8865 conformance and not yet a SIP-to-WebRTC media gateway.
 
 ## Status and claim boundary
 
