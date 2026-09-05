@@ -11,7 +11,7 @@
   },
   "arms": [
     {
-      "id": "direct-route",
+      "id": "control",
       "condition": "authoritative mock returns a logical E2U+sip route and Baudot sends an INVITE with that URI preserved as the Request-URI"
     },
     {
@@ -39,6 +39,11 @@
     "sipAckReceived"
   ],
   "assertions": [
+    "sessionEstablished does not imply iceReady",
+    "iceReady does not imply videoRendered",
+    "videoDecoded does not imply videoRendered",
+    "videoRendered does not imply rttReady",
+    "rttReady requires rttNegotiated and firstT140CharacterObserved",
     "a successful authoritative route is required before SIP signaling",
     "NOT_FOUND does not imply AUTHORITY_UNAVAILABLE",
     "INVALID_AUTHORITY does not imply NOT_FOUND",
@@ -76,6 +81,8 @@
   ],
   "claimBoundary": {
     "doesNotEstablish": [
+      "T.140 conformance",
+      "RFC 4103 conformance",
       "live TRS Numbering Directory access",
       "production VRS interoperability",
       "SIP conformance",
