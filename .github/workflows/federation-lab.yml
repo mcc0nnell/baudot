@@ -5,7 +5,7 @@ on:
     paths:
       - ".github/workflows/federation-lab.yml"
       - "baudot_reference/federation*.py"
-      - "scripts/*fed002*"
+      - "scripts/*fed00*"
       - "scripts/run_federation_boundary.py"
       - "src/main/java/org/mcc0nnell/baudot/harness/**"
       - "testkit/federation/**"
@@ -36,8 +36,12 @@ jobs:
           node-version: "22"
       - name: Exercise federation reducers
         run: python -m unittest tests.test_federation_readiness tests.test_federation_lab
-      - name: Syntax-check joined lab runner
-        run: bash -n scripts/run-fed002-open-boundary.sh
+      - name: Syntax-check federation lab runners
+        run: |
+          bash -n scripts/run-fed002-open-boundary.sh
+          bash -n scripts/run-fed003-inline-gateway.sh
+          node --check scripts/fed002-browser-peer.mjs
+          node --check scripts/fed003-inline-rtt-webrtc-gateway.mjs
       - name: Run live SIP to RFC8865 open-boundary lab
         run: bash scripts/run-fed002-open-boundary.sh
       - name: Install pinned Chromium driver
@@ -53,10 +57,19 @@ jobs:
           python -m scripts.validate_fed002_browser
           target/evidence/fed002/browser-webrtc.json
           --output target/evidence/fed002/browser-validation-result.json
-      - name: Preserve federation evidence
+      - name: Run inline RFC4103 to real WebRTC gateway lab
+        run: bash scripts/run-fed003-inline-gateway.sh
+      - name: Preserve FED-002 evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: baudot-fed002-evidence
           path: target/evidence/fed002
+          if-no-files-found: warn
+      - name: Preserve FED-003 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-fed003-evidence
+          path: target/evidence/fed003
           if-no-files-found: warn
