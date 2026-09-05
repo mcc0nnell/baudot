@@ -10,7 +10,7 @@ from pathlib import Path
 from baudot_reference.gateway import run_gateway_contract
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONTRACT = ROOT / "testkit" / "gateways" / "rfc4103-rfc8865-equivalence-v1.json"
+DEFAULT_CONTRACT = ROOT / "testkit" / "gateways" / "rfc4103-rfc8865-equivalence-v2.json"
 
 
 def main() -> None:
@@ -20,6 +20,8 @@ def main() -> None:
     args = parser.parse_args()
 
     contract = json.loads(args.contract.read_text(encoding="utf-8"))
+    if contract.get("status") != "runnable":
+        raise ValueError("gateway runner requires a runnable BAUDOT-INTEROP-002 contract")
     results = run_gateway_contract(contract)
     evidence = {
         "contractId": contract["id"],
@@ -37,7 +39,10 @@ def main() -> None:
                 f"✓ {result.trial_id}: {result.source_transport} → {result.target_transport} "
                 f"presentation={result.presentation!r} missing={result.missing_text_markers}"
             )
-        print(f"BAUDOT-INTEROP-002 runnable reference harness: {len(results)} trial(s) passed.")
+        print(
+            f"BAUDOT-INTEROP-002@{contract['version']} runnable reference harness: "
+            f"{len(results)} trial(s) passed."
+        )
 
 
 if __name__ == "__main__":
