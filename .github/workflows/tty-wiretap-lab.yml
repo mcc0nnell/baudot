@@ -17,7 +17,7 @@ env:
 jobs:
   routed-tty:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Baudot
@@ -131,15 +131,27 @@ jobs:
             BAUDOT_MINIMODEM_BIN="$ORACLE_PREFIX/bin/minimodem" \
             bash scripts/wiretap/tty-v18-routed-lab.sh
 
-      - name: Verify routed TTY evidence manifest
+      - name: BAUDOT-TTY-005 live Wiretap jitter/reorder recovery
+        shell: bash
+        run: |
+          sudo -E env \
+            PATH="$PATH" \
+            LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+            PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+            bash scripts/wiretap/tty-v18-jitter-routed-lab.sh
+
+      - name: Verify routed TTY evidence manifests
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           shopt -s globstar nullglob
-          manifests=(target/evidence-routed/tty-v18-wiretap/**/bundle.manifest.sha256)
-          if (( ${#manifests[@]} == 0 )); then
-            echo "No routed TTY evidence bundle manifest found" >&2
+          manifests=(
+            target/evidence-routed/tty-v18-wiretap/**/bundle.manifest.sha256
+            target/evidence-routed/tty-v18-jitter/**/bundle.manifest.sha256
+          )
+          if (( ${#manifests[@]} < 2 )); then
+            echo "Expected both routed TTY evidence bundle manifests" >&2
             exit 1
           fi
           for manifest in "${manifests[@]}"; do
@@ -151,5 +163,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: baudot-tty-wiretap-evidence
-          path: target/evidence-routed/tty-v18-wiretap
+          path: |
+            target/evidence-routed/tty-v18-wiretap
+            target/evidence-routed/tty-v18-jitter
           if-no-files-found: warn
