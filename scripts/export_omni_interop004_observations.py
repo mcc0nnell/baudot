@@ -174,10 +174,14 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
 
     live_result_path = LIVE_DIR / "result.properties"
     live_events_path = LIVE_DIR / "events.jsonl"
+    control_result_path = CONTROL_DIR / "result.properties"
     control_events_path = CONTROL_DIR / "events.jsonl"
+    signaling_result_path = SIGNALING_ONLY_DIR / "result.properties"
     signaling_events_path = SIGNALING_ONLY_DIR / "events.jsonl"
 
     live = load_properties(live_result_path)
+    control_probe = load_properties(control_result_path)
+    signaling_probe = load_properties(signaling_result_path)
     readiness = load_json(RTT_RESULT)
     terminal = load_json(TERMINAL_RESULT)
 
@@ -235,10 +239,10 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
         )
 
     control_probe_facts = [
-        ("referAccepted", bool_json(control, "referAccepted", "control")),
-        ("replacementDialogEstablished", bool_json(control, "replacementDialogEstablished", "control")),
-        ("rttNegotiated", bool_json(control, "rttNegotiated", "control")),
-        ("oldLegReleased", bool_json(control, "oldLegReleasedAfterRttObservation", "control")),
+        ("referAccepted", bool_property(control_probe, "refer.accepted", "control-probe")),
+        ("replacementDialogEstablished", bool_property(control_probe, "replacement.dialog.established", "control-probe")),
+        ("rttNegotiated", bool_property(control_probe, "rtt.negotiated", "control-probe")),
+        ("oldLegReleased", bool_property(control_probe, "oldLeg.bye.afterRttObservation", "control-probe")),
     ]
     for fact_type, fact_value in control_probe_facts:
         add(
@@ -249,7 +253,7 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
             fact_type=fact_type,
             fact_value=fact_value,
             claim_scope="replacement-leg-rtt-readiness",
-            source_artifact=CONTROL_DIR / "result.properties",
+            source_artifact=control_result_path,
             correlation_id="jain-live-refer-rtt-v1",
             extra=provider,
         )
@@ -269,10 +273,10 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
         )
 
     signaling_probe_facts = [
-        ("referAccepted", bool_json(signaling_only, "referAccepted", "signaling-only")),
-        ("replacementDialogEstablished", bool_json(signaling_only, "replacementDialogEstablished", "signaling-only")),
-        ("rttNegotiated", bool_json(signaling_only, "rttNegotiated", "signaling-only")),
-        ("oldLegPreserved", not bool_json(signaling_only, "oldLegReleased", "signaling-only")),
+        ("referAccepted", bool_property(signaling_probe, "refer.accepted", "signaling-only-probe")),
+        ("replacementDialogEstablished", bool_property(signaling_probe, "replacement.dialog.established", "signaling-only-probe")),
+        ("rttNegotiated", bool_property(signaling_probe, "rtt.negotiated", "signaling-only-probe")),
+        ("oldLegPreserved", not bool_property(signaling_probe, "oldLeg.bye.sent", "signaling-only-probe")),
     ]
     for fact_type, fact_value in signaling_probe_facts:
         add(
@@ -283,7 +287,7 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
             fact_type=fact_type,
             fact_value=fact_value,
             claim_scope="replacement-leg-rtt-readiness",
-            source_artifact=SIGNALING_ONLY_DIR / "result.properties",
+            source_artifact=signaling_result_path,
             correlation_id="jain-live-refer-rtt-v1",
             extra=provider,
         )
@@ -309,9 +313,9 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
         CONTRACT,
         live_result_path,
         live_events_path,
-        CONTROL_DIR / "result.properties",
+        control_result_path,
         control_events_path,
-        SIGNALING_ONLY_DIR / "result.properties",
+        signaling_result_path,
         signaling_events_path,
         RTT_RESULT,
         TERMINAL_RESULT,
