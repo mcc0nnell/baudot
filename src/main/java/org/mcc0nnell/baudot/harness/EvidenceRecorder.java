@@ -11,12 +11,14 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 final class EvidenceRecorder implements AutoCloseable {
     private final Path directory;
     private final Path eventsPath;
     private final Path resultPath;
     private final BufferedWriter events;
+    private final TreeSet<String> supplementalFiles = new TreeSet<>();
     private boolean resultWritten;
 
     EvidenceRecorder(Path root, String scenarioId, String correlationId, String role) throws IOException {
@@ -45,6 +47,17 @@ final class EvidenceRecorder implements AutoCloseable {
         }
     }
 
+    synchronized void writeBytes(String filename, byte[] content) throws IOException {
+        Path relative = Path.of(filename);
+        if (filename.isBlank() || relative.isAbsolute() || relative.getNameCount() != 1
+                || filename.equals("events.jsonl") || filename.equals("result.properties")
+                || filename.equals("manifest.sha256")) {
+            throw new IOException("Unsafe supplemental evidence filename: " + filename);
+        }
+        Files.write(directory.resolve(relative), content);
+        supplementalFiles.add(filename);
+    }
+
     synchronized void result(Map<String, String> fields) throws IOException {
         TreeMap<String, String> sorted = new TreeMap<>(fields);
         try (BufferedWriter writer = Files.newBufferedWriter(resultPath, StandardCharsets.UTF_8)) {
@@ -59,12 +72,19 @@ final class EvidenceRecorder implements AutoCloseable {
     }
 
     private void writeManifest() throws IOException {
+        TreeMap<String, Path> artifacts = new TreeMap<>();
+        artifacts.put("events.jsonl", eventsPath);
+        artifacts.put("result.properties", resultPath);
+        for (String filename : supplementalFiles) {
+            artifacts.put(filename, directory.resolve(filename));
+        }
+
         Path manifest = directory.resolve("manifest.sha256");
         try (BufferedWriter writer = Files.newBufferedWriter(manifest, StandardCharsets.UTF_8)) {
-            writer.write(sha256(eventsPath) + "  events.jsonl");
-            writer.newLine();
-            writer.write(sha256(resultPath) + "  result.properties");
-            writer.newLine();
+            for (Map.Entry<String, Path> artifact : artifacts.entrySet()) {
+                writer.write(sha256(artifact.getValue()) + "  " + artifact.getKey());
+                writer.newLine();
+            }
         }
     }
 
