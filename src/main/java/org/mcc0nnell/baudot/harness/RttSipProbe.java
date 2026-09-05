@@ -112,7 +112,7 @@ public final class RttSipProbe {
                     "correlation.id", config.correlationId(),
                     "media.probe.sent", Boolean.toString(sent),
                     "role", "caller",
-                    "rtt.datagrams.expected", "2",
+                    "rtt.datagrams.expected", Integer.toString(config.profile().sentDatagramCount()),
                     "rtt.profile", config.profile().wireName(),
                     "scenario.expectMedia", "true",
                     "scenario.id", config.scenarioId(),
@@ -145,7 +145,7 @@ public final class RttSipProbe {
                     "correlation.id", config.correlationId(),
                     "media.probe.received", Boolean.toString(datagramsReceived),
                     "role", "callee",
-                    "rtt.datagrams.expected", "2",
+                    "rtt.datagrams.expected", Integer.toString(config.profile().receivedDatagramCount()),
                     "rtt.profile", config.profile().wireName(),
                     "scenario.expectMedia", "true",
                     "scenario.id", config.scenarioId(),
@@ -160,6 +160,7 @@ public final class RttSipProbe {
         byte[][] datagrams = switch (config.profile()) {
             case NORMAL -> new byte[][] {normalPrimaryPacket(), normalRedPacket()};
             case RECOVERY -> new byte[][] {recoveryPriorPacket(), recoveryRedPacket()};
+            case NETWORK_LOSS -> new byte[][] {recoveryPriorPacket(), networkDroppedPrimaryPacket(), recoveryRedPacket()};
         };
 
         try {
@@ -179,6 +180,22 @@ public final class RttSipProbe {
                         "emitted", "0,2",
                         "omitted", "1",
                         "classification", "sender-controlled"));
+            } else if (config.profile() == Profile.NETWORK_LOSS) {
+                String expectation = "{\n"
+                        + "  \"injection\": \"caller-network-egress-drop\",\n"
+                        + "  \"sentSequenceNumbers\": [0, 1, 2],\n"
+                        + "  \"expectedReceivedSequenceNumbers\": [0, 2],\n"
+                        + "  \"dropSequenceNumbers\": [1],\n"
+                        + "  \"droppedTimestamp\": 1000,\n"
+                        + "  \"droppedT140Text\": \"B\",\n"
+                        + "  \"recoveryCarrierSequence\": 2\n"
+                        + "}\n";
+                evidence.writeBytes("rtt-network-fault-expectation.json", expectation.getBytes(StandardCharsets.UTF_8));
+                evidence.event("rtt.network.loss.expected", Map.of(
+                        "injection", "caller-network-egress-drop",
+                        "sent", "0,1,2",
+                        "expectedReceived", "0,2",
+                        "drop", "1"));
             }
 
             try (DatagramSocket socket = new DatagramSocket(new InetSocketAddress(
@@ -222,6 +239,10 @@ public final class RttSipProbe {
         return directPacket(RECOVERY_PRIOR_SEQUENCE, RECOVERY_PRIOR_TIMESTAMP, true, 'A');
     }
 
+    static byte[] networkDroppedPrimaryPacket() {
+        return directPacket(RECOVERY_OMITTED_SEQUENCE, RECOVERY_OMITTED_TIMESTAMP, false, 'B');
+    }
+
     static byte[] recoveryRedPacket() {
         return redPacket(RECOVERY_RED_SEQUENCE, RECOVERY_RED_TIMESTAMP, 'B', 'C');
     }
@@ -261,23 +282,37 @@ public final class RttSipProbe {
     }
 
     enum Profile {
-        NORMAL("normal"),
-        RECOVERY("recovery");
+        NORMAL("normal", 2, 2),
+        RECOVERY("recovery", 2, 2),
+        NETWORK_LOSS("network-loss", 3, 2);
 
         private final String wireName;
+        private final int sentDatagramCount;
+        private final int receivedDatagramCount;
 
-        Profile(String wireName) {
+        Profile(String wireName, int sentDatagramCount, int receivedDatagramCount) {
             this.wireName = wireName;
+            this.sentDatagramCount = sentDatagramCount;
+            this.receivedDatagramCount = receivedDatagramCount;
         }
 
         String wireName() {
             return wireName;
         }
 
+        int sentDatagramCount() {
+            return sentDatagramCount;
+        }
+
+        int receivedDatagramCount() {
+            return receivedDatagramCount;
+        }
+
         static Profile fromEnvironment(String value) {
             return switch (value.trim().toLowerCase()) {
                 case "normal" -> NORMAL;
                 case "recovery" -> RECOVERY;
+                case "network-loss" -> NETWORK_LOSS;
                 default -> throw new IllegalArgumentException("Unsupported BAUDOT_RTT_PROFILE: " + value);
             };
         }
@@ -342,7 +377,7 @@ public final class RttSipProbe {
     private static final class RttReceiver implements AutoCloseable {
         private final Config config;
         private final EvidenceRecorder evidence;
-        private final CountDownLatch received = new CountDownLatch(2);
+        private final CountDownLatch received;
         private final AtomicBoolean running = new AtomicBoolean();
         private DatagramSocket socket;
         private Thread thread;
@@ -350,6 +385,7 @@ public final class RttSipProbe {
         private RttReceiver(Config config, EvidenceRecorder evidence) {
             this.config = config;
             this.evidence = evidence;
+            this.received = new CountDownLatch(config.profile().receivedDatagramCount());
         }
 
         void start() throws IOException {
@@ -369,7 +405,8 @@ public final class RttSipProbe {
         private void receiveLoop() {
             byte[] buffer = new byte[2048];
             int index = 0;
-            while (running.get() && index < 2) {
+            int expected = config.profile().receivedDatagramCount();
+            while (running.get() && index < expected) {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 try {
                     socket.receive(packet);
