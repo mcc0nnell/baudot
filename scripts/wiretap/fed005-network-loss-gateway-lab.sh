@@ -12,9 +12,12 @@ RUN=${BAUDOT_RUN_DIR:-$ROOT/target/evidence-routed/BAUDOT-FED-005/network-loss}
 
 UL_HOST=198.18.5.1
 UL_CLIENT=198.18.5.2
+SIG_NET=10.77.15.0/24
 MEDIA_HOST=10.77.25.1
 MEDIA_SERVER=10.77.25.2
 MEDIA_NET=10.77.25.0/24
+ROUTES="$SIG_NET,$MEDIA_NET"
+RESPONSE_ROUTING=rfc3581-rport-over-transparent-flow
 WT_PORT=51825
 GATEWAY_PORT=49000
 SINK_PORT=49100
@@ -77,8 +80,10 @@ python3 scripts/wiretap_topology_preflight.py \
   --wiretap-bin "$WT" \
   --underlay-address "$UL_HOST/24" \
   --underlay-address "$UL_CLIENT/24" \
+  --signaling-network "$SIG_NET" \
   --media-network "$MEDIA_NET" \
-  --routes "$MEDIA_NET" \
+  --routes "$ROUTES" \
+  --response-routing "$RESPONSE_ROUTING" \
   --namespace "$CNS" \
   --namespace "$SNS" \
   --host-link bdt-f5-ul-h \
@@ -110,7 +115,7 @@ ip -n "$SNS" addr add "$MEDIA_SERVER/24" dev bdt-f5-med-s
 ip -n "$SNS" link set bdt-f5-med-s up
 
 cd "$WORK"
-"$WT" configure --endpoint "$UL_CLIENT:$WT_PORT" --routes "$MEDIA_NET" --port "$WT_PORT" >configure.log
+"$WT" configure --endpoint "$UL_CLIENT:$WT_PORT" --routes "$ROUTES" --port "$WT_PORT" >configure.log
 CALLER_E2EE=$(sed -n 's/^Address = \([0-9.]*\)\/.*/\1/p' "$WORK/wiretap.conf" | head -n1)
 [[ -n "$CALLER_E2EE" ]] || { echo "unable to read Wiretap E2EE IPv4 address" >&2; exit 1; }
 
@@ -142,6 +147,9 @@ payload = {
     "scenario": "BAUDOT-FED-005",
     "transport": "sandia-wiretap-v0.9.0",
     "wiretapClientE2EE": "$CALLER_E2EE",
+    "wiretapRoutes": "$ROUTES",
+    "signalingNetwork": "$SIG_NET",
+    "signalingResponseRouting": "$RESPONSE_ROUTING",
     "mediaNetwork": "$MEDIA_NET",
     "gatewayEndpoint": "$MEDIA_SERVER:$GATEWAY_PORT",
     "sinkEndpoint": "127.0.0.1:$SINK_PORT",
