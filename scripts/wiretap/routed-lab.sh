@@ -13,8 +13,9 @@ WORK=${BAUDOT_WIRETAP_DIR:-$ROOT/target/wiretap-routed/$scenario}
 EVIDENCE=${BAUDOT_EVIDENCE_DIR:-$ROOT/target/evidence-routed}
 CORR=${BAUDOT_CORRELATION:-$(python3 -c 'import uuid; print(uuid.uuid4())')}
 
-UL_HOST=192.0.2.1
-UL_CLIENT=192.0.2.2
+# Do not use 192.0.2.0/24 here: Wiretap reserves that prefix for its IPv4 API.
+UL_HOST=198.18.0.1
+UL_CLIENT=198.18.0.2
 SIG_HOST=10.77.10.1
 SIP_SERVER=10.77.10.2
 MEDIA_HOST=10.77.20.1
@@ -27,11 +28,22 @@ SIG_NET=10.77.10.0/24
 MEDIA_NET=10.77.20.0/24
 
 server_pid=""; callee_pid=""; socat_pid=""; relay_up=0; e2ee_up=0; RUN=""
+
+safe_server_log() {
+  [[ -f "$WORK/server.log" ]] || return 0
+  sed -E \
+    -e 's/(private_key=).*/\1[REDACTED]/' \
+    -e 's/(PrivateKey[[:space:]]*=[[:space:]]*).*/\1[REDACTED]/' \
+    "$WORK/server.log"
+}
+
 cleanup() {
   set +e
   [[ -n "$callee_pid" ]] && kill "$callee_pid" 2>/dev/null
   [[ -n "$socat_pid" ]] && kill "$socat_pid" 2>/dev/null
-  if [[ -n "$RUN" && -f "$WORK/server.log" ]]; then cp "$WORK/server.log" "$RUN/wiretap-server.log" 2>/dev/null; fi
+  if [[ -n "$RUN" && -f "$WORK/server.log" ]]; then
+    safe_server_log >"$RUN/wiretap-server.log" 2>/dev/null
+  fi
   [[ -n "$server_pid" ]] && kill "$server_pid" 2>/dev/null
   if ip netns list | grep -q "^${CNS}\b"; then
     ((e2ee_up)) && ip netns exec "$CNS" wg-quick down "$WORK/wiretap.conf" >/dev/null 2>&1
@@ -95,15 +107,22 @@ ip netns exec "$CNS" wg-quick up "$WORK/wiretap.conf"; e2ee_up=1
 
 for _ in $(seq 1 100); do
   ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1 && break
-  kill -0 "$server_pid" 2>/dev/null || { cat server.log >&2; exit 1; }
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    safe_server_log >&2
+    exit 1
+  fi
   sleep .1
 done
-ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1 || { echo "Wiretap API did not become reachable" >&2; cat server.log >&2; exit 1; }
+if ! ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1; then
+  echo "Wiretap API did not become reachable" >&2
+  safe_server_log >&2
+  exit 1
+fi
 
-# The caller must source routed packets from Wiretap's E2EE identity so the
-# WireGuard peer accepts them. SIP 200 responses follow Via/received to the
-# server-side exposed port. Wiretap's IPv4 expose forwards to client loopback;
-# this shim delivers that datagram to the JAIN listener on the E2EE address.
+# The caller sources routed packets from Wiretap's E2EE identity so WireGuard
+# accepts them. SIP 200 responses follow Via/received to the server-side exposed
+# port. Wiretap forwards that IPv4 UDP port to client loopback; this shim hands
+# the datagram to the JAIN listener bound to the E2EE address.
 ip netns exec "$CNS" socat -u \
   UDP4-RECVFROM:"$SIP_PORT",bind=127.0.0.1,reuseaddr,fork \
   UDP4-SENDTO:"$CALLER_SIP:$SIP_PORT" >/dev/null 2>&1 &
@@ -118,6 +137,7 @@ cat >"$RUN/topology.properties" <<EOF
 wiretap.version=$($WT --version 2>/dev/null | head -n1)
 wiretap.routes=$routes
 wiretap.clientE2EE=$CALLER_SIP
+wiretap.ipv4Api=192.0.2.2
 underlay=$UL_HOST/24<->$UL_CLIENT/24
 signaling.serverSide=$SIG_HOST/24<->$SIP_SERVER/24
 signaling.reverseExpose=$SIG_HOST:$SIP_PORT->127.0.0.1:$SIP_PORT->$CALLER_SIP:$SIP_PORT
@@ -162,7 +182,7 @@ ip netns exec "$CNS" env "${COMMON[@]}" BAUDOT_ROLE=caller \
 wait "$callee_pid"; callee_pid=""
 
 java -cp "$CP" org.mcc0nnell.baudot.harness.EvidenceAggregator "$RUN/caller" "$RUN/callee"
-cp "$WORK/server.log" "$RUN/wiretap-server.log"
+safe_server_log >"$RUN/wiretap-server.log"
 (
   cd "$RUN"
   sha256sum topology.properties caller-routes.txt callee-routes.txt wiretap-status.txt wiretap-server.log \
