@@ -165,7 +165,8 @@ def main() -> None:
     ]
     lines = []
     for path in manifest_files:
-        lines.append(f"{sha256(path)}  {path.relative_to(terminal)}\n")
+        relative = os.path.relpath(path, terminal)
+        lines.append(f"{sha256(path)}  {relative}\n")
     (terminal / "manifest.sha256").write_text("".join(lines), encoding="utf-8")
 
     print("✓ PJSIP 2.17 answered an incoming text-only call")
