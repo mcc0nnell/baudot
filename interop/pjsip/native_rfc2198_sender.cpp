@@ -75,6 +75,15 @@ public:
     }
 };
 
+void send_text(NativeRedCall &call, const std::string &text, int ordinal) {
+    CallSendTextParam text_param;
+    text_param.medIdx = -1;
+    text_param.text = text;
+    call.sendText(text_param);
+    std::cout << "PJSIP_NATIVE_RFC2198_SEND_REQUESTED ordinal=" << ordinal
+              << " text=" << text << std::endl;
+}
+
 } // namespace
 
 int main() {
@@ -83,7 +92,9 @@ int main() {
     const std::string remote_uri = env_string(
             "BAUDOT_PJSIP_REMOTE_URI",
             "sip:baudot-red@127.0.0.1:" + std::to_string(remote_port));
-    const std::string text = env_string("BAUDOT_PJSIP_TEXT", "H");
+    const std::string first_text = env_string("BAUDOT_PJSIP_TEXT_FIRST", "H");
+    const std::string second_text = env_string("BAUDOT_PJSIP_TEXT_SECOND", "I");
+    const std::string profile = env_string("BAUDOT_PJSIP_PROFILE_LABEL", "unknown");
     const int redundancy_level = env_int("BAUDOT_PJSIP_REDUNDANCY_LEVEL", 2);
 
     Endpoint endpoint;
@@ -91,7 +102,7 @@ int main() {
 
     try {
         EpConfig endpoint_config;
-        endpoint_config.uaConfig.userAgent = "Baudot-PJSIP-native-RFC2198/2.17";
+        endpoint_config.uaConfig.userAgent = "Baudot-PJSIP-native-RFC2198/" + profile;
         endpoint_config.uaConfig.maxCalls = 2;
         endpoint_config.logConfig.level = 4;
         endpoint_config.logConfig.consoleLevel = 4;
@@ -114,7 +125,8 @@ int main() {
         call_param.opt.videoCount = 0;
         call_param.opt.textCount = 1;
 
-        std::cout << "PJSIP_NATIVE_RFC2198_START release=2.17 remote=" << remote_uri
+        std::cout << "PJSIP_NATIVE_RFC2198_START profile=" << profile
+                  << " remote=" << remote_uri
                   << " textCount=1 redundancyLevel=" << redundancy_level << std::endl;
         call.makeCall(remote_uri, call_param);
 
@@ -146,15 +158,15 @@ int main() {
 
         std::cout << "PJSIP_NATIVE_RFC2198_TEXT_MEDIA_ACTIVE" << std::endl;
 
-        CallSendTextParam text_param;
-        text_param.medIdx = -1;
-        text_param.text = text;
-        call.sendText(text_param);
-        std::cout << "PJSIP_NATIVE_RFC2198_SEND_REQUESTED text=" << text << std::endl;
+        // Drive two ordinary RTT generations. Baudot never constructs RTP or
+        // RED payloads here; all wire bytes remain PJMEDIA implementation output.
+        send_text(call, first_text, 1);
+        std::this_thread::sleep_for(std::chrono::milliseconds(420));
+        send_text(call, second_text, 2);
 
-        // Allow PJMEDIA's text cadence to emit the primary block and a later
-        // RFC 2198 packet carrying that primary as redundancy.
-        std::this_thread::sleep_for(std::chrono::milliseconds(1800));
+        // Leave enough native text-clock cycles for the configured two-level
+        // redundancy history to appear on the wire.
+        std::this_thread::sleep_for(std::chrono::milliseconds(1700));
 
         if (call.isActive()) {
             CallOpParam hangup_param;
