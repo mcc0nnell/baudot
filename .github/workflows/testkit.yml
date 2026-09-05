@@ -19,6 +19,8 @@ jobs:
           python-version: "3.12"
       - name: Run reference reducer, block, and transport tests
         run: python -m unittest discover -s tests -p "test_*.py"
+      - name: Syntax-check external Elixip runner
+        run: bash -n scripts/run-elixip-oracle-scenario.sh
       - name: Validate portable testkit contracts and presentation vectors
         run: python -m scripts.validate_testkit
       - name: Validate transport-neutral T140block vectors
