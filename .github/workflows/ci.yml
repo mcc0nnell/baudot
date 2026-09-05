@@ -33,6 +33,10 @@ jobs:
         run: python3 scripts/validate_refer_provider_matrix.py
       - name: BAUDOT-INTEROP-004 - live JAIN SIP REFER transfer gate
         run: bash scripts/run-live-refer-provider-transfer.sh
+      - name: BAUDOT-INTEROP-004 - live replacement RTT handoff gate
+        run: bash scripts/run-live-refer-rtt-handoff.sh
+      - name: BAUDOT-INTEROP-004 - terminal scenario reduction
+        run: python3 scripts/validate_ace_refer_scenario.py
       - name: Scenario 001 - signaling and media
         run: bash scripts/run-local-scenario.sh scenarios/001-signaling-and-media.env
       - name: Scenario 002 - signaling only
