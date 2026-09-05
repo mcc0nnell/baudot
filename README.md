@@ -116,8 +116,9 @@ The near-term proving path is deliberately open: first model caller + interprete
 The federation testkit currently includes:
 
 - `BAUDOT-FED-001`, which reduces caller + interpreter + destination readiness and security claims without provider-specific semantics;
-- `BAUDOT-FED-002`, which joins a live JAIN SIP caller-to-interpreter evidence gate with an RFC 8865/T.140 destination boundary and a real headless Chromium `RTCPeerConnection` endpoint exercise; and
-- `BAUDOT-FED-003`, which defines the inline RFC 4103/RFC 2198-to-WebRTC gateway continuity threshold while keeping raw forwarding, primary T.140 semantics, browser transport state, and gateway media termination as separate evidence facts.
+- `BAUDOT-FED-002`, which joins a live JAIN SIP caller-to-interpreter evidence gate with an RFC 8865/T.140 destination boundary and a real headless Chromium `RTCPeerConnection` endpoint exercise;
+- `BAUDOT-FED-003`, which proves inline RFC 4103/RFC 2198-to-WebRTC T.140 continuity while keeping raw forwarding, primary T.140 semantics, browser transport state, and gateway media termination as separate evidence facts; and
+- `BAUDOT-FED-004`, which uses a sender-controlled omission of RTP sequence 1 and proves that the gateway reconstructs the missing `B` exactly once from RFC 2198 redundancy before delivering `ABC` over a real Chromium `t140` data channel. The preserved SIP-side stream contains only sequences 0 and 2; gateway provenance is `(0,A,primary) → (1,B,redundant) → (2,C,primary)`; and the independent Python reducer must reach the same result with no missing-text marker.
 
 Run the open SIP/interpreter boundary with:
 
@@ -131,7 +132,13 @@ Run the inline gateway proving slice with:
 bash scripts/run-fed003-inline-gateway.sh
 ```
 
-The dedicated `federation-lab` workflow executes the browser and gateway lanes and preserves their evidence bundles. A successful browser or gateway run is an execution fact, not WebRTC, RFC 4103, RFC 2198, SIP, VRS, or FaceTime conformance.
+Run the controlled RED recovery slice with:
+
+```bash
+bash scripts/run-fed004-red-loss-recovery.sh
+```
+
+The dedicated `federation-lab` workflow executes the browser and gateway lanes and preserves their evidence bundles. FED-004 is deliberately a **sender-controlled omission** proof, not a claim about network-induced loss, reordering timers, or broader standards conformance. The next recovery threshold is to induce loss in the routed network substrate itself while preserving the same packet/recovery evidence contract. A successful browser or gateway run is an execution fact, not WebRTC, RFC 4103, RFC 2198, SIP, VRS, or FaceTime conformance.
 
 ## Status and claim boundary
 

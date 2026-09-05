@@ -48,7 +48,7 @@
   ],
   "requiredBeforeProven": [
     "repeatable routed execution through Sandia Wiretap or an equivalent controlled network substrate",
-    "loss/recovery arm where RFC 2198 redundancy is actually required to reconstruct missing T.140",
+    "network-induced loss/recovery in the routed substrate rather than sender-controlled omission",
     "reverse WebRTC-to-RFC4103 direction using the same semantic reducer",
     "at least one additional independent WebRTC implementation",
     "production-representative VRS or gateway observations without provider-specific reducer branches",
