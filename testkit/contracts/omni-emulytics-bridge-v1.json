@@ -1,0 +1,112 @@
+{
+  "id": "baudot-omni-emulytics-bridge-v1",
+  "version": 1,
+  "status": "candidate",
+  "sourceProtocol": {
+    "project": "ACE Omni",
+    "name": "Emulytics",
+    "version": 1
+  },
+  "adapter": {
+    "kind": "baudot-testkit",
+    "protocolVersion": 1,
+    "requiredCapabilities": [
+      "communications"
+    ]
+  },
+  "authority": {
+    "baudot": [
+      "scenarioIdentity",
+      "scenarioSemantics",
+      "accessibilityVectors",
+      "readinessVocabulary",
+      "assertions",
+      "requiredBeforeProven",
+      "claimScope",
+      "terminalReduction"
+    ],
+    "omni": [
+      "experimentRunIdentity",
+      "experimentVersionIdentity",
+      "configurationVersion",
+      "runSeed",
+      "adapterCapabilityBinding",
+      "executionPlanSequencing",
+      "commandIdentity",
+      "observationEnvelopeAuthority",
+      "replayConflictDetection",
+      "evidenceLedger",
+      "replayAndExport"
+    ],
+    "runtime": [
+      "externalEffects",
+      "runtimeLocalState",
+      "sourceMeasurements"
+    ]
+  },
+  "mapping": {
+    "ExperimentRun.experimentId": "baudotScenarioIdOrContainingExperimentId",
+    "ExperimentRun.experimentVersionId": "immutableScenarioOrExperimentRevision",
+    "ExecutionCommand.operation": "requestedRuntimeEffect",
+    "ExecutionCommand.parameters": "scenarioBoundCommandParameters",
+    "ObservationEnvelope.sourceId": "exactProbeRuntimeOrIndependentOracle",
+    "ObservationEnvelope.payload": "baudotMeasuredFactsWithScenarioCorrelation",
+    "OmniEvidenceLedger": "authoritativeControlledRunHistory",
+    "BaudotReducer": "scopedTerminalEvaluation"
+  },
+  "observationPayload": {
+    "required": [
+      "baudotScenarioId",
+      "factType",
+      "factValue",
+      "claimScope"
+    ],
+    "example": {
+      "baudotScenarioId": "BAUDOT-INTEROP-004",
+      "factType": "firstT140CharacterObserved",
+      "factValue": true,
+      "claimScope": "replacement-leg-rtt-readiness"
+    }
+  },
+  "replay": {
+    "key": [
+      "runId",
+      "adapterId",
+      "sourceId",
+      "observationId"
+    ],
+    "exactRetry": "idempotent",
+    "sameKeyDifferentObservedAtOrPayload": "conflict"
+  },
+  "portableFactTypes": [
+    "sessionEstablished",
+    "sipProvisionalObserved",
+    "sipDialogEstablished",
+    "referAccepted",
+    "notifyProgressObserved",
+    "replacementDialogEstablished",
+    "iceReady",
+    "audioObserved",
+    "videoObserved",
+    "videoDecoded",
+    "videoRendered",
+    "rttNegotiated",
+    "firstT140CharacterObserved",
+    "rttReady",
+    "oldLegPreserved",
+    "oldLegReleased"
+  ],
+  "invariants": [
+    "commandsAreNotObservations",
+    "experimentAuthorityIsSingular",
+    "accessibilitySemanticsRemainPortable",
+    "worldExecutionIsExternal",
+    "observationSourcesRemainIdentifiable",
+    "replayDoesNotRewriteHistory",
+    "presentationIsNotAuthority",
+    "verdictsRemainClaimScoped",
+    "implementationAgreementIsEvidenceNotCorrectnessByVote"
+  ],
+  "standaloneRule": "Baudot may preserve equivalent correlation fields and measured facts when ACE Omni is absent, but standalone evidence must not be represented as authoritative Omni run or ledger evidence.",
+  "promotionRule": "Execution through ACE Omni does not by itself promote a Baudot scenario to proven. Existing scenario evidence requirements and requiredBeforeProven conditions still apply."
+}
