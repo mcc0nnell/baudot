@@ -13,7 +13,7 @@ Baudot already separates scenario intent, execution adapters, observations, asse
 
 ## Decision
 
-Baudot will expose an **ACE Omni bridge contract** for controlled execution of Baudot scenarios while preserving separate authority.
+Baudot will expose an **ACE Omni bridge protocol** for controlled execution of Baudot scenarios while preserving separate authority.
 
 ```text
 Baudot scenario / vectors / assertions
@@ -100,7 +100,7 @@ The mapping is:
 | Omni evidence ledger | authoritative controlled-run history |
 | Baudot reducer | independent evaluation of the declared Baudot claim from preserved facts |
 
-The machine-readable companion contract is [`testkit/contracts/omni-emulytics-bridge-v1.json`](../../testkit/contracts/omni-emulytics-bridge-v1.json).
+The machine-readable companion protocol is [`testkit/bridges/omni-emulytics-bridge-v1.json`](../../testkit/bridges/omni-emulytics-bridge-v1.json).
 
 ## Observation rule
 
@@ -174,6 +174,7 @@ The bridge is intentionally fact-oriented. Initial portable fact types include:
 - `referAccepted`;
 - `notifyProgressObserved`;
 - `replacementDialogEstablished`;
+- `replacementTargetCorrelated`;
 - `iceReady`;
 - `audioObserved`;
 - `videoObserved`;
