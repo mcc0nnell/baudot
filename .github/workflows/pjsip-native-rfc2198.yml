@@ -39,10 +39,10 @@ jobs:
             correlation: pjsip-2.17-native-red-baseline-v1
             expect_recovery: 'false'
             expected_tag: '2.17'
-          - short: post-fix-4984
-            commit: aed27c1ce1c9b47fb5b16b24bac68a1741baef67
-            profile: post-2.17-rfc2198-fix
-            correlation: pjsip-aed27c1-native-red-v1
+          - short: post-fix-5117
+            commit: b9ce4d9b9b9a52df7e3ea93192dec01b9eb0887f
+            profile: post-2.17-rfc2198-fixes
+            correlation: pjsip-b9ce4d9-native-red-v1
             expect_recovery: 'true'
             expected_tag: ''
     steps:
