@@ -108,8 +108,6 @@ python3 -m scripts.live_t140_readiness_gate \
   >"$OUT/gate.stdout.log" 2>"$OUT/gate.stderr.log" &
 GATE_PID=$!
 
-# Require the semantic authority socket to own the offered media port before
-# any SIP dialog can direct native media at it.
 gate_ready=0
 for _ in $(seq 1 100); do
   if ! kill -0 "$GATE_PID" 2>/dev/null; then
@@ -125,7 +123,6 @@ for _ in $(seq 1 100); do
 done
 [[ "$gate_ready" == 1 ]] || { echo "live readiness gate did not bind UDP/$MEDIA_PORT" >&2; exit 4; }
 
-# PJSIP is an implementation participant and is independently bounded.
 timeout --signal=TERM --kill-after=2s 30s env \
   BAUDOT_PJSIP_UAS_PORT="$UAS_PORT" \
   BAUDOT_PJSIP_TEXT=H \
@@ -173,6 +170,10 @@ printf '%s\n' "$uas_status" >"$OUT/pjsip.exit-code.txt"
 [[ "$uas_status" == 0 ]] || { echo "PJSIP UAS qualification failed: $uas_status" >&2; cat "$OUT/pjsip.stderr.log" >&2 || true; exit 5; }
 
 python3 -m scripts.validate_pjsip_native_t140_uas
+(
+  cd "$OUT/terminal"
+  sha256sum -c manifest.sha256
+)
 
 (
   cd "$OUT"
