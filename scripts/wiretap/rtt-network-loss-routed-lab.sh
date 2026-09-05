@@ -118,7 +118,7 @@ signaling.serverSide=$SIG_HOST/24<->$SIP_SERVER/24
 signaling.responseRouting=rfc3581-rport-over-transparent-flow
 rtt.media=$MEDIA_HOST/24<->$MEDIA_SERVER/24
 rtt.profile=network-loss
-rtt.lossInjection=nftables-caller-egress
+rtt.lossInjection=nftables-callee-ingress
 rtt.sentSequenceNumbers=0,1,2
 rtt.targetDropSequenceNumbers=1
 rtt.expectedReceivedSequenceNumbers=0,2
@@ -132,17 +132,18 @@ ip netns exec "$CNS" ip route show >"$RUN/caller-routes.txt"
 ip netns exec "$SNS" ip route show >"$RUN/callee-routes.txt"
 ip netns exec "$CNS" "$WT" status >"$RUN/wiretap-status.txt"
 
-# Drop exactly the UDP datagram whose RTP sequence-number field is 1.
-# @th begins at the UDP header: 64 bits of UDP header + 16 bits into RTP = 80.
-ip netns exec "$CNS" nft -f - <<EOF
+# Drop exactly the UDP datagram whose RTP sequence-number field is 1 at the
+# receiving host's network INPUT hook. All three caller send() calls therefore
+# succeed; the callee socket sees only sequences 0 and 2.
+ip netns exec "$SNS" nft -f - <<EOF
 table inet baudot_rtt_fault {
-  chain output {
-    type filter hook output priority 0; policy accept;
+  chain input {
+    type filter hook input priority 0; policy accept;
     ip daddr $MEDIA_SERVER udp dport $MEDIA_PORT @th,80,16 1 counter drop comment "baudot-rtt-drop-seq1"
   }
 }
 EOF
-ip netns exec "$CNS" nft -j list table inet baudot_rtt_fault >"$RUN/network-fault-before.json"
+ip netns exec "$SNS" nft -j list table inet baudot_rtt_fault >"$RUN/network-fault-before.json"
 
 COMMON=(
   BAUDOT_SCENARIO="$SCENARIO_ID"
@@ -178,7 +179,7 @@ ip netns exec "$CNS" env "${COMMON[@]}" BAUDOT_ROLE=caller \
   java -cp "$CP" org.mcc0nnell.baudot.harness.RttSipProbe
 wait "$callee_pid"; callee_pid=""
 
-ip netns exec "$CNS" nft -j list table inet baudot_rtt_fault >"$RUN/network-fault-after.json"
+ip netns exec "$SNS" nft -j list table inet baudot_rtt_fault >"$RUN/network-fault-after.json"
 java -cp "$CP" org.mcc0nnell.baudot.harness.EvidenceAggregator "$RUN/caller" "$RUN/callee"
 cd "$ROOT"
 python3 -m scripts.validate_wiretap_rtt --run-dir "$RUN"
