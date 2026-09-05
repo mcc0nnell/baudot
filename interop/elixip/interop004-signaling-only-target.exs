@@ -4,8 +4,8 @@
 #
 #   elixipp --listen udp:5262 interop004-signaling-only-target.exs
 #
-# This endpoint deliberately proves only replacement signaling.  It answers the
-# replacement INVITE with text/t140 SDP and never emits an RTP/T.140 packet.  The
+# This endpoint deliberately proves only replacement signaling. It answers the
+# replacement INVITE with text/t140 SDP and never emits an RTP/T.140 packet. The
 # Baudot/JAIN side must therefore keep the original leg alive even though the
 # replacement SIP dialog is established.
 defmodule Baudot.Elixip.Interop004SignalingOnlyTarget do
@@ -31,14 +31,14 @@ defmodule Baudot.Elixip.Interop004SignalingOnlyTarget do
   state wait_invite do
     on_events do
       {:INVITE, req, _trans, _dlg} ->
-        body = if is_binary(req.body), do: req.body, else: ""
+        body = body_text(req.body)
 
         cond do
           not String.contains?(body, "m=text ") ->
             reply_invite(488, "Text media required")
             scenario_failure("replacement offer omitted m=text")
 
-          not String.contains?(body, "t140/1000") ->
+          not String.contains?(String.downcase(body), "t140/1000") ->
             reply_invite(488, "T.140 required")
             scenario_failure("replacement offer omitted t140/1000")
 
@@ -83,4 +83,21 @@ defmodule Baudot.Elixip.Interop004SignalingOnlyTarget do
   on_shutdown do
     scenario_aborted("controller stopped signaling-only replacement target")
   end
+
+  # Elixip represents MIME-bearing SIP bodies as parsed body parts such as
+  # [%{contenttype: "application/sdp", data: "..."}]. Keep this shape adapter
+  # inside the Baudot-owned scenario rather than reaching into Elixip internals.
+  defp body_text(body) when is_binary(body), do: body
+
+  defp body_text(body) when is_list(body) do
+    body
+    |> Enum.map(fn
+      %{data: data} when is_binary(data) -> data
+      %{"data" => data} when is_binary(data) -> data
+      _ -> ""
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp body_text(_), do: ""
 end
