@@ -1,0 +1,130 @@
+{
+  "id": "BAUDOT-T140-PRESENTATION-001",
+  "version": 1,
+  "status": "baseline",
+  "title": "T.140 baseline presentation semantics",
+  "scope": "Presentation-level UTF-8 text and basic control behavior only. This suite does not define RTP packetization, redundancy, reordering, SIP negotiation, WebRTC transport, grapheme-cluster editing, or full T.140 conformance.",
+  "sources": [
+    {
+      "specification": "ITU-T T.140 (02/1998)",
+      "url": "https://www.itu.int/rec/T-REC-T.140-199802-I/en",
+      "basis": [
+        "T.140 code elements are transmitted using UTF-8 transformation",
+        "BEL U+0007 alerts the user during an active session",
+        "BS U+0008 erases the last entered character",
+        "LINE SEPARATOR U+2028 is the preferred new-line control",
+        "CR U+000D followed by LF U+000A is supported but not preferred"
+      ]
+    },
+    {
+      "specification": "ITU-T T.140 Addendum 1 (02/2000)",
+      "url": "https://www.itu.int/rec/T-REC-T.140/en",
+      "basis": [
+        "REPLACEMENT CHARACTER U+FFFD marks missing text"
+      ]
+    },
+    {
+      "specification": "RFC 4103",
+      "url": "https://www.rfc-editor.org/rfc/rfc4103.html",
+      "basis": [
+        "T140blocks carry UTF-8-coded T.140 elements without extra T.140 framing",
+        "RTP packetization, loss recovery, redundancy, and reordering are transport concerns outside this presentation suite"
+      ]
+    }
+  ],
+  "vectors": [
+    {
+      "id": "irv-basic-text",
+      "description": "Basic IRV characters are presented unchanged.",
+      "inputCodePoints": ["U+0048", "U+0065", "U+006C", "U+006C", "U+006F"],
+      "utf8Hex": "48 65 6c 6c 6f",
+      "expected": {
+        "displayText": "Hello",
+        "alerts": 0,
+        "missingTextMarkers": 0,
+        "lineBreaks": 0
+      }
+    },
+    {
+      "id": "latin1-supplement-text",
+      "description": "A Latin-1 supplement character is preserved through UTF-8 encoding.",
+      "inputCodePoints": ["U+0063", "U+0061", "U+0066", "U+00E9"],
+      "utf8Hex": "63 61 66 c3 a9",
+      "expected": {
+        "displayText": "café",
+        "alerts": 0,
+        "missingTextMarkers": 0,
+        "lineBreaks": 0
+      }
+    },
+    {
+      "id": "backspace-erases-last-character",
+      "description": "BS removes the immediately preceding entered character from the presentation model.",
+      "inputCodePoints": ["U+0041", "U+0042", "U+0008", "U+0043"],
+      "utf8Hex": "41 42 08 43",
+      "expected": {
+        "displayText": "AC",
+        "alerts": 0,
+        "missingTextMarkers": 0,
+        "lineBreaks": 0
+      }
+    },
+    {
+      "id": "preferred-line-separator",
+      "description": "U+2028 advances presentation to the next line.",
+      "inputCodePoints": ["U+0041", "U+2028", "U+0042"],
+      "utf8Hex": "41 e2 80 a8 42",
+      "expected": {
+        "displayText": "A\nB",
+        "alerts": 0,
+        "missingTextMarkers": 0,
+        "lineBreaks": 1
+      }
+    },
+    {
+      "id": "crlf-supported-newline",
+      "description": "CR followed by LF is accepted as a supported non-preferred request for a new line.",
+      "inputCodePoints": ["U+0041", "U+000D", "U+000A", "U+0042"],
+      "utf8Hex": "41 0d 0a 42",
+      "expected": {
+        "displayText": "A\nB",
+        "alerts": 0,
+        "missingTextMarkers": 0,
+        "lineBreaks": 1
+      }
+    },
+    {
+      "id": "bell-alert-does-not-add-text",
+      "description": "BEL records an alert without inserting a visible text character.",
+      "inputCodePoints": ["U+0041", "U+0007", "U+0042"],
+      "utf8Hex": "41 07 42",
+      "expected": {
+        "displayText": "AB",
+        "alerts": 1,
+        "missingTextMarkers": 0,
+        "lineBreaks": 0
+      }
+    },
+    {
+      "id": "missing-text-marker",
+      "description": "U+FFFD is preserved as the explicit marker for missing T.140 data.",
+      "inputCodePoints": ["U+0041", "U+FFFD", "U+0042"],
+      "utf8Hex": "41 ef bf bd 42",
+      "expected": {
+        "displayText": "A�B",
+        "alerts": 0,
+        "missingTextMarkers": 1,
+        "lineBreaks": 0
+      }
+    }
+  ],
+  "deferred": [
+    "grapheme-cluster and combining-sequence erase semantics",
+    "optional SGR and other presentation controls",
+    "RTP T140block construction",
+    "RFC 2198 redundancy",
+    "packet-loss recovery and sequence reordering",
+    "SIP offer/answer for text/t140",
+    "WebRTC data-channel carriage"
+  ]
+}
