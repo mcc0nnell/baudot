@@ -61,17 +61,47 @@ That pin is an implementation input, not a standards claim.
 
 minimodem's `tdd` mode independently declares the same first profile: 45.45 baud, 5 data bits, 2 stop bits, 1400 Hz mark and 1800 Hz space. It should be used as a second implementation, not as an expected-value generator for Baudot's terminal verdict.
 
-The next fixture should exercise both directions:
+The accepted minimodem source pin for the first cross-oracle lane is:
 
 ```text
-minimodem tdd -> WAV/PCM -> SpanDSP V.18 -> text
-SpanDSP V.18 -> WAV/PCM -> minimodem tdd -> text
+kamalmostafa/minimodem
+commit bb2f34cf5148f101563aa926e201d306edbacbd3
 ```
 
-Preserve the source text, tool commit/version, exact command line, PCM/WAV bytes or digest, decoded text, and terminal reducer output.
+## BAUDOT-TTY-001: cross-oracle WAV proof
+
+The first executable cross-implementation scenario runs both directions at an 8 kHz, mono, 16-bit PCM WAV boundary:
+
+```text
+"HELLO GA"
+    │
+    ├─ minimodem TDD ─> WAV ─> SpanDSP V.18 ─> decoded text
+    │
+    └─ SpanDSP V.18 ─> WAV ─> minimodem TDD ─> decoded text
+```
+
+Run it with installed SpanDSP, libsndfile, and minimodem development/runtime tooling:
+
+```sh
+bash scripts/run-tty-v18-cross-oracle.sh
+```
+
+The dedicated `tty-v18-oracle` workflow builds both external implementations from their exact pinned commits before running the scenario. The evidence bundle preserves:
+
+- source text;
+- declared source commits and observed tool versions;
+- exact command log;
+- both generated WAV files and SHA-256 digests;
+- each decoder's raw output;
+- tool stdout/stderr; and
+- `verdict.json` from Baudot's independent reducer.
+
+The terminal reducer requires both WAV files to remain 8 kHz mono 16-bit PCM and requires exact decoded-text equality in both directions. Agreement is evidence; it is not a conformance declaration.
 
 ## Claim boundary
 
-A passing in-memory SpanDSP loopback proves only that the pinned SpanDSP implementation can generate and recover the expected message under one lossless local profile. It does not prove PSTN survivability, SIP gateway interoperability, V.18 conformance, hardware TTY interoperability, or production readiness.
+A passing `BAUDOT-TTY-001` result means that the pinned SpanDSP and minimodem implementations cross-generate and cross-decode the expected text under one lossless local WAV profile, with Baudot independently reducing the preserved artifacts.
 
-Promotion requires independent generation/decoding, impairment cases, gateway transport, and eventually hardware evidence.
+It does **not** prove V.18 conformance, PSTN survivability, RTP/SIP gateway interoperability, transcoder tolerance, hardware TTY interoperability, or production readiness.
+
+Promotion requires controlled impairment cases, G.711/RTP traversal, gateway evidence, and eventually hardware endpoints.
