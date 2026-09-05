@@ -1,0 +1,75 @@
+name: federation-lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/federation-lab.yml"
+      - "baudot_reference/federation*.py"
+      - "scripts/*fed00*"
+      - "scripts/run_federation_boundary.py"
+      - "src/main/java/org/mcc0nnell/baudot/harness/**"
+      - "testkit/federation/**"
+      - "tests/test_federation*.py"
+      - "pom.xml"
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  open-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Exercise federation reducers
+        run: python -m unittest tests.test_federation_readiness tests.test_federation_lab
+      - name: Syntax-check federation lab runners
+        run: |
+          bash -n scripts/run-fed002-open-boundary.sh
+          bash -n scripts/run-fed003-inline-gateway.sh
+          node --check scripts/fed002-browser-peer.mjs
+          node --check scripts/fed003-inline-rtt-webrtc-gateway.mjs
+      - name: Run live SIP to RFC8865 open-boundary lab
+        run: bash scripts/run-fed002-open-boundary.sh
+      - name: Install pinned Chromium driver
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run real Chromium RTCPeerConnection T.140 peer
+        env:
+          BAUDOT_BROWSER_EVIDENCE: target/evidence/fed002/browser-webrtc.json
+        run: node scripts/fed002-browser-peer.mjs
+      - name: Independently reduce browser evidence
+        run: >-
+          python -m scripts.validate_fed002_browser
+          target/evidence/fed002/browser-webrtc.json
+          --output target/evidence/fed002/browser-validation-result.json
+      - name: Run inline RFC4103 to real WebRTC gateway lab
+        run: bash scripts/run-fed003-inline-gateway.sh
+      - name: Preserve FED-002 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-fed002-evidence
+          path: target/evidence/fed002
+          if-no-files-found: warn
+      - name: Preserve FED-003 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-fed003-evidence
+          path: target/evidence/fed003
+          if-no-files-found: warn
