@@ -1,0 +1,90 @@
+{
+  "id": "BAUDOT-T140BLOCK-001",
+  "version": 1,
+  "status": "baseline",
+  "title": "Transport-neutral T140block boundary",
+  "scope": "Validates the RFC 4103 T140block content boundary only: UTF-8-coded T.140 data with no extra framing and complete UTF-8 characters. This suite does not define RTP, RFC 2198 redundancy, SCTP user-message framing, buffering timers, SDP, or full T.140 conformance.",
+  "sources": [
+    {
+      "specification": "RFC 4103 section 3.3",
+      "url": "https://www.rfc-editor.org/rfc/rfc4103.html#section-3.3",
+      "basis": [
+        "T.140 text is UTF-8 coded with no extra framing",
+        "a T140block contains one or more T.140 code elements",
+        "each block must contain an integral number of UTF-8 encoded characters"
+      ]
+    },
+    {
+      "specification": "RFC 4103 section 5.2",
+      "url": "https://www.rfc-editor.org/rfc/rfc4103.html#section-5.2",
+      "basis": [
+        "an empty T140block contains no data and is valid at the RTP transport boundary"
+      ]
+    },
+    {
+      "specification": "RFC 8865 section 5.2",
+      "url": "https://www.rfc-editor.org/rfc/rfc8865.html#section-5.2",
+      "basis": [
+        "WebRTC T.140 data channels reuse T140blocks encoded and framed according to RFC 4103",
+        "one or more T140blocks can be carried in a single SCTP user message"
+      ]
+    }
+  ],
+  "vectors": [
+    {
+      "id": "empty-block",
+      "payloadHex": "",
+      "valid": true,
+      "expectedText": "",
+      "expectedCodePoints": []
+    },
+    {
+      "id": "ascii-block",
+      "payloadHex": "48 65 6c 6c 6f",
+      "valid": true,
+      "expectedText": "Hello",
+      "expectedCodePoints": ["U+0048", "U+0065", "U+006C", "U+006C", "U+006F"]
+    },
+    {
+      "id": "multibyte-integral-character",
+      "payloadHex": "63 61 66 c3 a9",
+      "valid": true,
+      "expectedText": "café",
+      "expectedCodePoints": ["U+0063", "U+0061", "U+0066", "U+00E9"]
+    },
+    {
+      "id": "preferred-line-separator-block",
+      "payloadHex": "41 e2 80 a8 42",
+      "valid": true,
+      "expectedText": "A B",
+      "expectedCodePoints": ["U+0041", "U+2028", "U+0042"]
+    },
+    {
+      "id": "crlf-sequence-block",
+      "payloadHex": "41 0d 0a 42",
+      "valid": true,
+      "expectedText": "A\r\nB",
+      "expectedCodePoints": ["U+0041", "U+000D", "U+000A", "U+0042"]
+    },
+    {
+      "id": "truncated-three-byte-character",
+      "payloadHex": "e2 80",
+      "valid": false,
+      "reason": "does not contain an integral UTF-8 encoded character"
+    },
+    {
+      "id": "invalid-utf8-octet",
+      "payloadHex": "ff",
+      "valid": false,
+      "reason": "not valid UTF-8"
+    }
+  ],
+  "deferred": [
+    "composite-character-sequence placement policy",
+    "T.140 buffering and transmission timers",
+    "RTP text/t140 payload headers",
+    "RFC 2198 redundancy",
+    "SCTP user-message grouping of multiple T140blocks",
+    "SDP negotiation"
+  ]
+}

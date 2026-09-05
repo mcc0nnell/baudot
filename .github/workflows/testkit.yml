@@ -17,7 +17,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run reference reducer tests
+      - name: Run reference reducer and block tests
         run: python -m unittest discover -s tests -p "test_*.py"
-      - name: Validate portable testkit contracts and vectors
+      - name: Validate portable testkit contracts and presentation vectors
         run: python -m scripts.validate_testkit
+      - name: Validate transport-neutral T140block vectors
+        run: python -m scripts.validate_t140block_vectors
