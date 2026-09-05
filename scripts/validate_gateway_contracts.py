@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate planned cross-transport gateway contracts without claiming execution."""
+"""Validate versioned cross-transport gateway contracts without overclaiming proof."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_DIR = ROOT / "testkit" / "gateways"
+EXPECTED_VERSIONS = {1: "planned", 2: "runnable"}
 REQUIRED_INVARIANTS = {
     "normal T.140 content is preserved across the transport boundary",
     "RFC 2198 redundancy metadata never becomes T.140 application content on the data-channel side",
@@ -49,17 +50,52 @@ def require_strings(value: object, label: str) -> list[str]:
     return value
 
 
+def validate_execution(path: Path, contract: dict) -> None:
+    execution = contract.get("execution")
+    if not isinstance(execution, dict):
+        raise ValueError(f"{path}: runnable contract must declare execution metadata")
+    expected = {
+        "kind": "deterministic-reference-harness",
+        "harness": "baudot_reference.gateway.run_gateway_contract",
+        "runner": "python -m scripts.run_gateway_trials",
+        "network": "none",
+    }
+    for key, value in expected.items():
+        if execution.get(key) != value:
+            raise ValueError(f"{path}: execution.{key} must be {value!r}")
+    adapters = execution.get("adapters")
+    if not isinstance(adapters, dict) or not adapters.get("rfc4103") or not adapters.get("rfc8865"):
+        raise ValueError(f"{path}: runnable contract must bind both executable transport adapters")
+    emits = set(require_strings(execution.get("emits"), f"{path}: execution.emits"))
+    for required in {
+        "source transport trace",
+        "normalized T.140 trace",
+        "target transport trace",
+        "terminal trial verdict",
+    }:
+        if required not in emits:
+            raise ValueError(f"{path}: runnable execution must emit {required}")
+
+
 def main() -> None:
     paths = sorted(CONTRACT_DIR.glob("*.json"))
     if not paths:
         raise SystemExit("No gateway contracts found")
 
+    seen_versions: set[int] = set()
     for path in paths:
         contract = load(path)
-        if contract.get("status") != "planned":
-            raise ValueError(f"{path}: bootstrap gateway contract must remain planned until executable evidence exists")
         if contract.get("id") != "BAUDOT-INTEROP-002":
-            raise ValueError(f"{path}: unexpected bootstrap gateway contract id")
+            raise ValueError(f"{path}: unexpected gateway contract id")
+        version = contract.get("version")
+        if version not in EXPECTED_VERSIONS:
+            raise ValueError(f"{path}: unexpected BAUDOT-INTEROP-002 version {version}")
+        if version in seen_versions:
+            raise ValueError(f"{path}: duplicate BAUDOT-INTEROP-002 version {version}")
+        seen_versions.add(version)
+        expected_status = EXPECTED_VERSIONS[version]
+        if contract.get("status") != expected_status:
+            raise ValueError(f"{path}: version {version} must remain status={expected_status}")
 
         invariants = set(require_strings(contract.get("invariants"), f"{path}: invariants"))
         missing_invariants = REQUIRED_INVARIANTS - invariants
@@ -113,11 +149,17 @@ def main() -> None:
         if missing_boundaries:
             raise ValueError(f"{path}: missing claim boundaries: {sorted(missing_boundaries)}")
 
-        require_strings(contract.get("evidenceRequiredBeforeRunnable"), f"{path}: evidenceRequiredBeforeRunnable")
+        if expected_status == "planned":
+            require_strings(contract.get("evidenceRequiredBeforeRunnable"), f"{path}: evidenceRequiredBeforeRunnable")
+        else:
+            validate_execution(path, contract)
         require_strings(contract.get("evidenceRequiredBeforeProven"), f"{path}: evidenceRequiredBeforeProven")
-        print(f"✓ gateway contract {contract['id']}@{contract.get('version')}: planned ({len(trials)} trials)")
+        print(f"✓ gateway contract {contract['id']}@{version}: {expected_status} ({len(trials)} trials)")
 
-    print(f"Baudot gateway contracts valid: {len(paths)} contract(s).")
+    missing_versions = set(EXPECTED_VERSIONS) - seen_versions
+    if missing_versions:
+        raise ValueError(f"Missing BAUDOT-INTEROP-002 contract versions: {sorted(missing_versions)}")
+    print(f"Baudot gateway contracts valid: {len(paths)} version(s).")
 
 
 if __name__ == "__main__":
