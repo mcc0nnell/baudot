@@ -97,6 +97,14 @@ Expected final line:
 iTRS -> Baudot -> JAIN-SIP handoff: PASS
 ```
 
+### What this proves
+
+The handoff trial proves that Baudot can consume an iTRS-derived logical SIP route and establish a standards-shaped SIP transaction through JAIN-SIP while keeping service-discovery transport state separate from the logical Request-URI.
+
+### What this does not prove
+
+It is not a live TRS Numbering Directory test, VRS provider interoperability certification, SIP/SDP media conformance test, emergency-call test, or evidence that any production provider accepts the synthetic signaling. Those belong in later controlled profiles and proving-ground scenarios.
+
 ## Architectural rule
 
 The mock suite preserves the same separation as Tilden and Baudot:
