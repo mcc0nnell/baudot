@@ -1,0 +1,87 @@
+name: rfc4103-lab
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  primary-routed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Validate canonical primary vectors
+        run: |
+          python -m scripts.validate_rfc4103_vectors
+          python scripts/materialize_rfc4103_runtime_vector.py \
+            --vector multibyte-primary-block \
+            --output target/vector-smoke
+          sha256sum target/vector-smoke/packet.bin
+
+      - name: Compile runtime adapter
+        run: mvn -q -DskipTests compile
+
+      - name: Install network prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wireguard-tools iproute2
+          sudo modprobe wireguard
+
+      - name: Install and verify Sandia Wiretap v0.9.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=0.9.0
+          asset="wiretap_${version}_linux_amd64.tar.gz"
+          base="https://github.com/sandialabs/wiretap/releases/download/v${version}"
+          mkdir -p /tmp/baudot-wiretap
+          cd /tmp/baudot-wiretap
+          curl -fsSLO "$base/checksums.txt"
+          curl -fsSLO "$base/$asset"
+          grep -E "[[:space:]]${asset}$" checksums.txt | sha256sum -c -
+          mkdir extracted
+          tar -xzf "$asset" -C extracted
+          binary=$(find extracted -type f -name wiretap -print -quit)
+          test -n "$binary"
+          sudo install -m 0755 "$binary" /usr/local/bin/wiretap
+          wiretap --version
+
+      - name: Run routed primary text/t140 proof
+        run: sudo -E bash scripts/wiretap/rfc4103-routed-lab.sh
+
+      - name: Verify evidence bundle
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          manifests=(target/evidence-routed/**/bundle.manifest.sha256)
+          if (( ${#manifests[@]} == 0 )); then
+            echo "No RFC 4103 routed evidence bundle found" >&2
+            exit 1
+          fi
+          for manifest in "${manifests[@]}"; do
+            (cd "$(dirname "$manifest")" && sha256sum -c bundle.manifest.sha256)
+          done
+
+      - name: Preserve RFC 4103 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-rfc4103-primary-evidence
+          path: target/evidence-routed
+          if-no-files-found: warn
