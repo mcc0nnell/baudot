@@ -1,0 +1,118 @@
+{
+  "id": "BAUDOT-INTEROP-004",
+  "title": "Cross-provider REFER transfer continuity and accessibility readiness",
+  "status": "planned",
+  "contract": "baudot.modality-readiness@1",
+  "objective": "Turn ACE Direct transfer behavior into a provider-neutral interoperability scenario that binds the original dialog, REFER transaction, NOTIFY outcome, replacement dialog, referred target identity, and post-transfer accessibility readiness without treating signaling success as a usable handoff.",
+  "historicalBasis": {
+    "source": "mitre-ace-direct/ace-direct",
+    "sourceCommit": "39c8f9ba73d889e743de56a2d49faf418b575c32",
+    "files": [
+      "acedirect-kurento/confs/jssip-modifications/RTCSession.js",
+      "acedirect-kurento/src/conf_manager.js",
+      "acedirect/public/js/jssip_agent.js"
+    ],
+    "observation": "ACE Direct routes transfer requests through JsSIP RTCSession.refer(), records REFER subscribers by transaction identity, distinguishes blind versus warm transfer state at the application layer, and hands multiparty host responsibility to a backup agent before the old host terminates its leg.",
+    "scope": "Motivating interoperability evidence only. Provider A/B/C identities are synthetic placeholders. Baudot does not infer any behavior of a contemporary VRS provider from the ACE donor or from the deterministic reducer."
+  },
+  "providerModel": {
+    "identities": ["provider-a", "provider-b", "provider-c"],
+    "directions": "all ordered pairs where source != target",
+    "transferModes": ["blind", "warm"],
+    "rule": "provider identity is configuration, never implementation semantics"
+  },
+  "arms": [
+    {
+      "id": "control",
+      "condition": "refer_is_accepted_notify_reports_success_replacement_dialog_matches_referred_target_and_rtt_is_ready_before_old_leg_teardown"
+    },
+    {
+      "id": "signaling-only",
+      "condition": "refer_and_notify_succeed_and_replacement_dialog_establishes_but_first_t140_character_is_not_observed"
+    },
+    {
+      "id": "refer-rejected",
+      "condition": "refer_receives_non_success_final_response_and_no_replacement_leg_is_promoted"
+    },
+    {
+      "id": "premature-teardown",
+      "condition": "old_leg_terminates_before_replacement_accessibility_readiness"
+    },
+    {
+      "id": "target-correlation-drift",
+      "condition": "replacement_dialog_establishes_to_a_target_other_than_the_declared_refer_to_identity"
+    }
+  ],
+  "observations": [
+    "sessionEstablished",
+    "peerConnectionStable",
+    "connectionReady",
+    "iceReady",
+    "candidatePairReady",
+    "audioInbound",
+    "videoInbound",
+    "videoDecoded",
+    "videoRendered",
+    "rttNegotiated",
+    "firstT140CharacterObserved"
+  ],
+  "assertions": [
+    "sessionEstablished does not imply iceReady",
+    "iceReady does not imply videoRendered",
+    "videoDecoded does not imply videoRendered",
+    "videoRendered does not imply rttReady",
+    "rttReady requires rttNegotiated and firstT140CharacterObserved",
+    "REFER acceptance does not imply a replacement dialog was established",
+    "successful NOTIFY status does not imply the replacement leg is accessibility-ready",
+    "the replacement dialog must bind to the intended referred target identity",
+    "a continuity-preserving transfer must not terminate the old leg before the configured replacement-leg readiness point",
+    "provider labels do not alter readiness semantics"
+  ],
+  "executionGates": {
+    "providerTransferReducer": {
+      "status": "runnable",
+      "runner": "python3 scripts/validate_refer_provider_matrix.py",
+      "fixture": "testkit/refer/provider-transfer-matrix.json",
+      "proves": [
+        "all directed provider pairs are represented independently of provider implementation",
+        "blind and warm transfer modes remain separate matrix dimensions",
+        "REFER acceptance, NOTIFY outcome, replacement-dialog establishment, target correlation, old-leg teardown, and RTT readiness reduce as separate facts",
+        "signaling-only transfer success cannot produce an accessibility-ready verdict",
+        "premature old-leg teardown is distinguishable from signaling and accessibility failure",
+        "replacement-target drift is distinguishable from signaling success"
+      ],
+      "doesNotProve": [
+        "live SIP REFER or NOTIFY exchange",
+        "live provider interoperability",
+        "production VRS readiness",
+        "SIP conformance"
+      ]
+    }
+  },
+  "requiredBeforeRunnable": [
+    "live JAIN SIP REFER and NOTIFY execution adapter on an established dialog",
+    "at least two independently addressed provider-role endpoints with preserved original and replacement dialog identities",
+    "raw REFER, NOTIFY, replacement INVITE, response, and teardown evidence",
+    "independent RTT or media readiness observation on the replacement leg",
+    "terminal reduction that joins transfer signaling, target correlation, continuity, and accessibility readiness without collapsing them"
+  ],
+  "requiredBeforeProven": [
+    "repeatable execution across more than one SIP implementation",
+    "all configured provider directions exercised without provider-specific changes to the reducer",
+    "blind and warm transfer coverage with standards-grounded handling of any Replaces usage",
+    "failure evidence for rejected REFER, failed NOTIFY outcome, target mismatch, premature teardown, and accessibility-readiness loss",
+    "production-representative gateway or VRS observations without weakening claim boundaries"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "T.140 conformance",
+      "RFC 4103 conformance",
+      "SIP conformance",
+      "RFC 3515 conformance",
+      "RFC 6665 conformance",
+      "production VRS readiness",
+      "that any named or unnamed provider supports REFER",
+      "that ACE Direct transfer behavior is defective or normative"
+    ]
+  }
+}
