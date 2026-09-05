@@ -3,11 +3,13 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 using namespace pj;
 
@@ -122,10 +124,24 @@ private:
     std::unique_ptr<NativeTextCall> call;
 };
 
+void waitForCompletionSignal(const std::string &path) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (std::filesystem::is_regular_file(path)) {
+            std::cout << "PJSIP_NATIVE_T140_UAS_COMPLETION_SIGNAL_OBSERVED path="
+                      << path << std::endl;
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
+    throw std::runtime_error("timed out waiting for post-verdict completion signal");
+}
+
 } // namespace
 
 int main() {
     const int local_port = env_int("BAUDOT_PJSIP_UAS_PORT", 5302);
+    const std::string completion_file = env_string("BAUDOT_PJSIP_UAS_COMPLETION_FILE", "");
     configured_text = env_string("BAUDOT_PJSIP_TEXT", "H");
 
     Endpoint endpoint;
@@ -164,16 +180,18 @@ int main() {
         account.sendConfiguredText();
         std::cout << "PJSIP_NATIVE_T140_UAS_TEXT_SENT" << std::endl;
 
-        {
+        if (!completion_file.empty()) {
+            waitForCompletionSignal(completion_file);
+        } else {
             std::unique_lock<std::mutex> lock(state_mutex);
             if (!state_cv.wait_for(lock, std::chrono::seconds(15), [] {
                     return call_disconnected;
                 })) {
                 throw std::runtime_error("timed out waiting for remote call release");
             }
+            std::cout << "PJSIP_NATIVE_T140_UAS_REMOTE_RELEASE_OBSERVED" << std::endl;
         }
 
-        std::cout << "PJSIP_NATIVE_T140_UAS_REMOTE_RELEASE_OBSERVED" << std::endl;
         account.shutdown();
         endpoint.libDestroy();
         std::cout << "PJSIP_NATIVE_T140_UAS_COMPLETE" << std::endl;

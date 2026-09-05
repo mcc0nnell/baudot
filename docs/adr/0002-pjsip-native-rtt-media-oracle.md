@@ -134,21 +134,51 @@ The first non-empty packet is preserved as `rtt-datagram-001.bin`; the second ob
 
 This evidence accepts the architecture decision and the pinned native-media oracle profile. It does not promote the profile to SIP, RTP, RFC 4103, T.140, or production conformance.
 
-## Next threshold
+## Implementation status
 
-Replace the Baudot-owned positive media stimulus in a `BAUDOT-INTEROP-004` replacement leg with the qualified PJSIP native text endpoint.
+The transfer threshold described by this ADR has now also been exercised in controlled evidence.
 
-That transfer experiment must preserve the same policy invariant:
+First, Baudot qualifies PJSIP 2.17 as an incoming native-text endpoint independently from REFER:
 
 ```text
-replacement ACK
--> native PJSIP text media active
--> native PJSIP RTT emission
--> independent Baudot T.140 observation
--> only then old-leg release
+JAIN direct-T.140 INVITE
+-> PJSIP UAS answers
+-> native text media active
+-> PJSIP Call::sendText("H")
+-> live Baudot reference publishes readiness
+-> JAIN consumes exact token
+-> only then controlled call release
 ```
 
-The transfer reducer does not change merely because the media producer changes.
+Then `BAUDOT-INTEROP-004` composes that qualified endpoint into a positive replacement leg:
+
+```text
+REFER accepted
+-> replacement PJSIP dialog established
+-> direct PT 98 t140/1000 negotiated
+-> native PJSIP text media active
+-> native PJSIP RTT emitted
+-> live Baudot reference accepts implementation-generated packet
+-> atomic rttReady token published
+-> JAIN consumes token without parsing media
+-> only then original-leg release
+```
+
+This composition intentionally does not use whole-packet equality as the readiness condition. RTP sequence number, timestamp, and SSRC remain implementation-generated. The Java transfer harness does not own the replacement `m=text` socket or classify T.140 semantics; the independent Python reference remains the only component that can publish the readiness token.
+
+The PJSIP replacement endpoint is required to remain alive through the transfer verdict. A separate completion signal may terminate the test process only after the original-leg release decision is complete; that cleanup signal is not part of readiness.
+
+These implementation observations satisfy the architectural next step that motivated this ADR. They do not change the conformance boundary in Decision 6.
+
+## Next threshold
+
+Broaden independent native-media evidence without weakening the current direct-T.140 path. Useful candidates include:
+
+- a second independently implemented native RTT media endpoint in the replacement role;
+- PJSIP RFC 2198/T.140 redundancy qualification as a separate profile; and
+- broader timing, gateway, SBC/NAT, and production-representative path coverage.
+
+Any stronger claim must remain tied to explicit evidence requirements rather than implementation agreement alone.
 
 ## Source observations pinned for this decision
 
