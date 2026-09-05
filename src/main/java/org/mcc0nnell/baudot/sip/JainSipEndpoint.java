@@ -1,5 +1,6 @@
 package org.mcc0nnell.baudot.sip;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -27,6 +28,7 @@ import javax.sip.address.SipURI;
 import javax.sip.header.CSeqHeader;
 import javax.sip.header.CallIdHeader;
 import javax.sip.header.ContactHeader;
+import javax.sip.header.ContentTypeHeader;
 import javax.sip.header.FromHeader;
 import javax.sip.header.HeaderFactory;
 import javax.sip.header.MaxForwardsHeader;
@@ -47,6 +49,7 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
     private final String user;
     private final int port;
     private final SipTrace trace;
+    private final String inviteAnswerSdp;
     private final SipStack stack;
     private final SipProvider provider;
     private final AddressFactory addressFactory;
@@ -57,10 +60,16 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
 
     public JainSipEndpoint(String name, String user, int port, SipTrace trace) throws Exception {
+        this(name, user, port, trace, null);
+    }
+
+    public JainSipEndpoint(String name, String user, int port, SipTrace trace, String inviteAnswerSdp)
+            throws Exception {
         this.name = name;
         this.user = user;
         this.port = port;
         this.trace = trace;
+        this.inviteAnswerSdp = inviteAnswerSdp;
 
         SipFactory factory = SipFactory.getInstance();
         factory.setPathName("gov.nist");
@@ -83,6 +92,10 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
     }
 
     public void invite(String peerUser, int peerPort) throws Exception {
+        invite(peerUser, peerPort, null);
+    }
+
+    public void invite(String peerUser, int peerPort, String sdpOffer) throws Exception {
         SipURI requestUri = addressFactory.createSipURI(peerUser, HOST);
         requestUri.setPort(peerPort);
 
@@ -101,6 +114,9 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
         Request request = messageFactory.createRequest(
                 requestUri, Request.INVITE, callId, cseq, from, to, via, maxForwards);
         request.addHeader(contactHeader());
+        if (sdpOffer != null) {
+            request.setContent(sdpOffer.getBytes(StandardCharsets.UTF_8), sdpContentType());
+        }
 
         ClientTransaction transaction = provider.getNewClientTransaction(request);
         trace.sent(name, Request.INVITE);
@@ -133,11 +149,14 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
             }
 
             if (Request.INVITE.equals(method)) {
-                sendResponse(transaction, request, Response.TRYING);
-                sendResponse(transaction, request, Response.RINGING);
-                sendResponse(transaction, request, Response.OK);
+                if (request.getRawContent() != null) {
+                    trace.sdpOfferReceived(name, SdpDescription.parse(request.getRawContent()));
+                }
+                sendResponse(transaction, request, Response.TRYING, null);
+                sendResponse(transaction, request, Response.RINGING, null);
+                sendResponse(transaction, request, Response.OK, inviteAnswerSdp);
             } else if (Request.BYE.equals(method)) {
-                sendResponse(transaction, request, Response.OK);
+                sendResponse(transaction, request, Response.OK, null);
             }
         } catch (Exception e) {
             fail(e);
@@ -155,6 +174,10 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
         try {
             if (status == Response.OK && Request.INVITE.equals(method)
                     && inviteAccepted.compareAndSet(false, true)) {
+                if (response.getRawContent() != null) {
+                    trace.sdpAnswerReceived(name, SdpDescription.parse(response.getRawContent()));
+                }
+
                 Dialog dialog = event.getDialog();
                 if (dialog == null && event.getClientTransaction() != null) {
                     dialog = event.getClientTransaction().getDialog();
@@ -179,7 +202,8 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
         }
     }
 
-    private void sendResponse(ServerTransaction transaction, Request request, int status) throws Exception {
+    private void sendResponse(ServerTransaction transaction, Request request, int status, String sdpBody)
+            throws Exception {
         Response response = messageFactory.createResponse(status, request);
         if (status >= Response.RINGING) {
             ToHeader to = (ToHeader) response.getHeader(ToHeader.NAME);
@@ -189,6 +213,9 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
         }
         if (status == Response.OK && Request.INVITE.equals(request.getMethod())) {
             response.addHeader(contactHeader());
+            if (sdpBody != null) {
+                response.setContent(sdpBody.getBytes(StandardCharsets.UTF_8), sdpContentType());
+            }
         }
         trace.sent(name, status + " " + request.getMethod());
         transaction.sendResponse(response);
@@ -197,6 +224,10 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
     private ContactHeader contactHeader() throws Exception {
         Address contactAddress = addressFactory.createAddress("sip:" + user + "@" + HOST + ":" + port);
         return headerFactory.createContactHeader(contactAddress);
+    }
+
+    private ContentTypeHeader sdpContentType() throws Exception {
+        return headerFactory.createContentTypeHeader("application", "sdp");
     }
 
     private void fail(Throwable problem) {
