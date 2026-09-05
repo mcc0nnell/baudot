@@ -1,0 +1,46 @@
+name: federation-lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/federation-lab.yml"
+      - "baudot_reference/federation*.py"
+      - "scripts/run-fed002-open-boundary.sh"
+      - "scripts/run_federation_boundary.py"
+      - "src/main/java/org/mcc0nnell/baudot/harness/**"
+      - "testkit/federation/**"
+      - "tests/test_federation*.py"
+      - "pom.xml"
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  open-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Exercise federation reducers
+        run: python -m unittest tests.test_federation_readiness tests.test_federation_lab
+      - name: Syntax-check joined lab runner
+        run: bash -n scripts/run-fed002-open-boundary.sh
+      - name: Run live SIP to RFC8865 open-boundary lab
+        run: bash scripts/run-fed002-open-boundary.sh
+      - name: Preserve federation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-fed002-evidence
+          path: target/evidence/fed002
+          if-no-files-found: warn
