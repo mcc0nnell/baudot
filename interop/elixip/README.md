@@ -33,26 +33,60 @@ The default scenario, [`admission-smoke.exs`](admission-smoke.exs), contains no 
 4. Elixip loaded and executed the Baudot-owned scenario through its public `mix scenario` boundary; and
 5. the process outcome is preserved as an **observation**, not a terminal accessibility verdict.
 
-The evidence directory contains:
+## BAUDOT-INTEROP-004: JAIN SIP -> Elixip
+
+The first cross-implementation direction has two controlled arms.
+
+### Signaling-only negative arm
+
+[`interop004-signaling-only-target.exs`](interop004-signaling-only-target.exs) answers the JAIN SIP replacement INVITE with `m=text` / `t140/1000`, independently records replacement ACK receipt inside Elixip, and deliberately emits no T.140 traffic.
+
+Baudot passes the negative arm only when:
 
 ```text
-admission.json
-scenario.exs
-elixip.stdout.log
-elixip.stderr.log
-result.json
-manifest.sha256
+REFER accepted
++ terminal NOTIFY observed and acknowledged
++ Elixip replacement dialog established
++ text/t140 negotiated
++ bounded no-packet observation completed
++ original leg preserved
 ```
 
-## Next execution slice
+That demonstrates across two SIP implementations that signaling success does not imply accessibility readiness.
 
-The next scenario pack will execute `BAUDOT-INTEROP-004` in both directions:
+### Positive handoff arm
+
+[`interop004-positive-handoff-target.exs`](interop004-positive-handoff-target.exs) uses the same independent Elixip SIP/dialog boundary. After Elixip records replacement ACK receipt, the **Baudot-owned scenario** emits Baudot's deterministic canonical primary T.140 RTP datagram to the `m=text` port from JAIN's offer.
+
+The packet is test stimulus executed from the external scenario process. It is intentionally **not** described as native Elixip RFC 4103 media.
+
+The positive arm passes only when:
 
 ```text
-JAIN SIP -> Elixip
+REFER accepted
++ terminal NOTIFY observed and acknowledged
++ Elixip replacement dialog established
++ Elixip independently observed replacement ACK
++ text/t140 negotiated
++ canonical RTP bytes observed on JAIN's offered media port
++ Python RFC 4103 reference parses first T.140 text as "H"
++ original leg released after the RTT observation
+```
+
+Java preserves and byte-matches the live packet so the transfer policy can make a deterministic old-leg decision. It deliberately leaves `firstT140CharacterObserved` and `rttReady` unclassified. `scripts.validate_elixip_refer_positive_handoff` independently parses the preserved packet with `baudot_reference.rfc4103.PrimaryT140RtpPacket` and owns the terminal semantic verdict.
+
+## Claim boundary
+
+A successful Elixip scenario process is never sufficient to pass `BAUDOT-INTEROP-004`. Wire evidence and Baudot's independent reducers retain verdict authority.
+
+The current JAIN SIP -> Elixip arms establish controlled cross-implementation SIP/dialog behavior and accessibility-handoff policy. They do **not** establish SIP, REFER, RFC 3515, RFC 6665, RFC 4103, T.140, JAIN SIP, Elixip, VRS, SBC/NAT, or production conformance. In particular, the positive arm does not claim native Elixip RFC 4103 media support.
+
+## Next direction
+
+The next ensemble slice is the reverse direction:
+
+```text
 Elixip -> JAIN SIP
 ```
 
-The existing Baudot reducer semantics do not change. REFER acceptance, NOTIFY progression, replacement-dialog correlation, RTT negotiation, first independently validated T.140 character, old-leg teardown ordering, and terminal readiness remain separate facts.
-
-A successful Elixip scenario process is not sufficient to pass `BAUDOT-INTEROP-004`. Wire/network evidence and Baudot's independent reducers retain verdict authority.
+The same evidence vocabulary remains authoritative: REFER acceptance, NOTIFY progression, replacement-dialog correlation, RTT negotiation, independently validated T.140 observation, old-leg teardown ordering, and terminal readiness remain separate facts.
