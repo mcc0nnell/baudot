@@ -10,6 +10,7 @@
       "url": "https://www.itu.int/rec/T-REC-T.140-199802-I/en",
       "basis": [
         "T.140 code elements are transmitted using UTF-8 transformation",
+        "implementations support the IRV and Latin-1 supplement repertoire",
         "BEL U+0007 alerts the user during an active session",
         "BS U+0008 erases the last entered character",
         "LINE SEPARATOR U+2028 is the preferred new-line control",
