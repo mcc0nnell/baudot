@@ -55,7 +55,7 @@ The donor source may motivate the question. It cannot supply the expected verdic
 
 ### ICE completion / readiness separation
 
-`BAUDOT-INTEROP-001` already captures the historical ACE Direct stalled-ICE boundary.
+`BAUDOT-INTEROP-001` captures the historical ACE Direct stalled-ICE boundary.
 
 The useful invariant is not the old timeout value. It is that signaling success, ICE readiness, decoded media, rendered media, and RTT readiness are distinct observations.
 
@@ -67,33 +67,26 @@ The patched `RTCSession` keeps current re-INVITE request and SDP state outside t
 
 Baudot therefore asks a transport-neutral question:
 
-> When in-dialog re-INVITEs overlap or an answer is supplied externally, can every response be proven to bind to the intended request and to the intended SDP generation?
+> When in-dialog re-INVITEs overlap or an answer is supplied externally, can every response be proven to bind to the intended request and to the intended SDP generation, and can signaling success be kept distinct from RTT usability?
 
-The first runnable slice should exercise four arms:
+The runnable scenario has four arms:
 
 1. one ordinary re-INVITE with fresh SDP;
 2. one externally supplied SDP response with preserved transaction identity;
-3. two overlapping re-INVITEs whose responses must remain independently correlated; and
-4. deliberate stale-SDP reuse, where signaling may remain healthy but readiness must not be promoted from signaling success alone.
+3. two overlapping re-INVITEs whose responses remain independently correlated; and
+4. deliberate stale-SDP reuse, where signaling remains healthy while RTT readiness is not promoted from signaling success alone.
 
-The evidence bundle should preserve raw SIP messages, transaction/dialog identifiers, raw SDP with hashes, chronological readiness observations, and the terminal verdict. Dynamic transport identifiers may be normalized only after the raw evidence is preserved.
+The evidence bundle preserves raw SIP messages, transaction/dialog identifiers, raw SDP with hashes, chronological readiness observations, raw RTT datagrams, independent reference validation, and a terminal scenario verdict.
 
-#### First executable gate: JAIN SIP message correlation
+#### Gate 1: JAIN SIP message correlation
 
-The first executable gate is intentionally narrower than the full scenario. `ReinviteCorrelationProbe` uses JAIN SIP message objects to construct stable in-dialog request identities and then exercises the correlation boundary directly.
+`ReinviteCorrelationProbe` uses JAIN SIP message objects to construct stable in-dialog request identities and exercise the correlation boundary directly.
 
 The gate preserves Call-ID, From/To tags, CSeq, method, Via branch, raw SIP messages, raw SDP, and SHA-256 hashes. It observes the later overlapping request's `491 Request Pending` result before the earlier request's `200 OK`, verifies that both responses remain bound to the intended request identity, binds a declared external SDP answer to one request by hash, and deliberately returns stale SDP under a `200 OK` to prove that signaling success alone cannot establish SDP freshness.
 
-This split also respects the JAIN SIP RI's own dialog behavior: the RI contains explicit re-INVITE serialization logic intended to avoid interleaving INVITEs while a previous INVITE transaction or ACK is pending. Baudot therefore does not treat two simultaneously successful re-INVITEs as a required baseline behavior.
+This split respects the JAIN SIP RI's own dialog behavior: the RI contains explicit re-INVITE serialization logic intended to avoid interleaving INVITEs while a previous INVITE transaction or ACK is pending. Baudot therefore does not treat two simultaneously successful re-INVITEs as a required baseline behavior.
 
-A passing message-correlation gate still records:
-
-```text
-live.dialog.overlap.proven=false
-media.readiness.proven=false
-```
-
-#### Second executable gate: live dialog overlap
+#### Gate 2: live dialog overlap
 
 `LiveReinviteOverlapProbe` moves the overlap arm onto the wire. A real JAIN SIP UAS establishes an `INVITE -> 200 -> ACK` dialog with an independent raw UDP peer. The peer then sends CSeq 2 and, while that server transaction is deliberately left pending, independently injects CSeq 3 with the same dialog identity.
 
@@ -101,23 +94,50 @@ The gate requires CSeq 3 to receive `491 Request Pending`, then releases CSeq 2 
 
 The raw peer is intentional. JAIN SIP's normal outbound dialog helper serializes re-INVITEs to avoid this overlap condition; bypassing that convenience path lets Baudot apply the exact UAS-side pressure that the scenario is meant to observe without modifying the JAIN SIP implementation.
 
-A passing live-overlap gate can set:
+#### Gate 3: live stale SDP and RTT readiness
+
+`LiveReinviteRttReadinessProbe` joins signaling state to an independently observable RTT path.
+
+The control re-INVITE returns fresh `m=text` / `t140/1000` SDP under `200 OK`. The peer follows that SDP and sends Baudot's existing canonical primary T.140 RTP datagram. The Java harness preserves the wire bytes but does not classify them as valid T.140. `scripts.validate_reinvite_rtt_readiness` independently parses the received packet through Baudot's Python RFC 4103 reference before `firstT140CharacterObserved` can become true. The control arm therefore reduces to:
 
 ```text
-live.dialog.overlap.proven=true
+sipStatus=200
+rttNegotiated=true
+firstT140CharacterObserved=true
+rttReady=true
 ```
 
-but still records:
+The stale arm deliberately returns the prior answer SDP under another `200 OK` while the intended fresh RTT receiver has moved to a new port. The peer follows the stale advertised port, the stale answer is detected by SHA-256, and no first T.140 character reaches the intended fresh receiver within the bounded observation window:
 
 ```text
-media.readiness.proven=false
+sipStatus=200
+staleSdpDetected=true
+rttNegotiated=true
+firstT140CharacterObserved=false
+rttReady=false
 ```
 
-`BAUDOT-INTEROP-003` therefore remains `planned`. The remaining runnable boundary is a live stale/mismatched-SDP arm plus independent media or RTT readiness observations that demonstrate why a `200 OK` cannot, by itself, establish usable post-renegotiation state.
+That is the accessibility invariant the donor history is useful for preserving: **successful SIP renegotiation is not the same fact as usable RTT after renegotiation.**
+
+#### Terminal reduction
+
+`scripts.validate_ace_reinvite_scenario` joins the three gates only after their evidence remains separate. It requires request correlation, external-SDP binding, live 491 glare, fresh control RTT readiness, stale-SDP detection, and failed stale-arm RTT readiness before writing:
+
+```text
+terminalVerdict=RUNNABLE_PASS
+```
+
+The complete scenario can be executed with:
+
+```text
+bash scripts/run-ace-reinvite-scenario.sh
+```
+
+`BAUDOT-INTEROP-003` is therefore **runnable**, not proven. Moving to `proven` requires repeatability across additional implementations and broader timing/endpoint evidence without weakening the current claim boundaries.
 
 ## Next donor candidates
 
-After the re-INVITE slice is executable, inspect ACE behavior around:
+With the first re-INVITE corpus executable, inspect ACE behavior around:
 
 - hold/resume renegotiation;
 - REFER and transfer handling;
