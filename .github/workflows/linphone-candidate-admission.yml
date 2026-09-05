@@ -1,0 +1,76 @@
+name: linphone-candidate-admission
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/linphone-candidate-admission.yml'
+      - 'interop/linphone/**'
+      - 'scripts/linphone_candidate_admission.py'
+      - 'docs/adr/0003-linphone-native-rtt-candidate.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linphone-candidate-admission-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact Linphone SDK candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout \
+            https://github.com/BelledonneCommunications/linphone-sdk.git \
+            /tmp/baudot-linphone-sdk
+          git -C /tmp/baudot-linphone-sdk checkout --detach \
+            10f0cb98eb5ae7dae973d6666894561ce5eea561
+          test "$(git -C /tmp/baudot-linphone-sdk rev-parse HEAD)" = \
+            10f0cb98eb5ae7dae973d6666894561ce5eea561
+          test -z "$(git -C /tmp/baudot-linphone-sdk status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Run source-admission gate
+        shell: bash
+        env:
+          LINPHONE_SDK_ROOT: /tmp/baudot-linphone-sdk
+        run: python3 scripts/linphone_candidate_admission.py
+
+      - name: Validate candidate driver source boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'linphone_call_params_enable_realtime_text' interop/linphone/native_t140_sender.c
+          grep -q 'linphone_chat_message_put_char' interop/linphone/native_t140_sender.c
+          ! grep -Eq 'pjmedia_txt_stream_send_text|MS_RTT_4103_SOURCE|RtpSession|rtp_session_send' \
+            interop/linphone/native_t140_sender.c
+          sha256sum interop/linphone/native_t140_sender.c \
+            > target/evidence-external/LINPHONE-CANDIDATE/source-admission/baudot-driver.sha256
+
+      - name: Seal source-admission evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=target/evidence-external/LINPHONE-CANDIDATE/source-admission
+          test -f "$out/linphone-source-admission.json"
+          test -f "$out/baudot-driver.sha256"
+          (
+            cd "$out"
+            sha256sum linphone-source-admission.json baudot-driver.sha256 \
+              > bundle.manifest.sha256
+            sha256sum -c bundle.manifest.sha256
+          )
+
+      - name: Preserve Linphone candidate source-admission evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-linphone-candidate-source-admission
+          path: target/evidence-external/LINPHONE-CANDIDATE/source-admission
+          if-no-files-found: warn
