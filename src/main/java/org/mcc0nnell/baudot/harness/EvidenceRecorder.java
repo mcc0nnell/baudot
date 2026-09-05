@@ -17,6 +17,7 @@ final class EvidenceRecorder implements AutoCloseable {
     private final Path eventsPath;
     private final Path resultPath;
     private final BufferedWriter events;
+    private boolean resultWritten;
 
     EvidenceRecorder(Path root, String scenarioId, String correlationId, String role) throws IOException {
         this.directory = root.resolve(scenarioId).resolve(correlationId).resolve(role);
@@ -54,11 +55,10 @@ final class EvidenceRecorder implements AutoCloseable {
                 writer.newLine();
             }
         }
-        writeManifest();
+        resultWritten = true;
     }
 
     private void writeManifest() throws IOException {
-        events.flush();
         Path manifest = directory.resolve("manifest.sha256");
         try (BufferedWriter writer = Files.newBufferedWriter(manifest, StandardCharsets.UTF_8)) {
             writer.write(sha256(eventsPath) + "  events.jsonl");
@@ -106,5 +106,8 @@ final class EvidenceRecorder implements AutoCloseable {
     @Override
     public synchronized void close() throws IOException {
         events.close();
+        if (resultWritten) {
+            writeManifest();
+        }
     }
 }
