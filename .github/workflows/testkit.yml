@@ -20,8 +20,8 @@ jobs:
       - name: Run reference reducer, block, and transport tests
         run: python -m unittest discover -s tests -p "test_*.py"
       - name: Validate portable testkit contracts and presentation vectors
-        run: python scripts/validate_testkit.py
+        run: python -m scripts.validate_testkit
       - name: Validate transport-neutral T140block vectors
-        run: python scripts/validate_t140block_vectors.py
+        run: python -m scripts.validate_t140block_vectors
       - name: Validate RFC 4103 primary RTP wire vectors
-        run: python scripts/validate_rfc4103_vectors.py
+        run: python -m scripts.validate_rfc4103_vectors
