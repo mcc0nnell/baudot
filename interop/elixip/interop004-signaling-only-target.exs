@@ -55,6 +55,10 @@ defmodule Baudot.Elixip.Interop004SignalingOnlyTarget do
   state wait_ack do
     on_events do
       {:ACK, _req, _trans, _dlg} ->
+        # This marker is part of the external implementation observation. The
+        # orchestration layer preserves stdout and the independent Baudot reducer
+        # requires it before accepting "replacement dialog established".
+        IO.puts("BAUDOT-ELIXIP replacementAckObserved=true")
         goto(signaling_only_window, "replacement ACK received")
 
       {:BYE, req, _trans, _dlg} ->
