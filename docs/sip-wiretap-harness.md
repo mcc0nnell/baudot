@@ -107,3 +107,5 @@ The aggregate manifest hashes both role event/result files plus the aggregate re
 The harness uses `javax.sip:jain-sip-ri:1.3.0-91`. The RI is old, so Baudot treats it as a bounded interoperability instrument rather than a general-purpose platform choice. Its legacy Log4j 1.x API is bridged to SLF4J instead of adding a Log4j 1.x runtime dependency.
 
 Wiretap remains an external executable and topology provider. Baudot does not fork it, vendor it, or make its network model part of Baudot's semantic core.
+
+PJSIP is planned as a separate endpoint/media oracle, not as a replacement for the JAIN SIP signaling probe. Its observations should be preserved independently and compared only at the Baudot evidence layer. See [`sip-stack-strategy.md`](sip-stack-strategy.md) for that boundary and the first proving slice.
