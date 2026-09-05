@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Small semantic view of SDP for evidence generation.
@@ -63,6 +64,14 @@ public record SdpDescription(List<Media> media) {
 
     public String semanticSummary() {
         return media.stream().map(Media::semanticSummary).reduce((left, right) -> left + "; " + right).orElse("");
+    }
+
+    public Optional<Codec> findCodec(String mediaType, String encoding) {
+        return media.stream()
+                .filter(section -> section.type().equalsIgnoreCase(mediaType))
+                .flatMap(section -> section.codecs().stream())
+                .filter(codec -> codec.encoding().equalsIgnoreCase(encoding))
+                .findFirst();
     }
 
     public SdpDescription negotiatedWith(SdpDescription answer) {

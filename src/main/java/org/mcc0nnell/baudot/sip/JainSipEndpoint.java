@@ -55,8 +55,11 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
     private final AddressFactory addressFactory;
     private final HeaderFactory headerFactory;
     private final MessageFactory messageFactory;
+    private final CountDownLatch established = new CountDownLatch(1);
     private final CountDownLatch completed = new CountDownLatch(1);
     private final AtomicBoolean inviteAccepted = new AtomicBoolean();
+    private final AtomicBoolean byeSent = new AtomicBoolean();
+    private final AtomicReference<Dialog> activeDialog = new AtomicReference<>();
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
 
     public JainSipEndpoint(String name, String user, int port, SipTrace trace) throws Exception {
@@ -123,12 +126,29 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
         transaction.sendRequest();
     }
 
+    public boolean awaitEstablished(Duration timeout) throws InterruptedException {
+        boolean done = established.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        rethrowFailure();
+        return done;
+    }
+
+    public void hangup() throws Exception {
+        Dialog dialog = activeDialog.get();
+        if (dialog == null) {
+            throw new IllegalStateException("SIP dialog is not established");
+        }
+        if (!byeSent.compareAndSet(false, true)) {
+            throw new IllegalStateException("BYE has already been sent");
+        }
+        Request bye = dialog.createRequest(Request.BYE);
+        ClientTransaction byeTransaction = provider.getNewClientTransaction(bye);
+        trace.sent(name, Request.BYE);
+        dialog.sendRequest(byeTransaction);
+    }
+
     public boolean awaitCompletion(Duration timeout) throws InterruptedException {
         boolean done = completed.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        Throwable problem = failure.get();
-        if (problem != null) {
-            throw new AssertionError("SIP endpoint failed", problem);
-        }
+        rethrowFailure();
         return done;
     }
 
@@ -189,11 +209,8 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
                 Request ack = dialog.createAck(cseq.getSeqNumber());
                 trace.sent(name, Request.ACK);
                 dialog.sendAck(ack);
-
-                Request bye = dialog.createRequest(Request.BYE);
-                ClientTransaction byeTransaction = provider.getNewClientTransaction(bye);
-                trace.sent(name, Request.BYE);
-                dialog.sendRequest(byeTransaction);
+                activeDialog.set(dialog);
+                established.countDown();
             } else if (status == Response.OK && Request.BYE.equals(method)) {
                 completed.countDown();
             }
@@ -230,8 +247,16 @@ public final class JainSipEndpoint implements SipListener, AutoCloseable {
         return headerFactory.createContentTypeHeader("application", "sdp");
     }
 
+    private void rethrowFailure() {
+        Throwable problem = failure.get();
+        if (problem != null) {
+            throw new AssertionError("SIP endpoint failed", problem);
+        }
+    }
+
     private void fail(Throwable problem) {
         failure.compareAndSet(null, problem);
+        established.countDown();
         completed.countDown();
     }
 

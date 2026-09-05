@@ -16,26 +16,32 @@ public final class SipEvidenceWriter {
             List<String> expectedSignals,
             List<String> observedSignals,
             List<String> expectedSdp,
-            List<String> observedSdp) throws IOException {
+            List<String> observedSdp,
+            List<String> expectedRtp,
+            List<String> observedRtp,
+            boolean mediaTransportProven) throws IOException {
         Files.createDirectories(path.getParent());
         String json = "{\n"
-                + "  \"schema\": \"baudot.sip-dialog-evidence/v2\",\n"
-                + "  \"scenario\": \"invite-sdp-ack-bye\",\n"
+                + "  \"schema\": \"baudot.sip-dialog-evidence/v3\",\n"
+                + "  \"scenario\": \"invite-sdp-rtp-ack-bye\",\n"
                 + "  \"transport\": \"UDP-loopback\",\n"
-                + "  \"semanticBoundary\": \"SIP-signaling-and-SDP-description\",\n"
-                + "  \"signaling\": {\n"
-                + "    \"expected\": " + array(expectedSignals) + ",\n"
-                + "    \"observed\": " + array(observedSignals) + ",\n"
-                + "    \"matched\": " + expectedSignals.equals(observedSignals) + "\n"
-                + "  },\n"
-                + "  \"sdp\": {\n"
-                + "    \"expected\": " + array(expectedSdp) + ",\n"
-                + "    \"observed\": " + array(observedSdp) + ",\n"
-                + "    \"matched\": " + expectedSdp.equals(observedSdp) + "\n"
-                + "  },\n"
-                + "  \"mediaTransportProven\": false\n"
+                + "  \"semanticBoundary\": \"SIP-signaling-SDP-and-RTP-observation\",\n"
+                + section("signaling", expectedSignals, observedSignals) + ",\n"
+                + section("sdp", expectedSdp, observedSdp) + ",\n"
+                + section("rtp", expectedRtp, observedRtp) + ",\n"
+                + "  \"mediaTransportProven\": " + mediaTransportProven + ",\n"
+                + "  \"decoderInputProven\": false,\n"
+                + "  \"renderingProven\": false\n"
                 + "}\n";
         Files.writeString(path, json, StandardCharsets.UTF_8);
+    }
+
+    private static String section(String name, List<String> expected, List<String> observed) {
+        return "  \"" + name + "\": {\n"
+                + "    \"expected\": " + array(expected) + ",\n"
+                + "    \"observed\": " + array(observed) + ",\n"
+                + "    \"matched\": " + expected.equals(observed) + "\n"
+                + "  }";
     }
 
     private static String array(List<String> values) {

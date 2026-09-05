@@ -27,6 +27,7 @@ normative vectors
 baudot-testkit
       │
       ├── SIP / RFC 4103 adapter  ── JAIN SIP signaling kernel
+      ├── RTP transport probe
       ├── WebRTC/application adapter
       └── research-runtime adapter
                 │
@@ -40,32 +41,37 @@ The first cross-project research integration is with ACE Omni: Omni can execute 
 
 ## First executable slice
 
-The first SIP proof is deliberately small and headless. Two loopback endpoints exercise a real JAIN SIP dialog with an SDP offer/answer and preserve deterministic, timestamp-free evidence for both layers:
+The first SIP proof is deliberately small and headless. Two loopback endpoints exercise a real JAIN SIP dialog, exchange an SDP video offer/answer, and preserve deterministic evidence for signaling, negotiated media description, and RTP transport observation.
+
+The positive fixture proves this exercised path:
 
 ```text
-INVITE + SDP offer
-  -> 100 Trying
-  -> 180 Ringing
-  -> 200 OK + SDP answer
-  -> ACK
-  -> BYE
-  -> 200 OK
+INVITE -> 100 Trying -> 180 Ringing -> 200 OK -> ACK
+SDP offer:  H.264 + VP8
+SDP answer: H.264
+RTP socket ready
+first RTP v2 packet observed
+payload type matches negotiated H.264 mapping
+BYE -> 200 OK
 ```
 
-The fixture offers H.264 and VP8 and answers with H.264. Baudot records the stable semantic result `video RTP/AVP [H264/90000]` separately from dialog completion. RTP packets are not sent, received, or claimed by this slice.
+The payload bytes are synthetic and are not claimed to be valid H.264. Decoder input and rendering remain explicitly unproven.
 
-Run it with:
+A second fixture deliberately sends no RTP after successful SIP and SDP negotiation. That diagnostic test passes when the expected no-packet condition is observed, while the resulting evidence still records `mediaTransportProven: false`. This is the first canonical Baudot black-screen failure class.
+
+Run the suite with:
 
 ```bash
 mvn verify
-cat target/baudot-evidence/sip-dialog.json
+cat target/baudot-evidence/sip-dialog-rtp.json
+cat target/baudot-evidence/sip-dialog-no-rtp.json
 ```
 
-CI verifies the slice on Java 17 and Java 21. The evidence artifact is written even when the exercised path fails, preserving the partial observation for diagnosis.
+CI verifies the slice on Java 17 and Java 21 and preserves the Java 21 evidence directory.
 
 ## Status
 
-Early design and testkit bootstrap. The JAIN SIP vertical slice demonstrates exercised signaling and SDP offer/answer mechanics only. No RFC 3261, RFC 4103, T.140, RTP/media, security, accessibility, or implementation conformance claim is made yet.
+Early design and testkit bootstrap. The JAIN SIP/RTP vertical slice demonstrates only the explicitly observed signaling, SDP, and RTP transport mechanics. No RFC 4103, T.140, SIP, RTP profile, codec, media rendering, security, accessibility, or implementation conformance claim is made yet.
 
 ## Project name
 

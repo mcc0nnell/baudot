@@ -28,10 +28,10 @@ jobs:
       - name: Verify
         run: mvn -B -ntp verify
 
-      - name: Preserve SIP evidence
+      - name: Preserve protocol evidence
         if: matrix.java == '21' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: baudot-sip-evidence-java21
+          name: baudot-protocol-evidence-java21
           path: target/baudot-evidence/
           if-no-files-found: warn
