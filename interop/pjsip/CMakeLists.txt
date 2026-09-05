@@ -32,3 +32,13 @@ add_subdirectory(
 add_executable(baudot-pjsip-native-t140 native_t140_sender.cpp)
 target_compile_features(baudot-pjsip-native-t140 PRIVATE cxx_std_17)
 target_link_libraries(baudot-pjsip-native-t140 PRIVATE pjsua2)
+
+# PJSIP's CMake build generates pjsip/sip_autoconf.h under the pjsip binary
+# directory. The upstream pjsip target consumes it through its config_headers
+# file set, but that generated include directory is not propagated far enough
+# through pjsua2 for an external consumer that includes <pjsua2.hpp>. Add only
+# the generated build include surface; the source headers still arrive through
+# the upstream targets.
+target_include_directories(baudot-pjsip-native-t140 PRIVATE
+  "${CMAKE_BINARY_DIR}/pjproject/pjsip/include"
+)
