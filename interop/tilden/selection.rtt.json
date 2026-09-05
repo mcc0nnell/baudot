@@ -9,9 +9,9 @@
     {
       "uri": "sip:callee@127.0.0.1:5091;transport=udp",
       "priority": 1,
-      "preferenceScore": 100,
+      "preferenceScore": 0,
       "outcome": "selected",
-      "matchedPreferred": ["security.e2ee"]
+      "matchedPreferred": []
     }
   ],
   "terminal": "selected",
