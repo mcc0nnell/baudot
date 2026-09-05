@@ -39,6 +39,13 @@ jobs:
         run: bash scripts/run-live-refer-rtt-handoff.sh
       - name: BAUDOT-INTEROP-004 - terminal scenario reduction
         run: python3 -m scripts.validate_ace_refer_scenario
+      - name: BAUDOT-INTEROP-004 - export ACE Omni observation inputs
+        run: >-
+          python3 -m scripts.export_omni_interop004_observations
+          --run-id "baudot-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          --adapter-id baudot-interop004
+      - name: BAUDOT-INTEROP-004 - validate ACE Omni bridge boundary
+        run: python3 -m scripts.validate_omni_interop004_export
       - name: Scenario 001 - signaling and media
         run: bash scripts/run-local-scenario.sh scenarios/001-signaling-and-media.env
       - name: Scenario 002 - signaling only
