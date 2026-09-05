@@ -13,7 +13,7 @@ WORK=${BAUDOT_WIRETAP_DIR:-$ROOT/target/wiretap-routed/$scenario}
 EVIDENCE=${BAUDOT_EVIDENCE_DIR:-$ROOT/target/evidence-routed}
 CORR=${BAUDOT_CORRELATION:-$(python3 -c 'import uuid; print(uuid.uuid4())')}
 
-# Keep the underlay away from Wiretap's reserved API prefixes.
+# Keep the underlay away from Wiretap's observed v0.9.0 API prefix.
 UL_HOST=198.18.0.1
 UL_CLIENT=198.18.0.2
 SIG_HOST=10.77.10.1
@@ -26,8 +26,18 @@ MEDIA_PORT=40000
 WT_PORT=51820
 SIG_NET=10.77.10.0/24
 MEDIA_NET=10.77.20.0/24
+RESPONSE_ROUTING=rfc3581-rport-over-transparent-flow
 
-server_pid=""; callee_pid=""; relay_up=0; e2ee_up=0; RUN=""
+routes="$SIG_NET"
+EXPECT_MEDIA=false
+if [[ "$scenario" == 001 ]]; then
+  routes="$SIG_NET,$MEDIA_NET"
+  EXPECT_MEDIA=true
+fi
+SCENARIO_ID="$scenario-wiretap-routed"
+RUN="$EVIDENCE/$SCENARIO_ID/$CORR"
+
+server_pid=""; callee_pid=""; relay_up=0; e2ee_up=0
 
 safe_server_log() {
   [[ -f "$WORK/server.log" ]] || return 0
@@ -40,7 +50,7 @@ safe_server_log() {
 cleanup() {
   set +e
   [[ -n "$callee_pid" ]] && kill "$callee_pid" 2>/dev/null
-  if [[ -n "$RUN" && -f "$WORK/server.log" ]]; then
+  if [[ -f "$WORK/server.log" ]]; then
     safe_server_log >"$RUN/wiretap-server.log" 2>/dev/null
   fi
   [[ -n "$server_pid" ]] && kill "$server_pid" 2>/dev/null
@@ -56,12 +66,33 @@ cleanup() {
   rm -rf "$WORK"
   [[ -n "${SUDO_UID:-}" && -d "$EVIDENCE" ]] && chown -R "${SUDO_UID}:${SUDO_GID}" "$EVIDENCE" 2>/dev/null
 }
+
+# Preflight runs before the cleanup trap is armed. If stale host state is found,
+# Baudot refuses the run without deleting topology it did not create.
+rm -rf "$WORK"
+mkdir -p "$WORK" "$RUN"
+cd "$ROOT"
+python3 scripts/wiretap_topology_preflight.py \
+  --wiretap-bin "$WT" \
+  --underlay-address "$UL_HOST/24" \
+  --underlay-address "$UL_CLIENT/24" \
+  --signaling-network "$SIG_NET" \
+  --media-network "$MEDIA_NET" \
+  --routes "$routes" \
+  --response-routing "$RESPONSE_ROUTING" \
+  --namespace "$CNS" \
+  --namespace "$SNS" \
+  --host-link bdt-ul-h \
+  --host-link bdt-sig-h \
+  --host-link bdt-med-h \
+  --require-bin ip \
+  --require-bin wg-quick \
+  --require-bin java \
+  --require-bin mvn \
+  --evidence-root "$EVIDENCE" \
+  --output "$RUN/preflight.properties"
 trap cleanup EXIT
 
-for bin in "$WT" ip wg-quick java mvn; do command -v "$bin" >/dev/null; done
-rm -rf "$WORK"; mkdir -p "$WORK" "$EVIDENCE"
-
-cd "$ROOT"
 mvn -q -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/baudot-runtime-classpath.txt
 CP="$ROOT/target/classes:$(cat "$ROOT/target/baudot-runtime-classpath.txt")"
 
@@ -83,10 +114,7 @@ ip link set bdt-med-s netns "$SNS"
 ip addr add "$MEDIA_HOST/24" dev bdt-med-h; ip link set bdt-med-h up
 ip -n "$SNS" addr add "$MEDIA_SERVER/24" dev bdt-med-s; ip -n "$SNS" link set bdt-med-s up
 
-routes="$SIG_NET"
-if [[ "$scenario" == 001 ]]; then
-  routes="$SIG_NET,$MEDIA_NET"
-else
+if [[ "$scenario" == 002 ]]; then
   # Keep send() successful while proving the media CIDR is absent from Wiretap.
   # The isolated dummy interface absorbs the packet instead of allowing any
   # fallback path to the callee namespace.
@@ -118,18 +146,15 @@ if ! ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1; then
   exit 1
 fi
 
-SCENARIO_ID="$scenario-wiretap-routed"
-EXPECT_MEDIA=$([[ "$scenario" == 001 ]] && echo true || echo false)
-RUN="$EVIDENCE/$SCENARIO_ID/$CORR"
-mkdir -p "$RUN"
 cat >"$RUN/topology.properties" <<EOF
 wiretap.version=$($WT --version 2>/dev/null | head -n1)
 wiretap.routes=$routes
 wiretap.clientE2EE=$CALLER_SIP
 wiretap.controlApi=::2
+topology.preflight=preflight.properties
 underlay=$UL_HOST/24<->$UL_CLIENT/24
 signaling.serverSide=$SIG_HOST/24<->$SIP_SERVER/24
-signaling.responseRouting=rfc3581-rport-over-transparent-flow
+signaling.responseRouting=$RESPONSE_ROUTING
 media=$MEDIA_HOST/24<->$MEDIA_SERVER/24
 scenario.expectMedia=$EXPECT_MEDIA
 EOF
@@ -174,7 +199,7 @@ java -cp "$CP" org.mcc0nnell.baudot.harness.EvidenceAggregator "$RUN/caller" "$R
 safe_server_log >"$RUN/wiretap-server.log"
 (
   cd "$RUN"
-  sha256sum topology.properties caller-routes.txt callee-routes.txt wiretap-status.txt wiretap-server.log \
+  sha256sum preflight.properties topology.properties caller-routes.txt callee-routes.txt wiretap-status.txt wiretap-server.log \
     caller/manifest.sha256 callee/manifest.sha256 aggregate/manifest.sha256 >bundle.manifest.sha256
 )
 cat "$RUN/aggregate/result.json"

@@ -25,9 +25,11 @@ WT_PORT=51820
 SIG_NET=10.77.10.0/24
 MEDIA_NET=10.77.20.0/24
 ROUTES="$SIG_NET,$MEDIA_NET"
+RESPONSE_ROUTING=rfc3581-rport-over-transparent-flow
 SCENARIO_ID=004-rtt-red-recovery-wiretap
+RUN="$EVIDENCE/$SCENARIO_ID/$CORR"
 
-server_pid=""; callee_pid=""; relay_up=0; e2ee_up=0; RUN=""
+server_pid=""; callee_pid=""; relay_up=0; e2ee_up=0
 
 safe_server_log() {
   [[ -f "$WORK/server.log" ]] || return 0
@@ -40,7 +42,7 @@ safe_server_log() {
 cleanup() {
   set +e
   [[ -n "$callee_pid" ]] && kill "$callee_pid" 2>/dev/null
-  if [[ -n "$RUN" && -f "$WORK/server.log" ]]; then
+  if [[ -f "$WORK/server.log" ]]; then
     safe_server_log >"$RUN/wiretap-server.log" 2>/dev/null
   fi
   [[ -n "$server_pid" ]] && kill "$server_pid" 2>/dev/null
@@ -56,12 +58,31 @@ cleanup() {
   rm -rf "$WORK"
   [[ -n "${SUDO_UID:-}" && -d "$EVIDENCE" ]] && chown -R "${SUDO_UID}:${SUDO_GID}" "$EVIDENCE" 2>/dev/null
 }
+
+rm -rf "$WORK"
+mkdir -p "$WORK" "$RUN"
+cd "$ROOT"
+python3 scripts/wiretap_topology_preflight.py \
+  --wiretap-bin "$WT" \
+  --underlay-address "$UL_HOST/24" \
+  --underlay-address "$UL_CLIENT/24" \
+  --signaling-network "$SIG_NET" \
+  --media-network "$MEDIA_NET" \
+  --routes "$ROUTES" \
+  --response-routing "$RESPONSE_ROUTING" \
+  --namespace "$CNS" \
+  --namespace "$SNS" \
+  --host-link bdt-rtr-ul-h \
+  --host-link bdt-rtr-sig-h \
+  --host-link bdt-rtr-med-h \
+  --require-bin ip \
+  --require-bin wg-quick \
+  --require-bin java \
+  --require-bin mvn \
+  --evidence-root "$EVIDENCE" \
+  --output "$RUN/preflight.properties"
 trap cleanup EXIT
 
-for bin in "$WT" ip wg-quick java mvn python3; do command -v "$bin" >/dev/null; done
-rm -rf "$WORK"; mkdir -p "$WORK" "$EVIDENCE"
-
-cd "$ROOT"
 mvn -q -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/baudot-runtime-classpath.txt
 CP="$ROOT/target/classes:$(cat "$ROOT/target/baudot-runtime-classpath.txt")"
 
@@ -106,16 +127,15 @@ if ! ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1; then
   exit 1
 fi
 
-RUN="$EVIDENCE/$SCENARIO_ID/$CORR"
-mkdir -p "$RUN"
 cat >"$RUN/topology.properties" <<EOF
 wiretap.version=$($WT --version 2>/dev/null | head -n1)
 wiretap.routes=$ROUTES
 wiretap.clientE2EE=$CALLER_SIP
 wiretap.controlApi=::2
+topology.preflight=preflight.properties
 underlay=$UL_HOST/24<->$UL_CLIENT/24
 signaling.serverSide=$SIG_HOST/24<->$SIP_SERVER/24
-signaling.responseRouting=rfc3581-rport-over-transparent-flow
+signaling.responseRouting=$RESPONSE_ROUTING
 rtt.media=$MEDIA_HOST/24<->$MEDIA_SERVER/24
 rtt.profile=recovery
 rtt.lossInjection=controlled-source-omission
@@ -173,6 +193,7 @@ safe_server_log >"$RUN/wiretap-server.log"
 (
   cd "$RUN"
   required=(
+    preflight.properties
     topology.properties
     caller-routes.txt
     callee-routes.txt

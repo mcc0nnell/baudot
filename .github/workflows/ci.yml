@@ -21,6 +21,8 @@ jobs:
           cache: maven
       - name: Compile
         run: mvn -B -ntp -DskipTests compile
+      - name: Wiretap topology preflight regressions
+        run: python3 -m unittest scripts.test_wiretap_topology_preflight
       - name: BAUDOT-INTEROP-003 - JAIN SIP re-INVITE correlation gate
         run: bash scripts/run-reinvite-correlation-proof.sh
       - name: BAUDOT-INTEROP-003 - live JAIN SIP re-INVITE overlap gate
