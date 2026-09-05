@@ -1,0 +1,91 @@
+name: federation-network-loss-lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/federation-network-loss-lab.yml"
+      - "scripts/fed004-rfc2198-recovery-webrtc-gateway.mjs"
+      - "scripts/fed005-*"
+      - "scripts/validate_fed002_browser.py"
+      - "scripts/validate_fed005_network_loss.py"
+      - "scripts/wiretap/fed005-network-loss-gateway-lab.sh"
+      - "scripts/wiretap_topology_preflight.py"
+      - "testkit/federation/BAUDOT-FED-005-*.json"
+      - "baudot_reference/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  routed-network-loss:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install network prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wireguard-tools iproute2 nftables
+          sudo modprobe wireguard
+
+      - name: Install and verify Sandia Wiretap v0.9.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=0.9.0
+          asset="wiretap_${version}_linux_amd64.tar.gz"
+          base="https://github.com/sandialabs/wiretap/releases/download/v${version}"
+          mkdir -p /tmp/baudot-wiretap
+          cd /tmp/baudot-wiretap
+          curl -fsSLO "$base/checksums.txt"
+          curl -fsSLO "$base/$asset"
+          grep -E "[[:space:]]${asset}$" checksums.txt | sha256sum -c -
+          mkdir extracted
+          tar -xzf "$asset" -C extracted
+          binary=$(find extracted -type f -name wiretap -print -quit)
+          test -n "$binary"
+          sudo install -m 0755 "$binary" /usr/local/bin/wiretap
+          wiretap --version
+
+      - name: Install pinned Chromium driver
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Syntax-check FED-005 lab surfaces
+        run: |
+          python -m py_compile scripts/fed005-rtt-network-source.py
+          python -m py_compile scripts/fed005-rtt-sink.py
+          python -m py_compile scripts/validate_fed005_network_loss.py
+          bash -n scripts/wiretap/fed005-network-loss-gateway-lab.sh
+          node --check scripts/fed004-rfc2198-recovery-webrtc-gateway.mjs
+
+      - name: Run Wiretap-routed network-loss recovery into real WebRTC
+        run: sudo -E bash scripts/wiretap/fed005-network-loss-gateway-lab.sh
+
+      - name: Verify FED-005 evidence manifest
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=target/evidence-routed/BAUDOT-FED-005/network-loss/bundle.manifest.sha256
+          test -f "$manifest"
+          (cd "$(dirname "$manifest")" && sha256sum -c bundle.manifest.sha256)
+
+      - name: Preserve FED-005 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-fed005-network-loss-evidence
+          path: target/evidence-routed/BAUDOT-FED-005/network-loss
+          if-no-files-found: error
