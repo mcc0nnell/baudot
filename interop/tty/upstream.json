@@ -3,11 +3,28 @@
     "repository": "freeswitch/spandsp",
     "commit": "8f1e1646bdec99eac5fd2cd92c35563f736b9b89",
     "version": "3.1.1",
-    "role": "primary external V.18 DSP oracle"
+    "role": "primary external V.18 DSP oracle",
+    "provenance": {
+      "sourceType": "external pinned upstream checkout",
+      "vendored": false,
+      "baudotUse": "built ephemerally for qualification and used as an external generator/decoder",
+      "license": {
+        "library": "LGPL-2.1",
+        "testSuiteAndSomeSupportingCode": "GPL-2.0"
+      },
+      "licenseEvidence": "upstream COPYING declares the SpanDSP library LGPL 2.1 and the test suite plus some supporting code GPL 2"
+    }
   },
   "minimodem": {
     "repository": "kamalmostafa/minimodem",
     "commit": "bb2f34cf5148f101563aa926e201d306edbacbd3",
-    "role": "independent secondary TDD generator/decoder"
+    "role": "independent secondary TDD generator/decoder",
+    "provenance": {
+      "sourceType": "external pinned upstream checkout",
+      "vendored": false,
+      "baudotUse": "built ephemerally for qualification and invoked as an external generator/decoder",
+      "license": "GPL-3.0-or-later",
+      "licenseEvidence": "upstream COPYING declares GNU GPL version 3 or, at the recipient's option, any later version"
+    }
   }
 }
