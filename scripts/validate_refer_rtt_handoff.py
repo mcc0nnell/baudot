@@ -36,6 +36,18 @@ def require(values: dict[str, str], key: str, expected: str, label: str) -> None
         raise ValueError(f"{label}: expected {key}={expected}, got {actual!r}")
 
 
+def require_event(path: Path, event_type: str, label: str) -> None:
+    if not path.exists():
+        raise ValueError(f"{label}: missing events evidence: {path}")
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        if not raw.strip():
+            continue
+        event = json.loads(raw)
+        if event.get("type") == event_type:
+            return
+    raise ValueError(f"{label}: expected event {event_type!r} was not preserved")
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -63,6 +75,7 @@ def main() -> None:
     if packet.block.text != "H":
         raise ValueError(f"control: expected canonical first T.140 character 'H', got {packet.block.text!r}")
 
+    require_event(CONTROL / "events.jsonl", "refer.rtt.observed", "control")
     require(control, "rtt.datagram.observed", "true", "control")
     require(control, "rtt.canonicalBytesMatched", "true", "control")
     require(control, "oldLeg.bye.sent", "true", "control")
@@ -71,6 +84,8 @@ def main() -> None:
 
     if (SIGNALING_ONLY / "rtt-datagram-received.bin").exists():
         raise ValueError("signaling-only: unexpected RTT datagram evidence exists")
+    require_event(SIGNALING_ONLY / "events.jsonl", "refer.rtt.withheld", "signaling-only")
+    require_event(SIGNALING_ONLY / "events.jsonl", "refer.rtt.observation_timeout", "signaling-only")
     require(signaling, "rtt.datagram.observed", "false", "signaling-only")
     require(signaling, "rtt.canonicalBytesMatched", "false", "signaling-only")
     require(signaling, "oldLeg.bye.sent", "false", "signaling-only")
@@ -100,6 +115,7 @@ def main() -> None:
             "firstT140CharacterObserved": False,
             "rttReady": signaling_rtt_ready,
             "oldLegReleased": False,
+            "boundedObservationCompleted": True,
         },
         "invariant": "REFER/NOTIFY/replacement-dialog success does not imply RTT readiness",
         "result": "PASS",
@@ -122,7 +138,7 @@ def main() -> None:
     )
 
     print("✓ BAUDOT-INTEROP-004 control: signaling + independently parsed T.140 => rttReady=true")
-    print("✓ BAUDOT-INTEROP-004 signaling-only: signaling succeeds, no T.140 => rttReady=false")
+    print("✓ BAUDOT-INTEROP-004 signaling-only: bounded no-T.140 observation => rttReady=false")
     print(f"evidence: {result_path}")
 
 
