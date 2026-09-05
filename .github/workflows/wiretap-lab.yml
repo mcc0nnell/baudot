@@ -28,7 +28,7 @@ jobs:
       - name: Install network prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y wireguard-tools iproute2
+          sudo apt-get install -y wireguard-tools iproute2 socat
           sudo modprobe wireguard
 
       - name: Install and verify Sandia Wiretap v0.9.0
