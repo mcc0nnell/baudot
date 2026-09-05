@@ -78,7 +78,9 @@ def validate(run_dir: Path) -> Fed005Result:
     wiretap_route_declared = (
         topology.get("transport") == "sandia-wiretap-v0.9.0"
         and topology.get("lossPoint") == "host-output-after-wiretap-server-reoriginates-udp"
-        and topology.get("mediaNetwork") == "10.77.20.0/24"
+        and topology.get("mediaNetwork") == "10.77.25.0/24"
+        and topology.get("signalingNetwork") == "10.77.15.0/24"
+        and topology.get("signalingResponseRouting") == "rfc3581-rport-over-transparent-flow"
     )
 
     source_sequence_one_valid = False
