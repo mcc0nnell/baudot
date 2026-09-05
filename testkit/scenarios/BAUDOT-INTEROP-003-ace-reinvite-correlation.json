@@ -74,14 +74,30 @@
         "media or RTT readiness after re-INVITE",
         "SIP conformance"
       ]
+    },
+    "jainSipLiveOverlap": {
+      "status": "runnable",
+      "entrypoint": "org.mcc0nnell.baudot.harness.LiveReinviteOverlapMain",
+      "runner": "scripts/run-live-reinvite-overlap.sh",
+      "proves": [
+        "a live JAIN SIP UAS establishes an INVITE 200 ACK dialog with an independent UDP peer",
+        "a first in-dialog INVITE remains pending while a second independently injected INVITE arrives",
+        "the overlapping request receives 491 Request Pending on the wire",
+        "the earlier pending request later completes with 200 and its matching ACK",
+        "raw SIP requests and responses are preserved in the evidence manifest"
+      ],
+      "doesNotProve": [
+        "live stale or mismatched SDP handling",
+        "media or RTT readiness after re-INVITE",
+        "production SBC or NAT behavior",
+        "SIP conformance"
+      ]
     }
   },
   "requiredBeforeRunnable": [
-    "live JAIN SIP UAS execution with two independently injected in-dialog INVITE transactions",
-    "raw network request and response evidence preserving transaction identity and SDP hashes",
-    "normal and glare control arms on the live dialog",
-    "one live stale-SDP or deliberately mismatched-SDP arm",
-    "independent media or RTT readiness observations after each transaction"
+    "one live stale-SDP or deliberately mismatched-SDP arm on the established dialog",
+    "independent media or RTT readiness observations after the control and stale-SDP transactions",
+    "terminal scenario reduction that joins live transaction identity, SDP identity, and readiness evidence without collapsing them into signaling success"
   ],
   "requiredBeforeProven": [
     "repeatable execution evidence for single and overlapping re-INVITE arms",

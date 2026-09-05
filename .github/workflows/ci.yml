@@ -23,6 +23,8 @@ jobs:
         run: mvn -B -ntp -DskipTests compile
       - name: BAUDOT-INTEROP-003 - JAIN SIP re-INVITE correlation gate
         run: bash scripts/run-reinvite-correlation-proof.sh
+      - name: BAUDOT-INTEROP-003 - live JAIN SIP re-INVITE overlap gate
+        run: bash scripts/run-live-reinvite-overlap.sh
       - name: Scenario 001 - signaling and media
         run: bash scripts/run-local-scenario.sh scenarios/001-signaling-and-media.env
       - name: Scenario 002 - signaling only

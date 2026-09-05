@@ -93,7 +93,27 @@ live.dialog.overlap.proven=false
 media.readiness.proven=false
 ```
 
-The full `BAUDOT-INTEROP-003` scenario remains `planned` until a live dialog/UAS test independently injects the overlapping transactions and preserves media or RTT readiness observations after each transaction.
+#### Second executable gate: live dialog overlap
+
+`LiveReinviteOverlapProbe` moves the overlap arm onto the wire. A real JAIN SIP UAS establishes an `INVITE -> 200 -> ACK` dialog with an independent raw UDP peer. The peer then sends CSeq 2 and, while that server transaction is deliberately left pending, independently injects CSeq 3 with the same dialog identity.
+
+The gate requires CSeq 3 to receive `491 Request Pending`, then releases CSeq 2 and requires its `200 OK` and matching ACK. Raw requests and responses are preserved as supplemental evidence under the same manifest machinery as the rest of Baudot.
+
+The raw peer is intentional. JAIN SIP's normal outbound dialog helper serializes re-INVITEs to avoid this overlap condition; bypassing that convenience path lets Baudot apply the exact UAS-side pressure that the scenario is meant to observe without modifying the JAIN SIP implementation.
+
+A passing live-overlap gate can set:
+
+```text
+live.dialog.overlap.proven=true
+```
+
+but still records:
+
+```text
+media.readiness.proven=false
+```
+
+`BAUDOT-INTEROP-003` therefore remains `planned`. The remaining runnable boundary is a live stale/mismatched-SDP arm plus independent media or RTT readiness observations that demonstrate why a `200 OK` cannot, by itself, establish usable post-renegotiation state.
 
 ## Next donor candidates
 
