@@ -90,6 +90,7 @@ def main() -> None:
         "PJSIP_NATIVE_T140_UAS_INCOMING",
         "PJSIP_NATIVE_T140_UAS_ANSWER_REQUESTED textCount=1",
         "PJSIP_NATIVE_T140_UAS_MEDIA_STATE",
+        "PJSIP_NATIVE_T140_UAS_TEXT_MEDIA_ACTIVE",
         "PJSIP_NATIVE_T140_UAS_SEND_REQUESTED text=H",
         "PJSIP_NATIVE_T140_UAS_TEXT_SENT",
         "PJSIP_NATIVE_T140_UAS_REMOTE_RELEASE_OBSERVED",
@@ -123,6 +124,7 @@ def main() -> None:
             "jainOfferDirectT140Pt98": True,
             "pjsipAnswerT140": True,
             "dialogConfirmed": True,
+            "pjsipNativeTextMediaActive": True,
         },
         "readiness": {
             "semanticAuthority": "baudot-reference",
@@ -167,6 +169,7 @@ def main() -> None:
     (terminal / "manifest.sha256").write_text("".join(lines), encoding="utf-8")
 
     print("✓ PJSIP 2.17 answered an incoming text-only call")
+    print("✓ native PJSIP text media was active before Call::sendText('H')")
     print("✓ native PJSIP media produced T.140 'H' accepted by the live Baudot reference gate")
     print("✓ JAIN released the call only after consuming the exact independent readiness token")
     print(f"evidence: {result_path}")
