@@ -64,10 +64,16 @@ public final class RttSipProbe {
     static final int RED_PAYLOAD_TYPE = 99;
     static final int T140_CLOCK_RATE = 1000;
     static final int RED_TIMESTAMP_OFFSET = 300;
-    static final int PRIMARY_SEQUENCE = 1;
-    static final int RED_SEQUENCE = 2;
-    static final int PRIMARY_TIMESTAMP = 1000;
-    static final int RED_TIMESTAMP = 1300;
+    static final int NORMAL_PRIMARY_SEQUENCE = 1;
+    static final int NORMAL_RED_SEQUENCE = 2;
+    static final int NORMAL_PRIMARY_TIMESTAMP = 1000;
+    static final int NORMAL_RED_TIMESTAMP = 1300;
+    static final int RECOVERY_PRIOR_SEQUENCE = 0;
+    static final int RECOVERY_OMITTED_SEQUENCE = 1;
+    static final int RECOVERY_RED_SEQUENCE = 2;
+    static final int RECOVERY_PRIOR_TIMESTAMP = 700;
+    static final int RECOVERY_OMITTED_TIMESTAMP = 1000;
+    static final int RECOVERY_RED_TIMESTAMP = 1300;
     static final int SSRC = 0x42415544; // "BAUD"; deterministic test evidence only.
 
     private RttSipProbe() {
@@ -91,7 +97,8 @@ public final class RttSipProbe {
                     "role", "caller",
                     "scenario", config.scenarioId(),
                     "correlation", config.correlationId(),
-                    "modality", "rtt"));
+                    "modality", "rtt",
+                    "profile", config.profile().wireName()));
 
             endpoint.start();
             endpoint.sendInvite();
@@ -106,6 +113,7 @@ public final class RttSipProbe {
                     "media.probe.sent", Boolean.toString(sent),
                     "role", "caller",
                     "rtt.datagrams.expected", "2",
+                    "rtt.profile", config.profile().wireName(),
                     "scenario.expectMedia", "true",
                     "scenario.id", config.scenarioId(),
                     "signaling.dialog.established", Boolean.toString(established)));
@@ -124,7 +132,8 @@ public final class RttSipProbe {
                     "role", "callee",
                     "scenario", config.scenarioId(),
                     "correlation", config.correlationId(),
-                    "modality", "rtt"));
+                    "modality", "rtt",
+                    "profile", config.profile().wireName()));
 
             receiver.start();
             endpoint.start();
@@ -137,6 +146,7 @@ public final class RttSipProbe {
                     "media.probe.received", Boolean.toString(datagramsReceived),
                     "role", "callee",
                     "rtt.datagrams.expected", "2",
+                    "rtt.profile", config.profile().wireName(),
                     "scenario.expectMedia", "true",
                     "scenario.id", config.scenarioId(),
                     "signaling.ack.received", Boolean.toString(endpoint.ackReceived()),
@@ -147,25 +157,50 @@ public final class RttSipProbe {
     }
 
     private static boolean sendRttDatagrams(Config config, EvidenceRecorder evidence) {
-        byte[][] datagrams = {primaryPacket(), redPacket()};
-        try (DatagramSocket socket = new DatagramSocket(new InetSocketAddress(
-                InetAddress.getByName(config.callerSipIp()), config.mediaSourcePort()))) {
-            for (int index = 0; index < datagrams.length; index++) {
-                byte[] content = datagrams[index];
-                evidence.writeBytes("rtt-datagram-" + (index + 1) + "-sent.bin", content);
-                DatagramPacket packet = new DatagramPacket(
-                        content,
-                        content.length,
-                        InetAddress.getByName(config.mediaTargetIp()),
-                        config.mediaTargetPort());
-                socket.send(packet);
-                evidence.event("rtt.datagram.sent", Map.of(
-                        "index", Integer.toString(index + 1),
-                        "target", config.mediaTargetIp() + ":" + config.mediaTargetPort(),
-                        "bytes", Integer.toString(content.length),
-                        "classification", "unvalidated"));
-                if (index + 1 < datagrams.length) {
-                    Thread.sleep(50L);
+        byte[][] datagrams = switch (config.profile()) {
+            case NORMAL -> new byte[][] {normalPrimaryPacket(), normalRedPacket()};
+            case RECOVERY -> new byte[][] {recoveryPriorPacket(), recoveryRedPacket()};
+        };
+
+        try {
+            if (config.profile() == Profile.RECOVERY) {
+                String plan = "{\n"
+                        + "  \"injection\": \"controlled-source-omission\",\n"
+                        + "  \"emittedSequenceNumbers\": [0, 2],\n"
+                        + "  \"omittedSequenceNumbers\": [1],\n"
+                        + "  \"omittedTimestamp\": 1000,\n"
+                        + "  \"omittedT140Text\": \"B\",\n"
+                        + "  \"recoveryCarrierSequence\": 2,\n"
+                        + "  \"redundantTimestampOffset\": 300\n"
+                        + "}\n";
+                evidence.writeBytes("rtt-loss-plan.json", plan.getBytes(StandardCharsets.UTF_8));
+                evidence.event("rtt.loss.injected", Map.of(
+                        "injection", "controlled-source-omission",
+                        "emitted", "0,2",
+                        "omitted", "1",
+                        "classification", "sender-controlled"));
+            }
+
+            try (DatagramSocket socket = new DatagramSocket(new InetSocketAddress(
+                    InetAddress.getByName(config.callerSipIp()), config.mediaSourcePort()))) {
+                for (int index = 0; index < datagrams.length; index++) {
+                    byte[] content = datagrams[index];
+                    evidence.writeBytes("rtt-datagram-" + (index + 1) + "-sent.bin", content);
+                    DatagramPacket packet = new DatagramPacket(
+                            content,
+                            content.length,
+                            InetAddress.getByName(config.mediaTargetIp()),
+                            config.mediaTargetPort());
+                    socket.send(packet);
+                    evidence.event("rtt.datagram.sent", Map.of(
+                            "index", Integer.toString(index + 1),
+                            "target", config.mediaTargetIp() + ":" + config.mediaTargetPort(),
+                            "bytes", Integer.toString(content.length),
+                            "classification", "unvalidated",
+                            "profile", config.profile().wireName()));
+                    if (index + 1 < datagrams.length) {
+                        Thread.sleep(50L);
+                    }
                 }
             }
             return true;
@@ -175,33 +210,48 @@ public final class RttSipProbe {
         }
     }
 
-    static byte[] primaryPacket() {
+    static byte[] normalPrimaryPacket() {
+        return directPacket(NORMAL_PRIMARY_SEQUENCE, NORMAL_PRIMARY_TIMESTAMP, true, 'H');
+    }
+
+    static byte[] normalRedPacket() {
+        return redPacket(NORMAL_RED_SEQUENCE, NORMAL_RED_TIMESTAMP, 'H', 'i');
+    }
+
+    static byte[] recoveryPriorPacket() {
+        return directPacket(RECOVERY_PRIOR_SEQUENCE, RECOVERY_PRIOR_TIMESTAMP, true, 'A');
+    }
+
+    static byte[] recoveryRedPacket() {
+        return redPacket(RECOVERY_RED_SEQUENCE, RECOVERY_RED_TIMESTAMP, 'B', 'C');
+    }
+
+    private static byte[] directPacket(int sequence, int timestamp, boolean marker, char text) {
         ByteBuffer packet = ByteBuffer.allocate(13).order(ByteOrder.BIG_ENDIAN);
-        packet.put((byte) 0x80); // RTP v2, no padding/extension/CSRCs.
-        packet.put((byte) (0x80 | T140_PAYLOAD_TYPE)); // marker + direct text/t140 PT.
-        packet.putShort((short) PRIMARY_SEQUENCE);
-        packet.putInt(PRIMARY_TIMESTAMP);
+        packet.put((byte) 0x80);
+        packet.put((byte) ((marker ? 0x80 : 0x00) | T140_PAYLOAD_TYPE));
+        packet.putShort((short) sequence);
+        packet.putInt(timestamp);
         packet.putInt(SSRC);
-        packet.put((byte) 'H');
+        packet.put((byte) text);
         return packet.array();
     }
 
-    static byte[] redPacket() {
+    private static byte[] redPacket(int sequence, int timestamp, char redundantText, char primaryText) {
         ByteBuffer packet = ByteBuffer.allocate(19).order(ByteOrder.BIG_ENDIAN);
-        packet.put((byte) 0x80); // RTP v2, no padding/extension/CSRCs.
-        packet.put((byte) RED_PAYLOAD_TYPE); // RED PT, marker clear after the initial packet.
-        packet.putShort((short) RED_SEQUENCE);
-        packet.putInt(RED_TIMESTAMP);
+        packet.put((byte) 0x80);
+        packet.put((byte) RED_PAYLOAD_TYPE);
+        packet.putShort((short) sequence);
+        packet.putInt(timestamp);
         packet.putInt(SSRC);
-
-        packet.put((byte) (0x80 | T140_PAYLOAD_TYPE)); // F=1 + redundant block PT.
-        int packed = (RED_TIMESTAMP_OFFSET << 10) | 1; // 14-bit offset + 10-bit length.
+        packet.put((byte) (0x80 | T140_PAYLOAD_TYPE));
+        int packed = (RED_TIMESTAMP_OFFSET << 10) | 1;
         packet.put((byte) ((packed >>> 16) & 0xff));
         packet.put((byte) ((packed >>> 8) & 0xff));
         packet.put((byte) (packed & 0xff));
-        packet.put((byte) T140_PAYLOAD_TYPE); // F=0 primary block header.
-        packet.put((byte) 'H'); // previous T140block carried redundantly.
-        packet.put((byte) 'i'); // current primary T140block.
+        packet.put((byte) T140_PAYLOAD_TYPE);
+        packet.put((byte) redundantText);
+        packet.put((byte) primaryText);
         return packet.array();
     }
 
@@ -210,8 +260,32 @@ public final class RttSipProbe {
         CALLEE
     }
 
+    enum Profile {
+        NORMAL("normal"),
+        RECOVERY("recovery");
+
+        private final String wireName;
+
+        Profile(String wireName) {
+            this.wireName = wireName;
+        }
+
+        String wireName() {
+            return wireName;
+        }
+
+        static Profile fromEnvironment(String value) {
+            return switch (value.trim().toLowerCase()) {
+                case "normal" -> NORMAL;
+                case "recovery" -> RECOVERY;
+                default -> throw new IllegalArgumentException("Unsupported BAUDOT_RTT_PROFILE: " + value);
+            };
+        }
+    }
+
     record Config(
             Role role,
+            Profile profile,
             String scenarioId,
             String correlationId,
             String callerSipIp,
@@ -230,6 +304,7 @@ public final class RttSipProbe {
         static Config fromEnvironment() {
             String roleValue = env("BAUDOT_ROLE", "caller").trim().toUpperCase();
             Role role = Role.valueOf(roleValue);
+            Profile profile = Profile.fromEnvironment(env("BAUDOT_RTT_PROFILE", "normal"));
             String scenario = env("BAUDOT_SCENARIO", "003-rtt-rfc4103");
             String correlation = env("BAUDOT_CORRELATION", UUID.randomUUID().toString());
             String callerIp = env("BAUDOT_CALLER_SIP_IP", "127.0.0.1");
@@ -237,6 +312,7 @@ public final class RttSipProbe {
             String mediaBindIp = env("BAUDOT_MEDIA_BIND_IP", calleeIp);
             return new Config(
                     role,
+                    profile,
                     scenario,
                     correlation,
                     callerIp,
@@ -286,7 +362,8 @@ public final class RttSipProbe {
             thread.start();
             evidence.event("rtt.receiver.ready", Map.of(
                     "bind", config.mediaBindIp() + ":" + config.mediaBindPort(),
-                    "classification", "opaque-udp"));
+                    "classification", "opaque-udp",
+                    "profile", config.profile().wireName()));
         }
 
         private void receiveLoop() {
@@ -304,7 +381,8 @@ public final class RttSipProbe {
                             "index", Integer.toString(index),
                             "source", packet.getAddress().getHostAddress() + ":" + packet.getPort(),
                             "bytes", Integer.toString(packet.getLength()),
-                            "classification", "unvalidated"));
+                            "classification", "unvalidated",
+                            "profile", config.profile().wireName()));
                     received.countDown();
                 } catch (SocketTimeoutException ignored) {
                     // Check running flag again.
@@ -344,7 +422,6 @@ public final class RttSipProbe {
         private final CountDownLatch dialog = new CountDownLatch(1);
         private final AtomicBoolean inviteReceived = new AtomicBoolean();
         private final AtomicBoolean ackReceived = new AtomicBoolean();
-
         private final SipStack stack;
         private final SipProvider provider;
         private final AddressFactory addressFactory;
@@ -356,10 +433,8 @@ public final class RttSipProbe {
             this.config = config;
             this.evidence = evidence;
             this.caller = caller;
-
             SipFactory factory = SipFactory.getInstance();
             factory.setPathName("gov.nist");
-
             Properties properties = new Properties();
             properties.setProperty("javax.sip.STACK_NAME",
                     "baudot-rtt-" + (caller ? "caller-" : "callee-")
@@ -369,7 +444,6 @@ public final class RttSipProbe {
             this.addressFactory = factory.createAddressFactory();
             this.headerFactory = factory.createHeaderFactory();
             this.messageFactory = factory.createMessageFactory();
-
             String bindIp = caller ? config.callerSipIp() : config.calleeSipBindIp();
             int port = caller ? config.callerSipPort() : config.calleeSipPort();
             ListeningPoint point = stack.createListeningPoint(bindIp, port, ListeningPoint.UDP);
@@ -396,36 +470,28 @@ public final class RttSipProbe {
             if (!caller) {
                 throw new IllegalStateException("Only the caller can send INVITE");
             }
-
             SipURI requestUri = addressFactory.createSipURI("callee", config.calleeSipIp());
             requestUri.setPort(config.calleeSipPort());
             requestUri.setTransportParam(ListeningPoint.UDP);
-
             Address fromAddress = addressFactory.createAddress(
                     sipUri("caller", config.callerSipIp(), config.callerSipPort()));
             FromHeader from = headerFactory.createFromHeader(fromAddress, randomTag());
-
             Address toAddress = addressFactory.createAddress(
                     sipUri("callee", config.calleeSipIp(), config.calleeSipPort()));
             ToHeader to = headerFactory.createToHeader(toAddress, null);
-
             List<ViaHeader> vias = new ArrayList<>();
             ViaHeader via = headerFactory.createViaHeader(
                     config.callerSipIp(), config.callerSipPort(), ListeningPoint.UDP, null);
             via.setRPort();
             vias.add(via);
-
             CallIdHeader callId = provider.getNewCallId();
             CSeqHeader cseq = headerFactory.createCSeqHeader(1L, Request.INVITE);
             MaxForwardsHeader maxForwards = headerFactory.createMaxForwardsHeader(70);
-
             Request invite = messageFactory.createRequest(
                     requestUri, Request.INVITE, callId, cseq, from, to, vias, maxForwards);
             invite.addHeader(headerFactory.createContactHeader(fromAddress));
-
             ContentTypeHeader contentType = headerFactory.createContentTypeHeader("application", "sdp");
             invite.setContent(offerSdp(config), contentType);
-
             inviteTransaction = provider.getNewClientTransaction(invite);
             evidence.event("sip.invite.sent", Map.of(
                     "target", config.calleeSipIp() + ":" + config.calleeSipPort(),
@@ -452,7 +518,6 @@ public final class RttSipProbe {
             if (caller) {
                 return;
             }
-
             Request request = event.getRequest();
             if (Request.ACK.equals(request.getMethod())) {
                 ackReceived.set(true);
@@ -463,19 +528,16 @@ public final class RttSipProbe {
             if (!Request.INVITE.equals(request.getMethod())) {
                 return;
             }
-
             try {
                 inviteReceived.set(true);
                 ServerTransaction transaction = event.getServerTransaction();
                 if (transaction == null) {
                     transaction = provider.getNewServerTransaction(request);
                 }
-
                 CallIdHeader callId = (CallIdHeader) request.getHeader(CallIdHeader.NAME);
                 evidence.event("sip.invite.received", Map.of(
                         "callId", callId == null ? "unknown" : callId.getCallId(),
                         "modality", "rtt"));
-
                 byte[] rawOffer = request.getRawContent();
                 if (rawOffer == null || rawOffer.length == 0) {
                     throw new IllegalStateException("RTT INVITE did not contain SDP");
@@ -484,7 +546,6 @@ public final class RttSipProbe {
                 evidence.event("sdp.offer.captured", Map.of(
                         "bytes", Integer.toString(rawOffer.length),
                         "classification", "unvalidated"));
-
                 Response ok = messageFactory.createResponse(Response.OK, request);
                 ToHeader to = (ToHeader) ok.getHeader(ToHeader.NAME);
                 if (to.getTag() == null) {
@@ -494,8 +555,7 @@ public final class RttSipProbe {
                         sipUri("callee", config.calleeSipIp(), config.calleeSipPort()));
                 ContactHeader contact = headerFactory.createContactHeader(contactAddress);
                 ok.addHeader(contact);
-                ok.setContent(
-                        answerSdp(config),
+                ok.setContent(answerSdp(config),
                         headerFactory.createContentTypeHeader("application", "sdp"));
                 transaction.sendResponse(ok);
                 evidence.event("sip.200.sent", Map.of("status", "200", "modality", "rtt"));
@@ -523,7 +583,6 @@ public final class RttSipProbe {
                 evidence.event("sdp.answer.captured", Map.of(
                         "bytes", Integer.toString(rawAnswer.length),
                         "classification", "unvalidated"));
-
                 Dialog sipDialog = event.getDialog();
                 if (sipDialog == null && inviteTransaction != null) {
                     sipDialog = inviteTransaction.getDialog();
