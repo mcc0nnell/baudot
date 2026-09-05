@@ -1,28 +1,28 @@
 # Baudot Testkit
 
-The Baudot testkit expresses accessible real-time communications behavior as portable scenarios and observations before binding that behavior to a particular SIP, WebRTC, gateway, or application implementation.
+The Baudot testkit expresses accessible real-time communications behavior as portable scenarios, vectors, and observations before binding that behavior to a particular SIP, WebRTC, gateway, or application implementation.
 
 ## Boundary
 
 The testkit separates:
 
 ```text
-scenario intent
-    │
-    ▼
-execution adapter
-    │
-    ▼
-observations
-    │
-    ▼
-assertions
-    │
-    ▼
-evidence / verdict
+scenario intent / protocol vector
+            │
+            ▼
+      execution adapter
+            │
+            ▼
+        observations
+            │
+            ▼
+         assertions
+            │
+            ▼
+      evidence / verdict
 ```
 
-An adapter may execute effects and report observations. It may not silently redefine the scenario, assertion set, or conformance claim.
+An adapter may execute effects and report observations. It may not silently redefine the scenario, vector, assertion set, or conformance claim.
 
 ## Readiness vocabulary
 
@@ -67,7 +67,31 @@ RTT_READY = RTT_NEGOTIATED && FIRST_T140_CHARACTER_OBSERVED
 
 This is deliberately stricter than inferring RTT readiness from successful SIP, WebRTC, video, or audio state.
 
-It is **not yet an RFC 4103 or T.140 conformance rule**. Normative T.140 vectors will define the semantics required to make that claim.
+It is **not by itself an RFC 4103 or T.140 conformance rule**.
+
+## T.140 baseline vectors
+
+`vectors/t140-presentation-v1.json` is the first standards-grounded presentation suite. The validator recomputes both the declared UTF-8 encoding and the expected presentation result rather than trusting fixture output.
+
+The first baseline covers:
+
+- IRV text;
+- Latin-1 supplement text;
+- `BEL` (`U+0007`);
+- `BS` (`U+0008`);
+- preferred new line via `LINE SEPARATOR` (`U+2028`);
+- supported, non-preferred `CR LF` new line; and
+- the T.140 Addendum 1 missing-text marker (`U+FFFD`).
+
+The suite is deliberately marked `baseline`, not `conformant`. It does not yet settle grapheme-cluster deletion, optional presentation controls, RTP T140blocks, RFC 2198 redundancy, packet-loss recovery, SIP negotiation, or WebRTC data-channel carriage.
+
+The source hierarchy for this layer is:
+
+1. ITU-T T.140 for presentation semantics;
+2. ITU-T T.140 Addendum 1 for the missing-text marker; and
+3. RFC 4103 only where it clarifies the boundary between T.140 content and RTP transport.
+
+That ordering matters: transport adapters will eventually have to satisfy the T.140 vectors rather than redefine them.
 
 ## Scenario status
 
