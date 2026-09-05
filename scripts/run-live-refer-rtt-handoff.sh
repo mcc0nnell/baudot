@@ -8,4 +8,4 @@ timeout --signal=TERM --kill-after=5s 45s \
   -Dexec.mainClass=org.mcc0nnell.baudot.harness.LiveReferRttHandoffProbe \
   exec:java
 
-python3 scripts/validate_refer_rtt_handoff.py
+python3 -m scripts.validate_refer_rtt_handoff
