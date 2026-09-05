@@ -20,6 +20,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 from typing import Iterable
 
 OBSERVED_WIRETAP_VERSION = "0.9.0"
@@ -132,11 +133,19 @@ def validate_topology(
     }
 
 
-def _runtime_checks(namespaces: list[str], required_bins: list[str], response_routing: str) -> tuple[list[str], dict[str, str]]:
+def _runtime_checks(
+    *,
+    namespaces: list[str],
+    host_links: list[str],
+    required_bins: list[str],
+    response_routing: str,
+    wiretap_bin: str,
+    evidence_root: Path,
+) -> tuple[list[str], dict[str, str]]:
     errors: list[str] = []
     facts: dict[str, str] = {}
 
-    binaries = list(dict.fromkeys(required_bins))
+    binaries = list(dict.fromkeys([wiretap_bin, *required_bins]))
     if response_routing == UDP_EXPOSE_LOOPBACK and "socat" not in binaries:
         binaries.append("socat")
     for binary in binaries:
@@ -145,9 +154,35 @@ def _runtime_checks(namespaces: list[str], required_bins: list[str], response_ro
         if not present:
             errors.append(f"binary: required executable {binary!r} is not available")
 
-    if namespaces:
+    wiretap_path = shutil.which(wiretap_bin)
+    if wiretap_path:
+        try:
+            completed = subprocess.run(
+                [wiretap_path, "--version"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            facts["wiretap.version"] = completed.stdout.splitlines()[0].strip() or "unknown"
+        except (subprocess.CalledProcessError, IndexError):
+            errors.append("wiretap: unable to read version from configured executable")
+            facts["wiretap.version"] = "unknown"
+    else:
+        facts["wiretap.version"] = "unavailable"
+
+    try:
+        evidence_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(prefix=".baudot-preflight-", dir=evidence_root) as probe:
+            probe.write(b"ok")
+            probe.flush()
+        facts["evidence.root.writable"] = "true"
+    except OSError as exc:
+        facts["evidence.root.writable"] = "false"
+        errors.append(f"evidence: root {evidence_root} is not writable ({exc})")
+
+    if namespaces or host_links:
         if shutil.which("ip") is None:
-            errors.append("namespace: ip executable is required to verify namespace cleanliness")
+            errors.append("topology: ip executable is required to verify host-state cleanliness")
         else:
             try:
                 completed = subprocess.run(
@@ -156,20 +191,40 @@ def _runtime_checks(namespaces: list[str], required_bins: list[str], response_ro
                     capture_output=True,
                     text=True,
                 )
-                existing = {
+                existing_namespaces = {
                     line.split()[0]
                     for line in completed.stdout.splitlines()
                     if line.strip()
                 }
                 for namespace in namespaces:
-                    clean = namespace not in existing
+                    clean = namespace not in existing_namespaces
                     facts[f"namespace.{namespace}.clean"] = str(clean).lower()
                     if not clean:
                         errors.append(
                             f"namespace: {namespace!r} already exists; refusing to reuse stale topology"
                         )
+
+                completed = subprocess.run(
+                    ["ip", "-o", "link", "show"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                existing_links: set[str] = set()
+                for line in completed.stdout.splitlines():
+                    parts = line.split(": ", 2)
+                    if len(parts) < 2:
+                        continue
+                    existing_links.add(parts[1].split("@", 1)[0])
+                for link in host_links:
+                    clean = link not in existing_links
+                    facts[f"hostLink.{link}.clean"] = str(clean).lower()
+                    if not clean:
+                        errors.append(
+                            f"host-link: {link!r} already exists; refusing to reuse stale topology"
+                        )
             except subprocess.CalledProcessError as exc:
-                errors.append(f"namespace: unable to list network namespaces (exit {exc.returncode})")
+                errors.append(f"topology: unable to inspect host network state (exit {exc.returncode})")
 
     return errors, facts
 
@@ -196,8 +251,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--response-routing", required=True)
     parser.add_argument("--loopback-forwarding-shim", action="store_true")
     parser.add_argument("--namespace", action="append", default=[])
+    parser.add_argument("--host-link", action="append", default=[])
     parser.add_argument("--require-bin", action="append", default=[])
-    parser.add_argument("--wiretap-version", default="unknown")
+    parser.add_argument("--wiretap-bin", default="wiretap")
+    parser.add_argument("--evidence-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     return parser
 
@@ -205,7 +262,6 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     facts: dict[str, str] = {
-        "wiretap.version": args.wiretap_version,
         "preflight.claimBoundary": (
             "reserved-ipv4 profile derives from Baudot observation of Wiretap v0.9.0; "
             "no SIP/RTP/RFC4103 conformance claim"
@@ -228,7 +284,12 @@ def main(argv: list[str] | None = None) -> int:
         errors.append(str(exc))
 
     runtime_errors, runtime_facts = _runtime_checks(
-        args.namespace, args.require_bin, args.response_routing
+        namespaces=args.namespace,
+        host_links=args.host_link,
+        required_bins=args.require_bin,
+        response_routing=args.response_routing,
+        wiretap_bin=args.wiretap_bin,
+        evidence_root=args.evidence_root,
     )
     errors.extend(runtime_errors)
     facts.update(runtime_facts)
@@ -240,7 +301,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"preflight evidence: {args.output}", file=sys.stderr)
         return 2
 
-    print("✓ Wiretap topology preflight: reserved-prefix, route, reverse-path, namespace, and binary guards passed")
+    print("✓ Wiretap topology preflight: reserved-prefix, route, reverse-path, host-state, and evidence guards passed")
     print(f"preflight evidence: {args.output}")
     return 0
 
