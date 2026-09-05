@@ -50,8 +50,9 @@ The executable proving ground now includes:
 - independently routed signaling and text-media paths through Wiretap;
 - fail-fast topology preflight with evidence-bound reserved-prefix, route, namespace, host-link, and reverse-path assertions;
 - `BAUDOT-INTEROP-003`, a runnable re-INVITE / SDP-freshness / RTT-readiness evidence chain;
-- `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain; and
-- a bidirectional JAIN SIP ↔ Elixip `BAUDOT-INTEROP-004` matrix with controlled negative and positive readiness arms, preserved wire evidence, and independent terminal reduction.
+- `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain;
+- a bidirectional JAIN SIP ↔ Elixip `BAUDOT-INTEROP-004` matrix with controlled negative and positive readiness arms, preserved wire evidence, and independent terminal reduction; and
+- a PJSIP 2.17 qualification lane that exercises native PJSUA2/PJMEDIA text generation against a Baudot/JAIN receiver before PJSIP is admitted into transfer scenarios.
 
 A passing transfer does **not** mean that REFER succeeded. The relevant evidence can distinguish:
 
@@ -78,29 +79,32 @@ Elixip -> JAIN SIP
   canonical T.140    => independently parse, then release original leg
 ```
 
-The positive arms use explicitly Baudot-owned deterministic media stimulus and therefore do not claim native Elixip RFC 4103 media behavior.
+The current positive transfer arms use explicitly Baudot-owned deterministic media stimulus and therefore do not claim native Elixip RFC 4103 media behavior. [ADR-0002](docs/adr/0002-pjsip-native-rtt-media-oracle.md) defines the next threshold: qualify PJSIP 2.17 as an external native RTT media oracle, then substitute that independently implemented media producer into the same handoff reducer.
 
 See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model.
 
 ## Interoperability ensemble
 
-[ADR-0001](docs/adr/0001-interoperability-ensemble-and-external-oracles.md) defines the current implementation boundary:
+[ADR-0001](docs/adr/0001-interoperability-ensemble-and-external-oracles.md) defines the base implementation boundary:
 
 - **JAIN SIP** — primary glass-box signaling instrument;
 - **Elixip** — first externally installed independent SIP/call-state oracle;
+- **PJSIP/PJPROJECT 2.17** — external native RTT media qualification target under ADR-0002, not a replacement for JAIN SIP or Elixip;
 - **Apache OpenMeetings** — integration specimen and scenario donor, not the second independent SIP stack;
 - **ACE Direct** — historical production donor corpus; and
 - **Wiretap** — external network/evidence substrate, never verdict authority.
 
 Baudot reducers and reference code retain terminal verdict authority within explicit claim boundaries. Implementation agreement is evidence, not correctness by majority vote.
 
-The external-oracle lane is documented in [`interop/elixip/`](interop/elixip/). It admits one exact clean upstream Elixip checkout and hash-binds Baudot-owned FSL inputs before execution without vendoring or linking Elixip into Baudot. `BAUDOT-INTEROP-004` now exercises that boundary in both directions while keeping REFER acceptance, NOTIFY progression, replacement-dialog establishment, RTT negotiation, T.140 observation, old-leg teardown, and terminal readiness as separate evidence facts.
+The Elixip external-oracle lane is documented in [`interop/elixip/`](interop/elixip/). It admits one exact clean upstream Elixip checkout and hash-binds Baudot-owned FSL inputs before execution without vendoring or linking Elixip into Baudot. `BAUDOT-INTEROP-004` now exercises that boundary in both directions while keeping REFER acceptance, NOTIFY progression, replacement-dialog establishment, RTT negotiation, T.140 observation, old-leg teardown, and terminal readiness as separate evidence facts.
+
+The PJSIP native-media lane is documented in [`interop/pjsip/`](interop/pjsip/). Its first experiment pins release 2.17, builds the external stack ephemerally, requests one native text stream, calls `Call::sendText("H")`, preserves the resulting wire datagrams, and leaves semantic classification to Baudot's independent Python reference.
 
 ## Status and claim boundary
 
 Baudot is in active proving-ground development. Several scenarios are **runnable**, but runnable is not the same as proven or conformant.
 
-The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, or implementation conformance. Promotion toward stronger interoperability claims requires additional independent implementations, broader endpoint/timing coverage, production-representative gateway evidence, native independent RFC 4103/T.140 media participation, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
+The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, or other implementation conformance. Promotion toward stronger interoperability claims requires additional independent implementations, broader endpoint/timing coverage, production-representative gateway evidence, native independent RFC 4103/T.140 media participation, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
 
 ## Project name
 
