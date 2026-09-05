@@ -117,8 +117,9 @@ The federation testkit currently includes:
 
 - `BAUDOT-FED-001`, which reduces caller + interpreter + destination readiness and security claims without provider-specific semantics;
 - `BAUDOT-FED-002`, which joins a live JAIN SIP caller-to-interpreter evidence gate with an RFC 8865/T.140 destination boundary and a real headless Chromium `RTCPeerConnection` endpoint exercise;
-- `BAUDOT-FED-003`, which proves inline RFC 4103/RFC 2198-to-WebRTC T.140 continuity while keeping raw forwarding, primary T.140 semantics, browser transport state, and gateway media termination as separate evidence facts; and
-- `BAUDOT-FED-004`, which uses a sender-controlled omission of RTP sequence 1 and proves that the gateway reconstructs the missing `B` exactly once from RFC 2198 redundancy before delivering `ABC` over a real Chromium `t140` data channel. The preserved SIP-side stream contains only sequences 0 and 2; gateway provenance is `(0,A,primary) → (1,B,redundant) → (2,C,primary)`; and the independent Python reducer must reach the same result with no missing-text marker.
+- `BAUDOT-FED-003`, which proves inline RFC 4103/RFC 2198-to-WebRTC T.140 continuity while keeping raw forwarding, primary T.140 semantics, browser transport state, and gateway media termination as separate evidence facts;
+- `BAUDOT-FED-004`, which uses a sender-controlled omission of RTP sequence 1 and proves that the gateway reconstructs the missing `B` exactly once from RFC 2198 redundancy before delivering `ABC` over a real Chromium `t140` data channel. The preserved SIP-side stream contains only sequences 0 and 2; gateway provenance is `(0,A,primary) → (1,B,redundant) → (2,C,primary)`; and the independent Python reducer must reach the same result with no missing-text marker; and
+- `BAUDOT-FED-005`, which moves that loss into a routed network path. The source emits sequences 0, 1, and 2 before the fault, Sandia Wiretap carries the media route, an evidence-counted host nftables rule drops only sequence 1 after Wiretap re-originates UDP, and the unchanged FED-004 recovery gateway sees only sequences 0 and 2. Source, network, gateway, degraded-RTP sink, browser, and terminal-reducer evidence remain separate; the surviving packet hashes are preserved; and real Chromium still receives exactly `ABC` with sequence 1 attributed to RFC 2198 redundancy.
 
 Run the open SIP/interpreter boundary with:
 
@@ -138,7 +139,17 @@ Run the controlled RED recovery slice with:
 bash scripts/run-fed004-red-loss-recovery.sh
 ```
 
-The dedicated `federation-lab` workflow executes the browser and gateway lanes and preserves their evidence bundles. FED-004 is deliberately a **sender-controlled omission** proof, not a claim about network-induced loss, reordering timers, or broader standards conformance. The next recovery threshold is to induce loss in the routed network substrate itself while preserving the same packet/recovery evidence contract. A successful browser or gateway run is an execution fact, not WebRTC, RFC 4103, RFC 2198, SIP, VRS, or FaceTime conformance.
+Run the Wiretap-routed network-loss recovery slice with:
+
+```bash
+sudo -E bash scripts/wiretap/fed005-network-loss-gateway-lab.sh
+```
+
+The dedicated `federation-lab` workflow executes the browser and gateway lanes for FED-002 through FED-004. The separate `federation-network-loss-lab` workflow executes FED-005 because it needs privileged routed networking and an explicit host fault-injection rule.
+
+FED-004 remains deliberately a **sender-controlled omission** proof. FED-005 adds a bounded **network-path loss** proof: all three source packets exist before the fault, exactly one sequence-1 packet is dropped on the Wiretap-routed host path, the gateway never receives that packet, and RFC 2198 redundancy reconstructs the missing T.140 generation for the browser. Wiretap is the routed transport substrate, not the packet-loss injector.
+
+The remaining recovery thresholds are broader loss positions and burst patterns, insufficient redundancy with the T.140 missing-text marker, out-of-order arrival and waiting-timer behavior, and the reverse WebRTC-to-RFC 4103 direction. A successful browser, gateway, or routed-loss run is an execution fact, not WebRTC, RFC 4103, RFC 2198, SIP, VRS, or FaceTime conformance.
 
 ## Status and claim boundary
 
