@@ -142,12 +142,41 @@ bash scripts/run-tty-v18-pcmu-rtp.sh
 
 This proves a controlled codec-and-packetization survivability slice before live UDP or Wiretap is introduced.
 
+## BAUDOT-TTY-003: live UDP through Wiretap
+
+The third scenario carries those same deterministic PCMU RTP datagrams over actual UDP sockets from a caller network namespace through the pinned Sandia Wiretap v0.9.0 routed topology to a callee namespace. The far side reconstructs PCM and hands it to the opposite TTY implementation.
+
+```text
+minimodem -> PCMU/RTP -> UDP -> Wiretap -> UDP -> PCMU/PCM -> SpanDSP
+SpanDSP   -> PCMU/RTP -> UDP -> Wiretap -> UDP -> PCMU/PCM -> minimodem
+```
+
+The first accepted run preserved the clean media byte-for-byte across the routed path:
+
+- minimodem -> SpanDSP: 84 of 84 RTP datagrams, identical pre/post SHA-256 `2c2d7d99e07eaa660bfd396781b070f2e00f3a9bff9579844feecc74b3fd3fa4`, decoded `HELLO GA`;
+- SpanDSP -> minimodem: 155 of 155 RTP datagrams, identical pre/post SHA-256 `8a4eededf9afd25a089e3b124514f506dfbacb39393c332b8cb462c3a80cb9d7`, decoded `HELLO GA`;
+- RTP version, PT 0, 160-byte payload profile, sequence progression, timestamp progression, and SSRC stability all reduced true after the live route.
+
+The dedicated `tty-wiretap-lab` workflow builds the exact external oracle pins, verifies the Wiretap release checksum, runs the routed topology, preserves pre/post packet sequences and reconstructed audio, and lets `reduce_tty_v18_wiretap_udp.py` own the terminal verdict.
+
+## BAUDOT-TTY-004: one-packet loss negative control
+
+A clean-route proof is not enough if the evidence system cannot detect failure. The fourth scenario intentionally omits one RTP datagram before the routed path while preserving the original pre-route sequence as evidence.
+
+The first negative-control run dropped packet index 20, RTP sequence 1020, from the 84-packet minimodem-generated stream. The far side received 83 packets. The reducer observed the exact declared omission, a sequence step of 2, a timestamp step of 320, and rejected clean continuity. With one-packet zero concealment used only to make the damaged audio decodable, SpanDSP observed `HBLO GA` instead of `HELLO GA`.
+
+That text corruption is observational evidence, not a general loss-tolerance threshold. The terminal requirement is that Baudot detect and attribute the declared transport discontinuity rather than silently treating the run as clean.
+
 ## Claim boundary
 
 A passing `BAUDOT-TTY-001` result means that the pinned SpanDSP and minimodem implementations cross-generate and cross-decode the expected text under one lossless local WAV profile, with Baudot independently reducing the preserved artifacts.
 
 A passing `BAUDOT-TTY-002` result additionally means that the same text survives one deterministic local PCMU/RTP datagram transform with independently reduced RTP progression.
 
-Neither result proves V.18 conformance, PSTN survivability, live RTP/UDP interoperability, SBC/transcoder tolerance, hardware TTY interoperability, or production readiness.
+A passing `BAUDOT-TTY-003` result means that, in the controlled routed lab topology, those PCMU RTP datagrams traversed live UDP through the pinned Wiretap implementation without modification and the opposite TTY implementations recovered the expected text.
 
-The next promotion step is to carry these exact PCMU RTP datagrams over live UDP through the existing controlled network/evidence substrate, then add loss, jitter, transcoding, and hardware endpoints.
+A passing `BAUDOT-TTY-004` result means that a deliberately omitted RTP packet was independently visible in the preserved transport evidence and was not misclassified as a clean media run.
+
+None of these results proves V.18 conformance, PSTN survivability, arbitrary packet-loss or jitter tolerance, SBC/transcoder behavior, hardware TTY interoperability, or production readiness.
+
+The next promotion steps are controlled jitter and reordering, an independently implemented G.711/transcoding middlebox, and hardware TTY endpoints.
