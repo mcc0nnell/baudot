@@ -27,6 +27,8 @@ jobs:
         run: bash scripts/run-local-scenario.sh scenarios/002-signaling-only.env
       - name: Scenario 003 - SIP-negotiated RFC 4103 RTT
         run: bash scripts/run-local-rtt-scenario.sh scenarios/003-rtt-rfc4103.env
+      - name: Scenario 004 - controlled RFC 2198 recovery
+        run: bash scripts/run-local-rtt-scenario.sh scenarios/004-rtt-red-recovery.env
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
