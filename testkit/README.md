@@ -129,7 +129,7 @@ Baudot scenario / vectors / assertions
 
 **Baudot owns portable accessibility behavior, readiness vocabulary, scenario assertions, claim scope, and terminal reduction. ACE Omni owns controlled run identity, deterministic execution planning, command sequencing, authoritative observation-envelope/evidence handling, replay, and export. Attached runtimes own external effects.**
 
-The first machine-readable bridge contract is [`contracts/omni-emulytics-bridge-v1.json`](contracts/omni-emulytics-bridge-v1.json). The architectural decision and authority boundary are documented in [`ADR-0002`](../docs/adr/0002-ace-omni-experiment-evidence-bridge.md).
+The first machine-readable bridge protocol is [`bridges/omni-emulytics-bridge-v1.json`](bridges/omni-emulytics-bridge-v1.json). The architectural decision and authority boundary are documented in [`ADR-0002`](../docs/adr/0002-ace-omni-experiment-evidence-bridge.md).
 
 A command remains intent, not evidence. For example, an Omni command requesting a REFER cannot itself establish `referAccepted=true`; that fact must come from an identified observation source. Likewise, successful signaling or RTT negotiation does not imply `rttReady=true` unless the active Baudot scenario's evidence rule is satisfied.
 
