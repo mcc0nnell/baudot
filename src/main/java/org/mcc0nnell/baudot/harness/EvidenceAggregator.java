@@ -36,6 +36,9 @@ public final class EvidenceAggregator {
     }
 
     static Result aggregate(Path callerDir, Path calleeDir, Path output) throws IOException {
+        verifyManifest(callerDir);
+        verifyManifest(calleeDir);
+
         Map<String, String> caller = readProperties(callerDir.resolve("result.properties"));
         Map<String, String> callee = readProperties(calleeDir.resolve("result.properties"));
 
@@ -43,11 +46,17 @@ public final class EvidenceAggregator {
         requireSame(caller, callee, "scenario.id");
         requireSame(caller, callee, "scenario.expectMedia");
 
-        boolean callerEstablished = Boolean.parseBoolean(caller.getOrDefault("signaling.established", "false"));
-        boolean calleeReceivedInvite = Boolean.parseBoolean(callee.getOrDefault("signaling.invite.received", "false"));
-        boolean signalingPass = callerEstablished && calleeReceivedInvite;
-        boolean mediaReceived = Boolean.parseBoolean(callee.getOrDefault("media.probe.received", "false"));
-        boolean expectMedia = Boolean.parseBoolean(caller.getOrDefault("scenario.expectMedia", "true"));
+        boolean callerEstablished = Boolean.parseBoolean(
+                caller.getOrDefault("signaling.dialog.established", "false"));
+        boolean calleeReceivedInvite = Boolean.parseBoolean(
+                callee.getOrDefault("signaling.invite.received", "false"));
+        boolean calleeReceivedAck = Boolean.parseBoolean(
+                callee.getOrDefault("signaling.ack.received", "false"));
+        boolean signalingPass = callerEstablished && calleeReceivedInvite && calleeReceivedAck;
+        boolean mediaReceived = Boolean.parseBoolean(
+                callee.getOrDefault("media.probe.received", "false"));
+        boolean expectMedia = Boolean.parseBoolean(
+                caller.getOrDefault("scenario.expectMedia", "true"));
         boolean scenarioPass = signalingPass && mediaReceived == expectMedia;
 
         String callState = signalingPass ? "CALL_ESTABLISHED" : "SIGNALING_FAILED";
@@ -60,6 +69,7 @@ public final class EvidenceAggregator {
         fields.put("callState", callState);
         fields.put("mediaState", mediaState);
         fields.put("expectedMedia", Boolean.toString(expectMedia));
+        fields.put("sipAckObserved", Boolean.toString(calleeReceivedAck));
 
         Files.createDirectories(output);
         String json = EvidenceRecorder.toJson(fields);
@@ -80,6 +90,35 @@ public final class EvidenceAggregator {
         }
 
         return new Result(scenarioPass, json);
+    }
+
+    private static void verifyManifest(Path directory) throws IOException {
+        Path manifest = directory.resolve("manifest.sha256");
+        if (!Files.isRegularFile(manifest)) {
+            throw new IOException("Missing role manifest: " + manifest);
+        }
+        try (BufferedReader reader = Files.newBufferedReader(manifest, StandardCharsets.UTF_8)) {
+            for (String line; (line = reader.readLine()) != null;) {
+                if (line.isBlank()) {
+                    continue;
+                }
+                int split = line.indexOf("  ");
+                if (split != 64 || split + 2 >= line.length()) {
+                    throw new IOException("Malformed role manifest line: " + line);
+                }
+                String expected = line.substring(0, split);
+                String name = line.substring(split + 2);
+                Path relative = Path.of(name);
+                if (relative.isAbsolute() || name.contains("..")) {
+                    throw new IOException("Unsafe role manifest path: " + name);
+                }
+                Path target = directory.resolve(relative).normalize();
+                String actual = sha256(target);
+                if (!expected.equals(actual)) {
+                    throw new IOException("Evidence hash mismatch for " + target);
+                }
+            }
+        }
     }
 
     private static Map<String, String> readProperties(Path path) throws IOException {
