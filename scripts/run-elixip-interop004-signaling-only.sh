@@ -62,13 +62,16 @@ for _ in $(seq 1 100); do
     cat "$OUT/elixip.stderr.log" >&2 || true
     exit 3
   fi
-  if ss -H -lun | awk -v port=":$ELIXIP_PORT" '$5 ~ port "$" { found=1 } END { exit found ? 0 : 1 }'; then
+  # ss -lun columns are: State Recv-Q Send-Q Local-Address:Port Peer-Address:Port.
+  if ss -H -lun | awk -v port=":$ELIXIP_PORT" '$4 ~ port "$" { found=1 } END { exit found ? 0 : 1 }'; then
     ready=1
     break
   fi
   sleep .1
 done
 [[ "$ready" == 1 ]] || { echo "Elixip target did not bind UDP/$ELIXIP_PORT" >&2; exit 3; }
+ss -H -lun | awk -v port=":$ELIXIP_PORT" '$4 ~ port "$"' >"$OUT/elixip-listener.txt"
+[[ -s "$OUT/elixip-listener.txt" ]] || { echo "unable to preserve Elixip listener evidence" >&2; exit 3; }
 
 BAUDOT_EVIDENCE_DIR="$EVIDENCE" \
 BAUDOT_ELIXIP_SIP_HOST=127.0.0.1 \
@@ -90,6 +93,7 @@ TARGET_PID=""
     scenario.exs
     elixip.stdout.log
     elixip.stderr.log
+    elixip-listener.txt
     jain-to-elixip-signaling-only/manifest.sha256
     jain-to-elixip-signaling-only/result.properties
     jain-to-elixip-signaling-only/replacement-invite.request.sip
