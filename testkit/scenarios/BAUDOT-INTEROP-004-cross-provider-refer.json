@@ -1,7 +1,7 @@
 {
   "id": "BAUDOT-INTEROP-004",
   "title": "Cross-provider REFER transfer continuity and accessibility readiness",
-  "status": "planned",
+  "status": "runnable",
   "contract": "baudot.modality-readiness@1",
   "objective": "Turn ACE Direct transfer behavior into a provider-neutral interoperability scenario that binds the original dialog, REFER transaction, NOTIFY outcome, replacement dialog, referred target identity, and post-transfer accessibility readiness without treating signaling success as a usable handoff.",
   "historicalBasis": {
@@ -13,7 +13,7 @@
       "acedirect/public/js/jssip_agent.js"
     ],
     "observation": "ACE Direct routes transfer requests through JsSIP RTCSession.refer(), records REFER subscribers by transaction identity, distinguishes blind versus warm transfer state at the application layer, and hands multiparty host responsibility to a backup agent before the old host terminates its leg.",
-    "scope": "Motivating interoperability evidence only. Provider A/B/C identities are synthetic placeholders. Baudot does not infer any behavior of a contemporary VRS provider from the ACE donor or from the deterministic reducer."
+    "scope": "Motivating interoperability evidence only. Provider A/B/C identities are synthetic placeholders. Baudot does not infer any behavior of a contemporary VRS provider from the ACE donor or from deterministic or loopback evidence."
   },
   "providerModel": {
     "identities": ["provider-a", "provider-b", "provider-c"],
@@ -68,10 +68,15 @@
     "a continuity-preserving transfer must not terminate the old leg before the configured replacement-leg readiness point",
     "provider labels do not alter readiness semantics"
   ],
+  "execution": {
+    "runner": "scripts/run-ace-refer-scenario.sh",
+    "terminalReducer": "scripts.validate_ace_refer_scenario",
+    "expectedTerminalVerdict": "RUNNABLE_PASS"
+  },
   "executionGates": {
     "providerTransferReducer": {
       "status": "runnable",
-      "runner": "python3 scripts/validate_refer_provider_matrix.py",
+      "runner": "python3 -m scripts.validate_refer_provider_matrix",
       "fixture": "testkit/refer/provider-transfer-matrix.json",
       "proves": [
         "all directed provider pairs are represented independently of provider implementation",
@@ -107,19 +112,43 @@
         "production VRS readiness",
         "SIP or REFER conformance"
       ]
+    },
+    "jainSipLiveReferRttHandoff": {
+      "status": "runnable",
+      "entrypoint": "org.mcc0nnell.baudot.harness.LiveReferRttHandoffProbe",
+      "runner": "scripts/run-live-refer-rtt-handoff.sh",
+      "referenceValidator": "scripts.validate_refer_rtt_handoff",
+      "proves": [
+        "the replacement dialog negotiates text/t140 independently of REFER acceptance",
+        "a control provider-b sends the repository canonical primary T.140 RTP packet only after replacement ACK",
+        "the control old leg is released only after the canonical replacement-leg RTT bytes are observed",
+        "the preserved control packet is independently parsed by the Python RFC 4103 reference before firstT140CharacterObserved and rttReady become true",
+        "a live signaling-only arm can complete REFER, NOTIFY, replacement 2xx, and ACK while withholding RTT",
+        "the signaling-only arm remains rttReady=false and preserves the old leg"
+      ],
+      "doesNotProve": [
+        "full RFC 4103 or T.140 conformance",
+        "live interoperability with an external provider",
+        "production VRS readiness",
+        "SIP or REFER conformance"
+      ]
     }
   },
-  "requiredBeforeRunnable": [
-    "independent RTT or media readiness observation on the replacement leg before old-leg teardown",
-    "one live signaling-only transfer arm where REFER and replacement dialog succeed but replacement accessibility readiness does not",
-    "terminal reduction that joins transfer signaling, target correlation, continuity, and accessibility readiness without collapsing them"
+  "runnableEvidence": [
+    "provider-neutral matrix covering six directed provider pairs and blind/warm dimensions",
+    "live JAIN SIP in-dialog REFER with Event: refer NOTIFY progression and replacement-dialog target correlation",
+    "live replacement-leg text/t140 SDP negotiation",
+    "independently parsed control T.140 packet producing rttReady=true before old-leg release",
+    "live signaling-only transfer producing rttReady=false while the old leg remains preserved",
+    "terminal reduction joining signaling, target identity, continuity, and accessibility readiness without collapsing them"
   ],
   "requiredBeforeProven": [
     "repeatable execution across more than one SIP implementation",
-    "all configured provider directions exercised without provider-specific changes to the reducer",
+    "all configured provider directions exercised live without provider-specific changes to the reducer",
     "blind and warm transfer coverage with standards-grounded handling of any Replaces usage",
-    "failure evidence for rejected REFER, failed NOTIFY outcome, target mismatch, premature teardown, and accessibility-readiness loss",
-    "production-representative gateway or VRS observations without weakening claim boundaries"
+    "failure evidence from additional live implementations for rejected REFER, failed NOTIFY outcome, target mismatch, premature teardown, and accessibility-readiness loss",
+    "production-representative gateway or VRS observations without weakening claim boundaries",
+    "terminal evidence bundle suitable for an explicit proven-state review"
   ],
   "claimBoundary": {
     "doesNotEstablish": [
@@ -129,6 +158,7 @@
       "RFC 3515 conformance",
       "RFC 6665 conformance",
       "production VRS readiness",
+      "external provider interoperability",
       "that any named or unnamed provider supports REFER",
       "that ACE Direct transfer behavior is defective or normative"
     ]
