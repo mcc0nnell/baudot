@@ -13,6 +13,7 @@ The project starts at the semantic boundary: **T.140 real-time text behavior and
 3. **Evidence before conformance claims.** A fixture, implementation, or adapter does not become conformant because documentation says so; the evidence path must support the claim.
 4. **Transport does not redefine text semantics.** T.140 behavior belongs to the core. RFC 4103/SIP and other transports carry it.
 5. **Interop failures become tests.** Historical production workarounds can motivate scenarios, but they are not copied forward or treated as proof that a modern implementation has the same defect.
+6. **Freeze the protocol brain; modernize everything around it.** Treat JAIN SIP's transaction, dialog, timer, retransmission, parsing, and state-machine behavior as stable protocol infrastructure unless evidence demonstrates a protocol-level defect. Put modernization at the boundaries: current Java, dependency hygiene, TLS, observability, deployment, testing, accessibility semantics, WebRTC integration, security controls, and software-assurance evidence. Do not replace proven SIP behavior with application-layer cleverness.
 
 ## Initial shape
 
