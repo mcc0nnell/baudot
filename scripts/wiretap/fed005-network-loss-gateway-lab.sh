@@ -136,10 +136,10 @@ for _ in $(seq 1 100); do
 done
 ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1 || { safe_server_log >&2; exit 1; }
 
-cd "$ROOT"
 ip netns exec "$CNS" ip route show >"$RUN/caller-routes.txt"
 ip netns exec "$SNS" ip route show >"$RUN/server-routes.txt"
 ip netns exec "$CNS" "$WT" status >"$RUN/wiretap-status.txt"
+cd "$ROOT"
 
 python3 - "$RUN/topology.json" <<PY
 import json, sys
