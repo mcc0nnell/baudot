@@ -1,0 +1,81 @@
+{
+  "id": "BAUDOT-FED-005",
+  "title": "Wiretap-routed network loss with RFC 2198 recovery into WebRTC",
+  "status": "runnable",
+  "objective": "Emit a complete three-generation RTP/T.140 stream into a Sandia Wiretap-routed media path, drop only the middle RTP packet after Wiretap re-originates the UDP flow on the server side, and prove that the gateway reconstructs the missing T.140 generation from RFC 2198 redundancy before delivering the exact semantic stream to a real browser t140 data channel.",
+  "topology": [
+    "deterministic-rfc4103-source",
+    "sandia-wiretap-route",
+    "host-network-fault-injection",
+    "recovery-aware-accessibility-gateway",
+    "degraded-rtp-evidence-sink",
+    "real-webrtc-destination"
+  ],
+  "sourceProfile": {
+    "emittedSequenceNumbers": [0, 1, 2],
+    "sequence0": "primary A",
+    "sequence1": "primary B",
+    "sequence2": "RFC2198 redundant B plus primary C",
+    "intendedSemanticText": "ABC"
+  },
+  "lossProfile": {
+    "transport": "Sandia Wiretap v0.9.0 routed media path",
+    "faultInjector": "Linux nftables host output hook",
+    "dropSequenceNumber": 1,
+    "expectedDropCount": 1,
+    "expectedGatewaySequenceNumbers": [0, 2],
+    "wiretapNativeFaultInjection": false
+  },
+  "requiredFacts": [
+    "sourceEmittedSequence0",
+    "sourceEmittedSequence1",
+    "sourceEmittedSequence2",
+    "sourceSequence1ContainsB",
+    "wiretapRouteActive",
+    "networkRuleTargetsSequence1",
+    "networkDropCounterEqualsOne",
+    "gatewayNeverReceivesSequence1",
+    "gatewayReceivesSequence0And2",
+    "gatewayRecoversSequence1FromRedundancy",
+    "gatewayEmitsNoMissingTextMarker",
+    "gatewayForwardsDegradedRtpUnchanged",
+    "browserIceReady",
+    "browserDtlsReady",
+    "browserSctpReady",
+    "browserT140ChannelReady",
+    "browserReceivesABC",
+    "gatewayMediaTerminationDeclared"
+  ],
+  "evidenceSeparation": {
+    "source": "proves all three RTP packets existed before the network fault",
+    "network": "proves one packet matching RTP sequence 1 was dropped after Wiretap server-side UDP re-origination",
+    "gateway": "proves only sequences 0 and 2 arrived and records recovery provenance",
+    "sink": "proves gateway forwarded the degraded RTP stream byte-for-byte unchanged",
+    "browser": "proves the recovered semantic stream reached a real RTCPeerConnection t140 data channel",
+    "reducer": "independently correlates all evidence planes and retains terminal verdict authority"
+  },
+  "securityModel": {
+    "mediaTerminatesAt": "recovery-aware-accessibility-gateway",
+    "rule": "The gateway decodes and reconstructs T.140 before re-originating it over WebRTC. Per-leg protection does not establish end-to-end encryption across the gateway."
+  },
+  "requiredBeforeProven": [
+    "network-induced loss at additional positions and burst patterns",
+    "out-of-order delivery and RFC 4103 waiting-timer behavior",
+    "insufficient-redundancy behavior producing the T.140 missing-text marker",
+    "reverse WebRTC-to-RFC4103 direction",
+    "another independent WebRTC implementation",
+    "production-representative VRS or gateway observations without provider-specific reducer branches"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "a Wiretap-native packet-loss feature",
+      "full RFC 4103 conformance",
+      "full RFC 2198 conformance",
+      "WebRTC conformance",
+      "SIP conformance",
+      "production VRS interoperability",
+      "FaceTime interoperability",
+      "end-to-end encryption across the media-terminating gateway"
+    ]
+  }
+}

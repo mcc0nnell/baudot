@@ -35,13 +35,20 @@ jobs:
         with:
           node-version: "22"
       - name: Exercise federation reducers
-        run: python -m unittest tests.test_federation_readiness tests.test_federation_lab
+        run: >-
+          python -m unittest
+          tests.test_federation_readiness
+          tests.test_federation_lab
+          tests.test_federation_gateway_semantics
+          tests.test_federation_loss_recovery
       - name: Syntax-check federation lab runners
         run: |
           bash -n scripts/run-fed002-open-boundary.sh
           bash -n scripts/run-fed003-inline-gateway.sh
+          bash -n scripts/run-fed004-red-loss-recovery.sh
           node --check scripts/fed002-browser-peer.mjs
           node --check scripts/fed003-inline-rtt-webrtc-gateway.mjs
+          node --check scripts/fed004-rfc2198-recovery-webrtc-gateway.mjs
       - name: Run live SIP to RFC8865 open-boundary lab
         run: bash scripts/run-fed002-open-boundary.sh
       - name: Install pinned Chromium driver
@@ -59,6 +66,8 @@ jobs:
           --output target/evidence/fed002/browser-validation-result.json
       - name: Run inline RFC4103 to real WebRTC gateway lab
         run: bash scripts/run-fed003-inline-gateway.sh
+      - name: Run controlled RFC2198 loss recovery into real WebRTC
+        run: bash scripts/run-fed004-red-loss-recovery.sh
       - name: Preserve FED-002 evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -72,4 +81,11 @@ jobs:
         with:
           name: baudot-fed003-evidence
           path: target/evidence/fed003
+          if-no-files-found: warn
+      - name: Preserve FED-004 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-fed004-evidence
+          path: target/evidence/fed004
           if-no-files-found: warn

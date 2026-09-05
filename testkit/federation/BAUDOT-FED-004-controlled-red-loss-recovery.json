@@ -1,0 +1,79 @@
+{
+  "id": "BAUDOT-FED-004",
+  "title": "Controlled RFC 2198 recovery into a real WebRTC T.140 data channel",
+  "status": "runnable",
+  "objective": "Prove that an omitted RFC 4103 T.140 generation can be reconstructed from RFC 2198 redundancy at the media-terminating gateway and delivered exactly once over a real WebRTC t140 data channel while preserving the degraded SIP-side packet evidence.",
+  "topology": [
+    "sip-rtt-caller-with-controlled-source-omission",
+    "inline-accessibility-gateway",
+    "sip-side-interpreter-receiver",
+    "real-webrtc-destination"
+  ],
+  "controlProfile": {
+    "sipMedia": "existing RttSipProbe recovery profile",
+    "emittedSequenceNumbers": [0, 2],
+    "omittedSequenceNumbers": [1],
+    "priorPrimaryText": "A",
+    "omittedText": "B",
+    "recoveryCarrierPrimaryText": "C",
+    "expectedRecoveredText": "ABC",
+    "webrtcSubprotocol": "t140",
+    "webrtcOrdered": true,
+    "webrtcReliable": true
+  },
+  "requiredFacts": [
+    "sipDialogEstablished",
+    "controlledSourceOmissionDeclared",
+    "sequenceOneAbsentFromReceivedRtp",
+    "gatewayReceivedTwoDatagrams",
+    "gatewayForwardedDatagramsUnchanged",
+    "interpreterReceivedTwoDatagrams",
+    "priorPrimaryT140Valid",
+    "recoveryCarrierRedValid",
+    "missingSequenceRecoveredFromRedundancy",
+    "independentRecoveryMatchesGateway",
+    "noMissingTextMarkerRequired",
+    "browserIceReady",
+    "browserDtlsReady",
+    "browserSctpReady",
+    "browserT140ChannelReady",
+    "browserReceivedABCExactlyOnce",
+    "gatewayMediaTerminationDeclared"
+  ],
+  "securityModel": {
+    "mediaTerminatesAt": "inline-accessibility-gateway",
+    "rule": "The gateway inspects RFC 4103/RFC 2198 media, reconstructs missing T.140, and re-originates content on WebRTC. Per-leg encryption does not establish end-to-end encryption across this gateway."
+  },
+  "runnableEvidence": [
+    "RttSipProbe declares a sender-controlled omission of RTP sequence 1 carrying B",
+    "the gateway receives sequence 0 and sequence 2 but never receives sequence 1",
+    "sequence 2 carries one RFC 2198 redundant generation representing the missing B plus current primary C",
+    "the gateway forwards the two received RTP datagrams byte-for-byte unchanged to the SIP-side interpreter receiver",
+    "the gateway emits A from sequence 0, reconstructs B from the redundant generation, then emits current primary C",
+    "the gateway records the source of every emitted block as primary, redundant, or missing-marker",
+    "a real Chromium RTCPeerConnection receives A, B, C on an ordered reliable t140 data channel",
+    "Python independently applies Baudot's RFC 4103 recovery reducer to the preserved packets and requires the same A + B + C result"
+  ],
+  "requiredBeforeProven": [
+    "network-induced loss in a routed substrate rather than sender-controlled omission",
+    "multiple consecutive losses with sufficient and insufficient redundancy",
+    "sequence-number wraparound coverage",
+    "out-of-order arrival policy and timer behavior",
+    "reverse WebRTC-to-RFC4103 direction",
+    "at least one additional independent WebRTC implementation",
+    "production-representative VRS or gateway observations without provider-specific reducer branches"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "full T.140 conformance",
+      "RFC 4103 conformance",
+      "RFC 2198 conformance",
+      "WebRTC conformance",
+      "SIP conformance",
+      "production VRS interoperability",
+      "network-induced-loss behavior",
+      "FaceTime interoperability",
+      "end-to-end encryption across the media-terminating gateway"
+    ]
+  }
+}
