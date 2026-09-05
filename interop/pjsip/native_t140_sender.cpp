@@ -17,6 +17,7 @@ std::mutex state_mutex;
 std::condition_variable state_cv;
 bool call_confirmed = false;
 bool call_disconnected = false;
+bool text_media_active = false;
 std::string last_state;
 
 int env_int(const char *name, int fallback) {
@@ -51,6 +52,28 @@ public:
         }
         std::cout << "PJSIP_NATIVE_T140_CALL_STATE state=" << info.stateText
                   << " code=" << info.lastStatusCode << std::endl;
+        state_cv.notify_all();
+    }
+
+    void onCallMediaState(OnCallMediaStateParam &prm) override {
+        PJ_UNUSED_ARG(prm);
+        const CallInfo info = getInfo();
+        bool active = false;
+        for (const CallMediaInfo &media : info.media) {
+            if (media.type != PJMEDIA_TYPE_TEXT) {
+                continue;
+            }
+            std::cout << "PJSIP_NATIVE_T140_MEDIA_STATE index=" << media.index
+                      << " status=" << static_cast<int>(media.status)
+                      << " dir=" << static_cast<int>(media.dir) << std::endl;
+            if (media.status == PJSUA_CALL_MEDIA_ACTIVE) {
+                active = true;
+            }
+        }
+        {
+            std::lock_guard<std::mutex> lock(state_mutex);
+            text_media_active = active;
+        }
         state_cv.notify_all();
     }
 
@@ -114,7 +137,20 @@ int main() {
         }
 
         std::cout << "PJSIP_NATIVE_T140_CALL_CONFIRMED" << std::endl;
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
+        {
+            std::unique_lock<std::mutex> lock(state_mutex);
+            if (!state_cv.wait_for(lock, std::chrono::seconds(12), [] {
+                    return text_media_active || call_disconnected;
+                })) {
+                throw std::runtime_error("timed out waiting for active PJSIP text media");
+            }
+            if (!text_media_active) {
+                throw std::runtime_error("call disconnected before text media became active");
+            }
+        }
+
+        std::cout << "PJSIP_NATIVE_T140_TEXT_MEDIA_ACTIVE" << std::endl;
 
         CallSendTextParam text_param;
         text_param.medIdx = -1;
