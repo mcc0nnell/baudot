@@ -39,11 +39,19 @@ The first cross-project research integration is with ACE Omni: Omni can execute 
 
 ## First executable slice
 
-The first SIP proof is deliberately small and headless. Two loopback endpoints exercise a real JAIN SIP dialog and preserve a deterministic, timestamp-free evidence record for:
+The first SIP proof is deliberately small and headless. Two loopback endpoints exercise a real JAIN SIP dialog with an SDP offer/answer and preserve deterministic, timestamp-free evidence for both layers:
 
 ```text
-INVITE -> 100 Trying -> 180 Ringing -> 200 OK -> ACK -> BYE -> 200 OK
+INVITE + SDP offer
+  -> 100 Trying
+  -> 180 Ringing
+  -> 200 OK + SDP answer
+  -> ACK
+  -> BYE
+  -> 200 OK
 ```
+
+The fixture offers H.264 and VP8 and answers with H.264. Baudot records the stable semantic result `video RTP/AVP [H264/90000]` separately from dialog completion. RTP packets are not sent, received, or claimed by this slice.
 
 Run it with:
 
@@ -52,11 +60,11 @@ mvn verify
 cat target/baudot-evidence/sip-dialog.json
 ```
 
-CI verifies the slice on Java 17 and Java 21.
+CI verifies the slice on Java 17 and Java 21. The evidence artifact is written even when the exercised path fails, preserving the partial observation for diagnosis.
 
 ## Status
 
-Early design and testkit bootstrap. The JAIN SIP vertical slice demonstrates signaling mechanics only. No RFC 4103, T.140, SIP, media, accessibility, or implementation conformance claim is made yet.
+Early design and testkit bootstrap. The JAIN SIP vertical slice demonstrates exercised signaling and SDP offer/answer mechanics only. No RFC 3261, RFC 4103, T.140, RTP/media, security, accessibility, or implementation conformance claim is made yet.
 
 ## Project name
 
