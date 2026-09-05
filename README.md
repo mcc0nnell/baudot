@@ -25,7 +25,7 @@ normative vectors
       ▼
 baudot-testkit
       │
-      ├── SIP / RFC 4103 adapter
+      ├── SIP / RFC 4103 adapter  ── JAIN SIP signaling kernel
       ├── WebRTC/application adapter
       └── research-runtime adapter
                 │
@@ -33,11 +33,30 @@ baudot-testkit
          preserved evidence
 ```
 
+JAIN SIP is intentionally below the semantic boundary. It owns SIP transactions, dialogs, headers, routing, and carriage of SDP. It does **not** define T.140 behavior and it does **not** own the media plane.
+
 The first cross-project research integration is with ACE Omni: Omni can execute controlled communications experiments while Baudot owns the portable accessibility behavior and test vocabulary.
+
+## First executable slice
+
+The first SIP proof is deliberately small and headless. Two loopback endpoints exercise a real JAIN SIP dialog and preserve a deterministic, timestamp-free evidence record for:
+
+```text
+INVITE -> 100 Trying -> 180 Ringing -> 200 OK -> ACK -> BYE -> 200 OK
+```
+
+Run it with:
+
+```bash
+mvn verify
+cat target/baudot-evidence/sip-dialog.json
+```
+
+CI verifies the slice on Java 17 and Java 21.
 
 ## Status
 
-Early design and testkit bootstrap. No RFC 4103, T.140, SIP, or implementation conformance claim is made yet.
+Early design and testkit bootstrap. The JAIN SIP vertical slice demonstrates signaling mechanics only. No RFC 4103, T.140, SIP, media, accessibility, or implementation conformance claim is made yet.
 
 ## Project name
 
