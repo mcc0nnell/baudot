@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Zero-dependency structural validation for Baudot testkit artifacts."""
+"""Zero-dependency structural and baseline semantic validation for Baudot testkit artifacts."""
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_DIR = ROOT / "testkit" / "contracts"
 SCENARIO_DIR = ROOT / "testkit" / "scenarios"
+VECTOR_DIR = ROOT / "testkit" / "vectors"
 ALLOWED_STATES = {"planned", "runnable", "proven", "regressed"}
 REQUIRED_INVARIANTS = {
     "sessionEstablished does not imply iceReady",
@@ -17,6 +19,16 @@ REQUIRED_INVARIANTS = {
     "videoRendered does not imply rttReady",
     "rttReady requires rttNegotiated and firstT140CharacterObserved",
 }
+REQUIRED_T140_VECTORS = {
+    "irv-basic-text",
+    "latin1-supplement-text",
+    "backspace-erases-last-character",
+    "preferred-line-separator",
+    "crlf-supported-newline",
+    "bell-alert-does-not-add-text",
+    "missing-text-marker",
+}
+CODE_POINT = re.compile(r"^U\+[0-9A-F]{4,6}$")
 
 
 def load(path: Path) -> dict:
@@ -119,13 +131,137 @@ def validate_scenario(path: Path, contracts: dict[str, set[str]]) -> None:
     print(f"✓ scenario {scenario_id}: {status}")
 
 
+def parse_code_points(values: object, label: str) -> list[int]:
+    items = require_string_list(values, label)
+    code_points: list[int] = []
+    for value in items:
+        if not CODE_POINT.fullmatch(value):
+            raise ValueError(f"{label}: invalid code point {value}; expected U+XXXX")
+        code_point = int(value[2:], 16)
+        if code_point > 0x10FFFF or 0xD800 <= code_point <= 0xDFFF:
+            raise ValueError(f"{label}: invalid Unicode scalar value {value}")
+        code_points.append(code_point)
+    return code_points
+
+
+def render_t140_baseline(code_points: list[int]) -> dict[str, object]:
+    display: list[str] = []
+    alerts = 0
+    missing = 0
+    line_breaks = 0
+    index = 0
+
+    while index < len(code_points):
+        code_point = code_points[index]
+
+        if code_point == 0x0007:  # BEL
+            alerts += 1
+        elif code_point == 0x0008:  # BS
+            if display:
+                display.pop()
+        elif code_point == 0x2028:  # LINE SEPARATOR
+            display.append("\n")
+            line_breaks += 1
+        elif code_point == 0x000D:  # Supported CR LF new-line form.
+            if index + 1 >= len(code_points) or code_points[index + 1] != 0x000A:
+                raise ValueError("baseline vectors do not define isolated CR")
+            display.append("\n")
+            line_breaks += 1
+            index += 1
+        elif code_point == 0x000A:
+            raise ValueError("baseline vectors do not define isolated LF")
+        elif code_point == 0xFFFD:
+            display.append("\uFFFD")
+            missing += 1
+        elif code_point < 0x0020 or 0x007F <= code_point <= 0x009F:
+            raise ValueError(f"baseline vectors do not define control U+{code_point:04X}")
+        else:
+            display.append(chr(code_point))
+
+        index += 1
+
+    return {
+        "displayText": "".join(display),
+        "alerts": alerts,
+        "missingTextMarkers": missing,
+        "lineBreaks": line_breaks,
+    }
+
+
+def validate_t140_vector_suite(path: Path) -> None:
+    suite = load(path)
+    suite_id = require_non_empty_string(suite.get("id"), f"{path}: id")
+    version = suite.get("version")
+    if not isinstance(version, int) or version < 1:
+        raise ValueError(f"{path}: version must be a positive integer")
+    if suite.get("status") != "baseline":
+        raise ValueError(f"{path}: T.140 bootstrap suite must remain status=baseline")
+    scope = require_non_empty_string(suite.get("scope"), f"{path}: scope")
+    if "full T.140 conformance" not in scope:
+        raise ValueError(f"{path}: scope must explicitly avoid a full T.140 conformance claim")
+
+    sources = suite.get("sources")
+    if not isinstance(sources, list) or len(sources) < 2:
+        raise ValueError(f"{path}: sources must identify T.140 and Addendum 1 grounding")
+    for index, source in enumerate(sources):
+        if not isinstance(source, dict):
+            raise ValueError(f"{path}: source {index} must be an object")
+        require_non_empty_string(source.get("specification"), f"{path}: source {index} specification")
+        require_non_empty_string(source.get("url"), f"{path}: source {index} url")
+        require_string_list(source.get("basis"), f"{path}: source {index} basis")
+
+    vectors = suite.get("vectors")
+    if not isinstance(vectors, list) or not vectors:
+        raise ValueError(f"{path}: vectors must be a non-empty list")
+
+    seen: set[str] = set()
+    for index, vector in enumerate(vectors):
+        if not isinstance(vector, dict):
+            raise ValueError(f"{path}: vector {index} must be an object")
+        vector_id = require_non_empty_string(vector.get("id"), f"{path}: vector {index} id")
+        if vector_id in seen:
+            raise ValueError(f"{path}: duplicate vector id {vector_id}")
+        seen.add(vector_id)
+        require_non_empty_string(vector.get("description"), f"{path}: {vector_id} description")
+        code_points = parse_code_points(vector.get("inputCodePoints"), f"{path}: {vector_id} inputCodePoints")
+
+        encoded = "".join(chr(code_point) for code_point in code_points).encode("utf-8")
+        actual_hex = " ".join(f"{byte:02x}" for byte in encoded)
+        expected_hex = require_non_empty_string(vector.get("utf8Hex"), f"{path}: {vector_id} utf8Hex").lower()
+        if actual_hex != expected_hex:
+            raise ValueError(
+                f"{path}: {vector_id} UTF-8 mismatch: declared {expected_hex}, computed {actual_hex}"
+            )
+
+        expected = vector.get("expected")
+        if not isinstance(expected, dict):
+            raise ValueError(f"{path}: {vector_id} expected must be an object")
+        actual = render_t140_baseline(code_points)
+        if actual != expected:
+            raise ValueError(f"{path}: {vector_id} presentation mismatch: expected {expected}, got {actual}")
+
+    missing_vectors = REQUIRED_T140_VECTORS - seen
+    if missing_vectors:
+        raise ValueError(f"{path}: missing baseline T.140 vectors: {sorted(missing_vectors)}")
+
+    deferred = set(require_string_list(suite.get("deferred"), f"{path}: deferred"))
+    for boundary in {"RFC 2198 redundancy", "SIP offer/answer for text/t140", "WebRTC data-channel carriage"}:
+        if boundary not in deferred:
+            raise ValueError(f"{path}: deferred scope must preserve transport boundary: {boundary}")
+
+    print(f"✓ T.140 vectors {suite_id}@{version}: {len(vectors)} baseline cases")
+
+
 def main() -> None:
     contract_paths = sorted(CONTRACT_DIR.glob("*.json"))
     scenario_paths = sorted(SCENARIO_DIR.glob("*.json"))
+    vector_paths = sorted(VECTOR_DIR.glob("*.json"))
     if not contract_paths:
         raise SystemExit("No testkit contracts found")
     if not scenario_paths:
         raise SystemExit("No testkit scenarios found")
+    if not vector_paths:
+        raise SystemExit("No testkit vector suites found")
 
     contracts: dict[str, set[str]] = {}
     for path in contract_paths:
@@ -138,7 +274,13 @@ def main() -> None:
     for path in scenario_paths:
         validate_scenario(path, contracts)
 
-    print(f"Baudot testkit valid: {len(contracts)} contract(s), {len(scenario_paths)} scenario(s).")
+    for path in vector_paths:
+        validate_t140_vector_suite(path)
+
+    print(
+        f"Baudot testkit valid: {len(contracts)} contract(s), "
+        f"{len(scenario_paths)} scenario(s), {len(vector_paths)} vector suite(s)."
+    )
 
 
 if __name__ == "__main__":
