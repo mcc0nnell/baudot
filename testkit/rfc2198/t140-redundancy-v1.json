@@ -1,0 +1,87 @@
+{
+  "id": "BAUDOT-RFC2198-T140-001",
+  "version": 1,
+  "status": "baseline",
+  "title": "RFC 2198 redundancy container for RFC 4103 T140blocks",
+  "scope": "Validates RED wire construction for text/t140 primary and redundant blocks. It does not define loss detection, sequence-number inference, recovery, reordering, redundancy-level policy, SDP fmtp negotiation, or complete RFC 4103 conformance.",
+  "sources": [
+    {
+      "specification": "RFC 2198 section 3",
+      "url": "https://www.rfc-editor.org/rfc/rfc2198.html#section-3",
+      "basis": [
+        "each redundant header contains F, 7-bit block payload type, 14-bit timestamp offset, and 10-bit block length",
+        "the final primary block header contains only F=0 and the primary block payload type",
+        "data blocks follow the headers in the same order without delimiters"
+      ]
+    },
+    {
+      "specification": "RFC 4103 sections 4.1 and 4.2",
+      "url": "https://www.rfc-editor.org/rfc/rfc4103.html",
+      "basis": [
+        "redundant data blocks carry T140blocks from previous packets",
+        "redundant T140blocks are placed in age order with the most recent redundant block last",
+        "the primary T140block follows all redundant data"
+      ]
+    }
+  ],
+  "vectors": [
+    {
+      "id": "one-redundant-generation",
+      "fields": {
+        "redPayloadType": 100,
+        "t140PayloadType": 98,
+        "sequenceNumber": 10,
+        "timestamp": 1600,
+        "ssrc": 1,
+        "marker": false,
+        "redundant": [
+          {"timestampOffset": 300, "blockHex": "41"}
+        ],
+        "primaryHex": "42"
+      },
+      "packetHex": "80 64 00 0a 00 00 06 40 00 00 00 01 e2 04 b0 01 62 41 42"
+    },
+    {
+      "id": "two-redundant-generations",
+      "fields": {
+        "redPayloadType": 100,
+        "t140PayloadType": 98,
+        "sequenceNumber": 11,
+        "timestamp": 1900,
+        "ssrc": 1,
+        "marker": false,
+        "redundant": [
+          {"timestampOffset": 600, "blockHex": "41"},
+          {"timestampOffset": 300, "blockHex": "42"}
+        ],
+        "primaryHex": "43"
+      },
+      "packetHex": "80 64 00 0b 00 00 07 6c 00 00 00 01 e2 09 60 01 e2 04 b0 01 62 41 42 43"
+    },
+    {
+      "id": "empty-redundant-generation",
+      "fields": {
+        "redPayloadType": 100,
+        "t140PayloadType": 98,
+        "sequenceNumber": 12,
+        "timestamp": 2200,
+        "ssrc": 1,
+        "marker": false,
+        "redundant": [
+          {"timestampOffset": 300, "blockHex": ""}
+        ],
+        "primaryHex": "41"
+      },
+      "packetHex": "80 64 00 0c 00 00 08 98 00 00 00 01 e2 04 b0 00 62 41"
+    }
+  ],
+  "deferred": [
+    "sequence-number inference for redundant generations",
+    "lost-packet detection",
+    "redundant-block recovery",
+    "out-of-order buffering",
+    "default two-generation redundancy policy",
+    "SDP red payload negotiation",
+    "RTCP and network transport"
+  ]
+}
