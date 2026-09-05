@@ -2,9 +2,12 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-PJSIP_ROOT=${PJSIP_ROOT:?set PJSIP_ROOT to the pinned clean pjsip/pjproject 2.17 checkout}
-EXPECTED_COMMIT=5a457451fa2712ba18e12b01738e8ff3af2b26fd
-PJSIP_RELEASE=2.17
+PJSIP_ROOT=${PJSIP_ROOT:?set PJSIP_ROOT to the exact clean pjsip/pjproject checkout}
+EXPECTED_COMMIT=${BAUDOT_PJSIP_EXPECTED_COMMIT:?set BAUDOT_PJSIP_EXPECTED_COMMIT}
+PROFILE=${BAUDOT_PJSIP_PROFILE_LABEL:?set BAUDOT_PJSIP_PROFILE_LABEL}
+CORRELATION=${BAUDOT_PJSIP_RFC2198_CORRELATION:?set BAUDOT_PJSIP_RFC2198_CORRELATION}
+EXPECT_RECOVERY=${BAUDOT_PJSIP_EXPECT_RECOVERY:?set BAUDOT_PJSIP_EXPECT_RECOVERY to true or false}
+EXPECTED_TAG=${BAUDOT_PJSIP_EXPECTED_TAG:-}
 SIP_PORT=${BAUDOT_PJSIP_REMOTE_PORT:-5310}
 LOCAL_PORT=${BAUDOT_PJSIP_LOCAL_PORT:-5311}
 MEDIA_PORT=${BAUDOT_PJSIP_MEDIA_PORT:-5312}
@@ -12,9 +15,8 @@ SENDER_TIMEOUT=${BAUDOT_PJSIP_SENDER_TIMEOUT:-30}
 RECEIVER_TIMEOUT=${BAUDOT_PJSIP_RECEIVER_TIMEOUT:-35}
 EVIDENCE=${BAUDOT_EVIDENCE_DIR:-$ROOT/target/evidence-external}
 SCENARIO=PJSIP-NATIVE-RFC2198
-CORRELATION=pjsip-2.17-native-red-v1
 OUT="$EVIDENCE/$SCENARIO/$CORRELATION"
-APP_BUILD="$ROOT/target/pjsip-native-rfc2198-app"
+APP_BUILD="$ROOT/target/pjsip-native-rfc2198-app-$PROFILE"
 APP="$APP_BUILD/baudot-pjsip-native-rfc2198"
 JAIN_PID=""
 
@@ -34,15 +36,17 @@ done
 actual_commit=$(git -C "$PJSIP_ROOT" rev-parse HEAD)
 [[ "$actual_commit" == "$EXPECTED_COMMIT" ]] || { echo "unexpected PJSIP commit: $actual_commit" >&2; exit 2; }
 [[ -z "$(git -C "$PJSIP_ROOT" status --porcelain=v1 --untracked-files=normal)" ]] || { echo "PJSIP checkout must be clean" >&2; exit 2; }
-actual_release=$(git -C "$PJSIP_ROOT" describe --tags --exact-match HEAD 2>/dev/null || true)
-[[ "$actual_release" == "$PJSIP_RELEASE" ]] || { echo "PJSIP checkout is not exact release $PJSIP_RELEASE: ${actual_release:-none}" >&2; exit 2; }
+actual_tag=$(git -C "$PJSIP_ROOT" describe --tags --exact-match HEAD 2>/dev/null || true)
+if [[ -n "$EXPECTED_TAG" ]]; then
+  [[ "$actual_tag" == "$EXPECTED_TAG" ]] || { echo "PJSIP checkout is not exact tag $EXPECTED_TAG: ${actual_tag:-none}" >&2; exit 2; }
+fi
 
 rm -rf "$OUT" "$APP_BUILD"
 mkdir -p "$OUT"
 
 sender_source="$ROOT/interop/pjsip/native_rfc2198_sender.cpp"
 sender_source_sha=$(sha256sum "$sender_source" | awk '{print $1}')
-python3 - "$OUT/pjsip-admission.json" "$sender_source_sha" "$SENDER_TIMEOUT" "$RECEIVER_TIMEOUT" <<'PY'
+python3 - "$OUT/pjsip-admission.json" "$sender_source_sha" "$SENDER_TIMEOUT" "$RECEIVER_TIMEOUT" "$EXPECTED_COMMIT" "$PROFILE" "$EXPECT_RECOVERY" "${actual_tag:-}" <<'PY'
 import json
 import pathlib
 import sys
@@ -50,8 +54,10 @@ import sys
 out = pathlib.Path(sys.argv[1])
 out.write_text(json.dumps({
     "repository": "pjsip/pjproject",
-    "release": "2.17",
-    "commit": "5a457451fa2712ba18e12b01738e8ff3af2b26fd",
+    "commit": sys.argv[5],
+    "profile": sys.argv[6],
+    "expectedRecovery": sys.argv[7].lower() == "true",
+    "exactTag": sys.argv[8] or None,
     "cleanCheckout": True,
     "role": "native-rfc2198-media-oracle",
     "verdictAuthority": False,
@@ -72,7 +78,8 @@ out.write_text(json.dumps({
 PY
 
 printf '%s\n' "$actual_commit" >"$OUT/pjsip-commit.txt"
-printf '%s\n' "$actual_release" >"$OUT/pjsip-release.txt"
+printf '%s\n' "${actual_tag:-none}" >"$OUT/pjsip-exact-tag.txt"
+printf '%s\n' "$PROFILE" >"$OUT/pjsip-profile.txt"
 git -C "$PJSIP_ROOT" status --short >"$OUT/pjsip-status.txt"
 cmake --version >"$OUT/cmake-version.txt"
 c++ --version >"$OUT/cxx-version.txt"
@@ -95,6 +102,8 @@ timeout --signal=TERM --kill-after=2s "${RECEIVER_TIMEOUT}s" env \
   BAUDOT_EVIDENCE_ROOT="$EVIDENCE" \
   BAUDOT_PJSIP_REMOTE_PORT="$SIP_PORT" \
   BAUDOT_PJSIP_MEDIA_PORT="$MEDIA_PORT" \
+  BAUDOT_PJSIP_RFC2198_CORRELATION="$CORRELATION" \
+  BAUDOT_PJSIP_PROFILE_LABEL="$PROFILE" \
   java -cp "$CP" org.mcc0nnell.baudot.harness.PjsipNativeRedReceiverProbe \
   >"$OUT/jain.stdout.log" 2>"$OUT/jain.stderr.log" &
 JAIN_PID=$!
@@ -120,8 +129,10 @@ timeout --signal=TERM --kill-after=2s "${SENDER_TIMEOUT}s" env \
   BAUDOT_PJSIP_LOCAL_PORT="$LOCAL_PORT" \
   BAUDOT_PJSIP_REMOTE_PORT="$SIP_PORT" \
   BAUDOT_PJSIP_REMOTE_URI="sip:baudot-red@127.0.0.1:$SIP_PORT" \
-  BAUDOT_PJSIP_TEXT=H \
+  BAUDOT_PJSIP_TEXT_FIRST=H \
+  BAUDOT_PJSIP_TEXT_SECOND=I \
   BAUDOT_PJSIP_REDUNDANCY_LEVEL=2 \
+  BAUDOT_PJSIP_PROFILE_LABEL="$PROFILE" \
   "$APP" >"$OUT/pjsip.stdout.log" 2>"$OUT/pjsip.stderr.log"
 sender_status=$?
 wait "$JAIN_PID"
@@ -138,7 +149,12 @@ printf '%s\n' "$RECEIVER_TIMEOUT" >"$OUT/jain-timeout-seconds.txt"
 [[ "$sender_status" == 0 ]] || { echo "PJSIP RFC2198 sender failed: $sender_status" >&2; cat "$OUT/pjsip.stderr.log" >&2 || true; exit 5; }
 [[ "$jain_status" == 0 ]] || { echo "JAIN RED receiver failed: $jain_status" >&2; cat "$OUT/jain.stderr.log" >&2 || true; exit 5; }
 
-python3 -m scripts.validate_pjsip_native_rfc2198
+BAUDOT_EVIDENCE_ROOT="$EVIDENCE" \
+BAUDOT_PJSIP_RFC2198_CORRELATION="$CORRELATION" \
+BAUDOT_PJSIP_EXPECTED_COMMIT="$EXPECTED_COMMIT" \
+BAUDOT_PJSIP_PROFILE_LABEL="$PROFILE" \
+BAUDOT_PJSIP_EXPECT_RECOVERY="$EXPECT_RECOVERY" \
+  python3 -m scripts.validate_pjsip_native_rfc2198
 
 (
   cd "$OUT"
@@ -146,7 +162,8 @@ python3 -m scripts.validate_pjsip_native_rfc2198
   required=(
     pjsip-admission.json
     pjsip-commit.txt
-    pjsip-release.txt
+    pjsip-exact-tag.txt
+    pjsip-profile.txt
     pjsip-status.txt
     cmake-version.txt
     cxx-version.txt
