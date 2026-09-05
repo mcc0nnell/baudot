@@ -63,6 +63,8 @@ fi
 
 python3 -m scripts.run_federation_boundary \
   --arm control \
+  --live-evidence-root "$EVIDENCE_DIR" \
+  --correlation "$CORRELATION" \
   --output "$EVIDENCE_DIR/federation-boundary-result.json"
 
-echo "BAUDOT-FED-002 RUNNABLE_PASS: live SIP interpreter gate + RFC8865 reference boundary"
+echo "BAUDOT-FED-002 RUNNABLE_PASS: live SIP evidence + interpreter readiness + RFC8865 reference boundary"
