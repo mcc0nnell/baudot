@@ -7,7 +7,7 @@ import unittest
 from baudot_reference.federation import reduce_federated_session
 
 ROOT = Path(__file__).resolve().parents[1]
-SCENARIO = ROOT / "testkit" / "scenarios" / "BAUDOT-FED-001-three-party-accessibility-session.json"
+SCENARIO = ROOT / "testkit" / "federation" / "BAUDOT-FED-001-three-party-accessibility-session.json"
 
 
 class FederationReadinessTests(unittest.TestCase):
