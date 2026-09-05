@@ -37,13 +37,13 @@ jobs:
             commit: 5a457451fa2712ba18e12b01738e8ff3af2b26fd
             profile: release-2.17
             correlation: pjsip-2.17-native-red-baseline-v1
-            expect_recovery: 'false'
+            expected_outcome: zero-length-history
             expected_tag: '2.17'
-          - short: post-fix-5117
-            commit: b9ce4d9b9b9a52df7e3ea93192dec01b9eb0887f
-            profile: post-2.17-rfc2198-fixes
-            correlation: pjsip-b9ce4d9-native-red-v1
-            expect_recovery: 'true'
+          - short: current-master-2026-09-04
+            commit: 79c7e8fe1ffe62efce791256526c742818e16d2e
+            profile: current-master-2026-09-04
+            correlation: pjsip-79c7e8f-native-red-current-v1
+            expected_outcome: age-order-invalid
             expected_tag: ''
     steps:
       - uses: actions/checkout@v4
@@ -92,7 +92,7 @@ jobs:
           BAUDOT_PJSIP_EXPECTED_COMMIT: ${{ matrix.commit }}
           BAUDOT_PJSIP_PROFILE_LABEL: ${{ matrix.profile }}
           BAUDOT_PJSIP_RFC2198_CORRELATION: ${{ matrix.correlation }}
-          BAUDOT_PJSIP_EXPECT_RECOVERY: ${{ matrix.expect_recovery }}
+          BAUDOT_PJSIP_EXPECT_OUTCOME: ${{ matrix.expected_outcome }}
           BAUDOT_PJSIP_EXPECTED_TAG: ${{ matrix.expected_tag }}
         run: bash scripts/run-pjsip-native-rfc2198.sh
 
