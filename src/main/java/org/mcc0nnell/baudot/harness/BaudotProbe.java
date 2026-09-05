@@ -80,7 +80,7 @@ public final class BaudotProbe {
 
             endpoint.start();
             endpoint.sendInvite();
-            boolean established = endpoint.awaitSignaling(config.timeout());
+            boolean established = endpoint.awaitDialog(config.timeout());
             boolean sent = false;
             if (established) {
                 sent = sendMediaProbe(config, evidence);
@@ -92,7 +92,7 @@ public final class BaudotProbe {
                     "role", "caller",
                     "scenario.expectMedia", Boolean.toString(config.expectMedia()),
                     "scenario.id", config.scenarioId(),
-                    "signaling.established", Boolean.toString(established)));
+                    "signaling.dialog.established", Boolean.toString(established)));
 
             return established && sent ? 0 : 2;
         }
@@ -112,7 +112,7 @@ public final class BaudotProbe {
             media.start();
             endpoint.start();
 
-            boolean inviteReceived = endpoint.awaitSignaling(config.timeout());
+            boolean dialogEstablished = endpoint.awaitDialog(config.timeout());
             boolean mediaReceived = media.await(config.timeout());
 
             evidence.result(Map.of(
@@ -121,10 +121,11 @@ public final class BaudotProbe {
                     "role", "callee",
                     "scenario.expectMedia", Boolean.toString(config.expectMedia()),
                     "scenario.id", config.scenarioId(),
-                    "signaling.invite.received", Boolean.toString(inviteReceived)));
+                    "signaling.ack.received", Boolean.toString(endpoint.ackReceived()),
+                    "signaling.invite.received", Boolean.toString(endpoint.inviteReceived())));
 
             boolean expectationMatched = mediaReceived == config.expectMedia();
-            return inviteReceived && expectationMatched ? 0 : 3;
+            return dialogEstablished && expectationMatched ? 0 : 3;
         }
     }
 
@@ -280,7 +281,9 @@ public final class BaudotProbe {
         private final Config config;
         private final EvidenceRecorder evidence;
         private final boolean caller;
-        private final CountDownLatch signaling = new CountDownLatch(1);
+        private final CountDownLatch dialog = new CountDownLatch(1);
+        private final AtomicBoolean inviteReceived = new AtomicBoolean();
+        private final AtomicBoolean ackReceived = new AtomicBoolean();
 
         private final SipStack stack;
         private final SipProvider provider;
@@ -367,24 +370,45 @@ public final class BaudotProbe {
             inviteTransaction.sendRequest();
         }
 
-        boolean awaitSignaling(Duration timeout) throws InterruptedException {
-            return signaling.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        boolean awaitDialog(Duration timeout) throws InterruptedException {
+            return dialog.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
+
+        boolean inviteReceived() {
+            return inviteReceived.get();
+        }
+
+        boolean ackReceived() {
+            return ackReceived.get();
         }
 
         @Override
         public void processRequest(RequestEvent event) {
-            if (caller || !Request.INVITE.equals(event.getRequest().getMethod())) {
+            if (caller) {
                 return;
             }
+
+            Request request = event.getRequest();
+            if (Request.ACK.equals(request.getMethod())) {
+                ackReceived.set(true);
+                dialog.countDown();
+                evidence.event("sip.ack.received", Map.of());
+                return;
+            }
+            if (!Request.INVITE.equals(request.getMethod())) {
+                return;
+            }
+
             try {
-                Request request = event.getRequest();
+                inviteReceived.set(true);
                 ServerTransaction transaction = event.getServerTransaction();
                 if (transaction == null) {
                     transaction = provider.getNewServerTransaction(request);
                 }
 
+                CallIdHeader callId = (CallIdHeader) request.getHeader(CallIdHeader.NAME);
                 evidence.event("sip.invite.received", Map.of(
-                        "callId", ((CallIdHeader) request.getHeader(CallIdHeader.NAME)).getCallId()));
+                        "callId", callId == null ? "unknown" : callId.getCallId()));
 
                 Response ok = messageFactory.createResponse(Response.OK, request);
                 ToHeader to = (ToHeader) ok.getHeader(ToHeader.NAME);
@@ -399,7 +423,6 @@ public final class BaudotProbe {
                         sdp(config.mediaTargetIp(), config.mediaTargetPort(), "recvonly"),
                         headerFactory.createContentTypeHeader("application", "sdp"));
                 transaction.sendResponse(ok);
-                signaling.countDown();
                 evidence.event("sip.200.sent", Map.of("status", "200"));
             } catch (Exception e) {
                 evidence.event("sip.request.error", Map.of("error", e.toString()));
@@ -417,16 +440,16 @@ public final class BaudotProbe {
                 return;
             }
             try {
-                Dialog dialog = event.getDialog();
-                if (dialog == null && inviteTransaction != null) {
-                    dialog = inviteTransaction.getDialog();
+                Dialog sipDialog = event.getDialog();
+                if (sipDialog == null && inviteTransaction != null) {
+                    sipDialog = inviteTransaction.getDialog();
                 }
-                if (dialog == null) {
+                if (sipDialog == null) {
                     throw new IllegalStateException("200 OK arrived without a SIP dialog");
                 }
-                Request ack = dialog.createAck(cseq.getSeqNumber());
-                dialog.sendAck(ack);
-                signaling.countDown();
+                Request ack = sipDialog.createAck(cseq.getSeqNumber());
+                sipDialog.sendAck(ack);
+                dialog.countDown();
                 evidence.event("sip.dialog.established", Map.of(
                         "status", Integer.toString(response.getStatusCode())));
             } catch (Exception e) {
@@ -442,9 +465,9 @@ public final class BaudotProbe {
         @Override
         public void processIOException(IOExceptionEvent event) {
             evidence.event("sip.io_error", Map.of(
-                    "host", event.getHost(),
+                    "host", String.valueOf(event.getHost()),
                     "port", Integer.toString(event.getPort()),
-                    "transport", event.getTransport()));
+                    "transport", String.valueOf(event.getTransport())));
         }
 
         @Override
@@ -455,7 +478,8 @@ public final class BaudotProbe {
 
         @Override
         public void processDialogTerminated(DialogTerminatedEvent event) {
-            evidence.event("sip.dialog.terminated", Map.of("dialog", event.getDialog().getDialogId()));
+            evidence.event("sip.dialog.terminated", Map.of(
+                    "dialog", String.valueOf(event.getDialog().getDialogId())));
         }
 
         private String sipUri(String user, String host, int port) throws Exception {
