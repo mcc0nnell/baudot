@@ -14,7 +14,7 @@ The project starts at the semantic boundary: **T.140 real-time text behavior and
 4. **Transport does not redefine text semantics.** T.140 behavior belongs to the core. RFC 4103/SIP and other transports carry it.
 5. **Interop failures become tests.** Historical production workarounds can motivate scenarios, but they are not copied forward or treated as proof that a modern implementation has the same defect.
 
-## Initial shape
+## Shape
 
 ```text
 T.140 semantics
@@ -25,33 +25,67 @@ normative vectors
       ▼
 baudot-testkit
       │
-      ├── SIP / RFC 4103 adapter
-      ├── WebRTC/application adapter
-      └── research-runtime adapter
+      ├── SIP / RFC 4103 adapters
+      ├── WebRTC/application adapters
+      └── external implementation oracles
                 │
                 ▼
          preserved evidence
+                │
+                ▼
+        independent reducers
 ```
 
 The first cross-project research integration is with ACE Omni: Omni can execute controlled communications experiments while Baudot owns the portable accessibility behavior and test vocabulary.
 
-## Current vertical slice
+## Current proving ground
 
-The first transport harness uses JAIN SIP for signaling and Sandia Wiretap as an external controlled-network substrate. It records signaling and media-path reachability independently so a run can prove states such as:
+Baudot currently uses JAIN SIP as a glass-box signaling instrument and Sandia Wiretap as an external controlled-network substrate.
+
+The executable proving ground now includes:
+
+- deterministic T.140 semantic and presentation vectors;
+- primary RTP/RFC 4103 T140block vectors and live SIP-negotiated RTT transport;
+- RFC 2198 redundancy parsing and deterministic T.140 recovery;
+- independently routed signaling and text-media paths through Wiretap;
+- fail-fast topology preflight with evidence-bound reserved-prefix, route, namespace, host-link, and reverse-path assertions;
+- `BAUDOT-INTEROP-003`, a runnable re-INVITE / SDP-freshness / RTT-readiness evidence chain; and
+- `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain.
+
+A passing transfer does **not** mean that REFER succeeded. The relevant evidence can distinguish:
 
 ```text
-scenarioResult=PASS
-callState=CALL_ESTABLISHED
-mediaState=MEDIA_FAILED
+REFER accepted=true
+replacement dialog established=true
+rttNegotiated=true
+firstT140CharacterObserved=false
+rttReady=false
+old leg preserved
 ```
 
-That means the experiment successfully reproduced a call whose SIP dialog established while its media path did not. The current media check is a correlated UDP heartbeat, not RTP or RFC 4103 conformance.
+from a usable replacement leg where independently validated T.140 is observed before teardown.
 
-See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the boundary, distributed caller/callee roles, Wiretap route model, and evidence bundle.
+See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model.
 
-## Status
+## Interoperability ensemble
 
-Early design and testkit bootstrap. No RFC 4103, T.140, SIP, or implementation conformance claim is made yet.
+[ADR-0001](docs/adr/0001-interoperability-ensemble-and-external-oracles.md) defines the current implementation boundary:
+
+- **JAIN SIP** — primary glass-box signaling instrument;
+- **Elixip** — first externally installed independent SIP/call-state oracle;
+- **Apache OpenMeetings** — integration specimen and scenario donor, not the second independent SIP stack;
+- **ACE Direct** — historical production donor corpus; and
+- **Wiretap** — external network/evidence substrate, never verdict authority.
+
+Baudot reducers and reference code retain terminal verdict authority within explicit claim boundaries. Implementation agreement is evidence, not correctness by majority vote.
+
+The first external-oracle lane is documented in [`interop/elixip/`](interop/elixip/). It admits one exact clean upstream Elixip checkout and hash-binds Baudot-owned FSL inputs before execution without vendoring or linking Elixip into Baudot.
+
+## Status and claim boundary
+
+Baudot is in active proving-ground development. Several scenarios are **runnable**, but runnable is not the same as proven or conformant.
+
+The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, or implementation conformance. Promotion toward stronger interoperability claims requires independent implementations, broader endpoint/timing coverage, production-representative gateway evidence, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
 
 ## Project name
 
