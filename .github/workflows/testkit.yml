@@ -27,3 +27,5 @@ jobs:
         run: python -m scripts.validate_rfc4103_vectors
       - name: Validate RFC 2198 T.140 redundancy vectors
         run: python -m scripts.validate_rfc2198_vectors
+      - name: Validate RFC 4103 deterministic recovery vectors
+        run: python -m scripts.validate_rfc4103_recovery_vectors

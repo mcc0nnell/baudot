@@ -1,0 +1,94 @@
+{
+  "id": "BAUDOT-RFC4103-RECOVERY-001",
+  "version": 1,
+  "status": "baseline",
+  "title": "RFC 4103 redundancy gap recovery",
+  "scope": "Validates deterministic recovery of forward RTP sequence gaps from already-received RFC 2198 T140block redundancy and U+FFFD marking of unrecovered T140blocks. It does not implement the optional out-of-order waiting timer, RTCP-assisted last-packet detection, or complete RFC 4103 receiver behavior.",
+  "sources": [
+    {
+      "specification": "RFC 4103 sections 4.2 and 5.3",
+      "url": "https://www.rfc-editor.org/rfc/rfc4103.html",
+      "basis": [
+        "missing packets are detected from RTP sequence-number gaps rather than timestamps",
+        "redundant T140block sequence numbers are inferred by counting backwards from the primary RTP sequence number",
+        "matching redundant T140blocks may substitute for missing primary T140blocks",
+        "one missing-text marker should be inserted for each still-missing T140block"
+      ]
+    }
+  ],
+  "vectors": [
+    {
+      "id": "no-gap",
+      "previousSequence": 10,
+      "packetSequence": 11,
+      "redundant": [{"timestampOffset": 300, "text": "old"}],
+      "primary": "B",
+      "expected": [{"sequence": 11, "text": "B", "source": "primary"}]
+    },
+    {
+      "id": "recover-one-gap",
+      "previousSequence": 10,
+      "packetSequence": 12,
+      "redundant": [{"timestampOffset": 300, "text": "B"}],
+      "primary": "C",
+      "expected": [
+        {"sequence": 11, "text": "B", "source": "redundant"},
+        {"sequence": 12, "text": "C", "source": "primary"}
+      ]
+    },
+    {
+      "id": "partially-unrecoverable-gap",
+      "previousSequence": 10,
+      "packetSequence": 14,
+      "redundant": [{"timestampOffset": 300, "text": "D"}],
+      "primary": "E",
+      "expected": [
+        {"sequence": 11, "text": "�", "source": "missing-marker"},
+        {"sequence": 12, "text": "�", "source": "missing-marker"},
+        {"sequence": 13, "text": "D", "source": "redundant"},
+        {"sequence": 14, "text": "E", "source": "primary"}
+      ]
+    },
+    {
+      "id": "recover-empty-block",
+      "previousSequence": 10,
+      "packetSequence": 12,
+      "redundant": [{"timestampOffset": 300, "text": ""}],
+      "primary": "C",
+      "expected": [
+        {"sequence": 11, "text": "", "source": "redundant"},
+        {"sequence": 12, "text": "C", "source": "primary"}
+      ]
+    },
+    {
+      "id": "sequence-wraparound",
+      "previousSequence": 65534,
+      "packetSequence": 1,
+      "redundant": [
+        {"timestampOffset": 600, "text": "A"},
+        {"timestampOffset": 300, "text": "B"}
+      ],
+      "primary": "C",
+      "expected": [
+        {"sequence": 65535, "text": "A", "source": "redundant"},
+        {"sequence": 0, "text": "B", "source": "redundant"},
+        {"sequence": 1, "text": "C", "source": "primary"}
+      ]
+    },
+    {
+      "id": "first-observed-packet",
+      "previousSequence": null,
+      "packetSequence": 10,
+      "redundant": [{"timestampOffset": 300, "text": "old"}],
+      "primary": "new",
+      "expected": [{"sequence": 10, "text": "new", "source": "primary"}]
+    }
+  ],
+  "deferred": [
+    "one-second out-of-order waiting policy",
+    "late-packet reinsertion",
+    "RTCP-assisted loss detection before idle periods",
+    "general redundancy-level change inference",
+    "marker-bit heuristics for avoiding false loss markers"
+  ]
+}

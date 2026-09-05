@@ -8,6 +8,12 @@ underlying specifications.
 
 from .rfc2198 import InvalidRedT140Packet, RedundantT140Generation, Rfc2198T140Packet
 from .rfc4103 import InvalidRtpT140Packet, PrimaryT140RtpPacket, T140_CLOCK_RATE_HZ
+from .rfc4103_recovery import (
+    RecoveredT140Block,
+    UnsupportedSequenceProgression,
+    infer_redundant_sequence_numbers,
+    recover_forward_gap,
+)
 from .t140 import BaselineSemanticGap, PresentationResult, apply_t140_baseline, encode_utf8
 from .t140block import InvalidT140Block, T140Block, concatenate_blocks
 
@@ -25,4 +31,8 @@ __all__ = [
     "InvalidRedT140Packet",
     "RedundantT140Generation",
     "Rfc2198T140Packet",
+    "RecoveredT140Block",
+    "UnsupportedSequenceProgression",
+    "infer_redundant_sequence_numbers",
+    "recover_forward_gap",
 ]
