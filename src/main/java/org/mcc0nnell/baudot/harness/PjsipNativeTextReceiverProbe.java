@@ -137,6 +137,14 @@ public final class PjsipNativeTextReceiverProbe implements SipListener, AutoClos
                 throw new IllegalStateException("PJSIP native text wire observation was incomplete");
             }
         }
+
+        // The NIST JAIN SIP implementation may retain non-daemon worker
+        // threads after SipStack.stop() even though all Baudot evidence
+        // resources have closed and their manifests have been written. This
+        // probe is a standalone process, so terminate explicitly only after
+        // successful resource closure rather than letting implementation
+        // thread lifetime hold the external oracle gate open.
+        System.exit(0);
     }
 
     private void start() throws Exception {
