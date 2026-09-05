@@ -6,6 +6,8 @@ as a reference implementation but must not treat it as a substitute for the
 underlying specifications.
 """
 
+from .federation import FederatedSessionResult, InvalidFederationScenario, reduce_federated_session
+from .federation_lab import InvalidFederationBoundary, SipWebRtcBoundaryResult, reduce_sip_webrtc_boundary
 from .rfc2198 import InvalidRedT140Packet, RedundantT140Generation, Rfc2198T140Packet
 from .rfc4103 import InvalidRtpT140Packet, PrimaryT140RtpPacket, T140_CLOCK_RATE_HZ
 from .rfc4103_recovery import (
@@ -49,4 +51,10 @@ __all__ = [
     "T140DataChannelMessage",
     "T140DataChannelProfile",
     "replacement_marker_for_possible_loss",
+    "FederatedSessionResult",
+    "InvalidFederationScenario",
+    "reduce_federated_session",
+    "InvalidFederationBoundary",
+    "SipWebRtcBoundaryResult",
+    "reduce_sip_webrtc_boundary",
 ]
