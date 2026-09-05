@@ -107,12 +107,33 @@ Elixip original dialog established
 
 Elixip's scenario result is still observation-only. `scripts.validate_elixip_to_jain_refer_signaling_only` independently reconciles Elixip markers with preserved raw SIP and JAIN evidence before emitting the terminal `rttReady=false` verdict.
 
+### Positive handoff arm
+
+[`interop004-elixip-to-jain-positive-handoff.exs`](interop004-elixip-to-jain-positive-handoff.exs) uses the same Elixip-owned original dialog and REFER direction on separate ports. The controlled provider-b answers JAIN's replacement INVITE, observes the replacement ACK, and only then emits Baudot's deterministic canonical primary T.140 RTP packet to the `m=text` port from JAIN's offer.
+
+That packet is a **Baudot-owned controlled-provider stimulus**, not Elixip media. The positive reverse arm passes only when:
+
+```text
+Elixip original dialog established
++ Elixip REFER emitted and observed by JAIN
++ REFER accepted and terminal NOTIFY acknowledged by Elixip
++ replacement dialog established
++ controlled provider-b independently observes replacement ACK
++ text/t140 negotiated
++ sent and received canonical RTP bytes match
++ Python RFC 4103 reference parses first T.140 text as "H"
++ JAIN releases the original leg only after RTT observation
++ Elixip independently receives that BYE and returns 200
+```
+
+Java is again limited to transport-level observation and exact canonical-byte matching. `scripts.validate_elixip_to_jain_refer_positive_handoff` owns semantic classification and can emit `rttReady=true` only after parsing the preserved datagram and reconciling the Elixip-side release marker with JAIN's BYE evidence.
+
 ## Claim boundary
 
 A successful Elixip scenario process is never sufficient to pass `BAUDOT-INTEROP-004`. Wire evidence and Baudot's independent reducers retain verdict authority.
 
-The current ensemble establishes controlled cross-implementation SIP/dialog behavior and accessibility-handoff policy. It does **not** establish SIP, REFER, RFC 3515, RFC 6665, RFC 4103, T.140, JAIN SIP, Elixip, VRS, SBC/NAT, or production conformance. The JAIN SIP -> Elixip positive arm specifically does not claim native Elixip RFC 4103 media support.
+The current ensemble establishes controlled cross-implementation SIP/dialog behavior and accessibility-handoff policy. It does **not** establish SIP, REFER, RFC 3515, RFC 6665, RFC 4103, T.140, JAIN SIP, Elixip, VRS, SBC/NAT, or production conformance. Neither positive arm claims native Elixip RFC 4103 media support.
 
-## Next slice
+## Next threshold
 
-After the reverse signaling-only arm is stable, add the matching positive `Elixip -> JAIN SIP` handoff without changing the evidence vocabulary or terminal reducer semantics. The next independent-media threshold after that is a participant that actually emits RFC 4103/T.140 through its own media implementation rather than Baudot-owned canonical stimulus.
+With positive and negative policy arms in both directions, the next implementation-independence threshold is a participant that actually emits and receives RFC 4103/T.140 through its own media implementation rather than Baudot-owned canonical stimulus. That third implementation should enter the same scenario and evidence vocabulary without changing the terminal reducer semantics.
