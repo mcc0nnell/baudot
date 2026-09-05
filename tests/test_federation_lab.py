@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import tempfile
 import unittest
 
 from baudot_reference.federation_lab import reduce_sip_webrtc_boundary
+from scripts.run_federation_boundary import live_sip_facts
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "testkit" / "federation" / "BAUDOT-FED-002-sip-interpreter-webrtc-boundary.json"
@@ -57,6 +59,35 @@ class SipWebRtcFederationBoundaryTests(unittest.TestCase):
         self.assertIsNone(result.decoded_text)
         self.assertEqual(result.terminal_verdict, "not-ready")
         self.assertEqual(result.failed_facts, ("browserBoundaryT140Valid",))
+
+    def test_live_sip_evidence_is_joined_from_both_roles(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = root / "BAUDOT-FED-002" / "corr"
+            (base / "caller").mkdir(parents=True)
+            (base / "callee").mkdir(parents=True)
+            (base / "caller" / "result.properties").write_text(
+                "signaling.dialog.established=true\nmedia.probe.sent=true\n",
+                encoding="utf-8",
+            )
+            (base / "callee" / "result.properties").write_text(
+                "signaling.invite.received=true\n"
+                "signaling.ack.received=true\n"
+                "media.probe.received=true\n",
+                encoding="utf-8",
+            )
+            facts = live_sip_facts(root, "BAUDOT-FED-002", "corr")
+            self.assertTrue(all(facts.values()))
+            self.assertEqual(
+                set(facts),
+                {
+                    "callerDialogEstablished",
+                    "callerMediaProbeSent",
+                    "interpreterInviteReceived",
+                    "interpreterAckReceived",
+                    "interpreterMediaProbeReceived",
+                },
+            )
 
     def test_scenario_preserves_real_browser_claim_gate(self) -> None:
         gates = set(self.scenario["requiredBeforeProven"])
