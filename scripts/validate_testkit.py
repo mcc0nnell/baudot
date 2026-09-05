@@ -7,6 +7,8 @@ import json
 import re
 from pathlib import Path
 
+from baudot_reference import apply_t140_baseline, encode_utf8
+
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_DIR = ROOT / "testkit" / "contracts"
 SCENARIO_DIR = ROOT / "testkit" / "scenarios"
@@ -144,50 +146,6 @@ def parse_code_points(values: object, label: str) -> list[int]:
     return code_points
 
 
-def render_t140_baseline(code_points: list[int]) -> dict[str, object]:
-    display: list[str] = []
-    alerts = 0
-    missing = 0
-    line_breaks = 0
-    index = 0
-
-    while index < len(code_points):
-        code_point = code_points[index]
-
-        if code_point == 0x0007:  # BEL
-            alerts += 1
-        elif code_point == 0x0008:  # BS
-            if display:
-                display.pop()
-        elif code_point == 0x2028:  # LINE SEPARATOR
-            display.append("\n")
-            line_breaks += 1
-        elif code_point == 0x000D:  # Supported CR LF new-line form.
-            if index + 1 >= len(code_points) or code_points[index + 1] != 0x000A:
-                raise ValueError("baseline vectors do not define isolated CR")
-            display.append("\n")
-            line_breaks += 1
-            index += 1
-        elif code_point == 0x000A:
-            raise ValueError("baseline vectors do not define isolated LF")
-        elif code_point == 0xFFFD:
-            display.append("\uFFFD")
-            missing += 1
-        elif code_point < 0x0020 or 0x007F <= code_point <= 0x009F:
-            raise ValueError(f"baseline vectors do not define control U+{code_point:04X}")
-        else:
-            display.append(chr(code_point))
-
-        index += 1
-
-    return {
-        "displayText": "".join(display),
-        "alerts": alerts,
-        "missingTextMarkers": missing,
-        "lineBreaks": line_breaks,
-    }
-
-
 def validate_t140_vector_suite(path: Path) -> None:
     suite = load(path)
     suite_id = require_non_empty_string(suite.get("id"), f"{path}: id")
@@ -225,8 +183,7 @@ def validate_t140_vector_suite(path: Path) -> None:
         require_non_empty_string(vector.get("description"), f"{path}: {vector_id} description")
         code_points = parse_code_points(vector.get("inputCodePoints"), f"{path}: {vector_id} inputCodePoints")
 
-        encoded = "".join(chr(code_point) for code_point in code_points).encode("utf-8")
-        actual_hex = " ".join(f"{byte:02x}" for byte in encoded)
+        actual_hex = " ".join(f"{byte:02x}" for byte in encode_utf8(code_points))
         expected_hex = require_non_empty_string(vector.get("utf8Hex"), f"{path}: {vector_id} utf8Hex").lower()
         if actual_hex != expected_hex:
             raise ValueError(
@@ -236,7 +193,7 @@ def validate_t140_vector_suite(path: Path) -> None:
         expected = vector.get("expected")
         if not isinstance(expected, dict):
             raise ValueError(f"{path}: {vector_id} expected must be an object")
-        actual = render_t140_baseline(code_points)
+        actual = apply_t140_baseline(code_points).as_dict()
         if actual != expected:
             raise ValueError(f"{path}: {vector_id} presentation mismatch: expected {expected}, got {actual}")
 
