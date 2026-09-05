@@ -132,6 +132,25 @@
         "production VRS readiness",
         "SIP or REFER conformance"
       ]
+    },
+    "omniObservationBridge": {
+      "status": "runnable",
+      "contract": "testkit/bridges/omni-emulytics-bridge-v1.json",
+      "exporter": "python3 -m scripts.export_omni_interop004_observations",
+      "validator": "python3 -m scripts.validate_omni_interop004_export",
+      "proves": [
+        "the existing live INTEROP-004 evidence can be lowered into source-identified ACE Omni ObservationInput candidates without changing Baudot readiness semantics",
+        "each exported fact is hash-bound to its preserved Baudot source artifact",
+        "JAIN SIP signaling and continuity facts remain distinguishable from independent RFC 4103/T.140 readiness classifications",
+        "the Baudot-side export does not fabricate Omni ObservationEnvelope payload digests, ledger sequence, or replay authority"
+      ],
+      "doesNotProve": [
+        "that ACE Omni accepted or ledgered the candidate observations",
+        "that the candidate observations are authoritative Omni evidence",
+        "full RFC 4103, T.140, SIP, REFER, or provider conformance",
+        "production VRS readiness",
+        "scenario promotion beyond runnable"
+      ]
     }
   },
   "runnableEvidence": [
@@ -140,7 +159,8 @@
     "live replacement-leg text/t140 SDP negotiation",
     "independently parsed control T.140 packet producing rttReady=true before old-leg release",
     "live signaling-only transfer producing rttReady=false while the old leg remains preserved",
-    "terminal reduction joining signaling, target identity, continuity, and accessibility readiness without collapsing them"
+    "terminal reduction joining signaling, target identity, continuity, and accessibility readiness without collapsing them",
+    "source-identified Omni ObservationInput candidate bundle hash-bound to the same preserved live evidence"
   ],
   "requiredBeforeProven": [
     "repeatable execution across more than one SIP implementation",
