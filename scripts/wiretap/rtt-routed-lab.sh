@@ -167,14 +167,6 @@ python3 -m scripts.validate_wiretap_rtt --run-dir "$RUN"
 safe_server_log >"$RUN/wiretap-server.log"
 (
   cd "$RUN"
-  sha256sum \
-    topology.properties caller-routes.txt callee-routes.txt wiretap-status.txt wiretap-server.log \
-    caller/manifest.sha256 callee/manifest.sha256 aggregate/manifest.sha256 \
-    caller/offer.sdp 2>/dev/null || true
-)
-# Build the outer manifest explicitly so optional-shell behavior cannot hide a missing RTT artifact.
-(
-  cd "$RUN"
   required=(
     topology.properties
     caller-routes.txt
