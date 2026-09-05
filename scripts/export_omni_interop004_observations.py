@@ -123,6 +123,14 @@ def bool_json(values: dict[str, Any], key: str, label: str) -> bool:
     return value
 
 
+def provider_metadata(values: dict[str, str], label: str) -> dict[str, str]:
+    source = values.get("provider.source")
+    target = values.get("provider.target")
+    if not source or not target:
+        raise ValueError(f"{label}: missing explicit provider source/target identity")
+    return {"providerSource": source, "providerTarget": target}
+
+
 def require_stable_id(value: str, label: str) -> None:
     if not STABLE_ID.fullmatch(value):
         raise ValueError(f"{label} must satisfy the Omni stable-id grammar")
@@ -198,12 +206,9 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
     live_at = latest_event_time(live_events_path)
     control_at = latest_event_time(control_events_path)
     signaling_at = latest_event_time(signaling_events_path)
-
-    provider_source = live.get("provider.source")
-    provider_target = live.get("provider.target")
-    if not provider_source or not provider_target:
-        raise ValueError("live transfer evidence is missing explicit provider source/target identity")
-    provider = {"providerSource": provider_source, "providerTarget": provider_target}
+    live_provider = provider_metadata(live, "live")
+    control_provider = provider_metadata(control_probe, "control-probe")
+    signaling_provider = provider_metadata(signaling_probe, "signaling-only-probe")
 
     observations: list[dict[str, Any]] = []
 
@@ -235,7 +240,7 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
             claim_scope="refer-replacement-continuity",
             source_artifact=live_result_path,
             correlation_id="jain-live-refer-v1",
-            extra=provider,
+            extra=live_provider,
         )
 
     control_probe_facts = [
@@ -255,7 +260,7 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
             claim_scope="replacement-leg-rtt-readiness",
             source_artifact=control_result_path,
             correlation_id="jain-live-refer-rtt-v1",
-            extra=provider,
+            extra=control_provider,
         )
 
     for fact_type in ("firstT140CharacterObserved", "rttReady"):
@@ -289,7 +294,7 @@ def build_observations(run_id: str, adapter_id: str) -> tuple[list[dict[str, Any
             claim_scope="replacement-leg-rtt-readiness",
             source_artifact=signaling_result_path,
             correlation_id="jain-live-refer-rtt-v1",
-            extra=provider,
+            extra=signaling_provider,
         )
 
     for fact_type in ("firstT140CharacterObserved", "rttReady"):
