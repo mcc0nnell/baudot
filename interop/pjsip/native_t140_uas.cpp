@@ -46,7 +46,6 @@ public:
         }
         std::cout << "PJSIP_NATIVE_T140_UAS_CALL_STATE state=" << info.stateText
                   << " code=" << info.lastStatusCode << std::endl;
-        maybeSend();
         state_cv.notify_all();
     }
 
@@ -69,7 +68,6 @@ public:
             std::lock_guard<std::mutex> lock(state_mutex);
             text_media_active = active;
         }
-        maybeSend();
         state_cv.notify_all();
     }
 
@@ -78,34 +76,17 @@ public:
                   << " text=" << prm.text << std::endl;
     }
 
-private:
-    void maybeSend() {
-        bool should_send = false;
+    void sendConfiguredText() {
+        CallSendTextParam param;
+        param.medIdx = -1;
+        param.text = configured_text;
+        sendText(param);
         {
             std::lock_guard<std::mutex> lock(state_mutex);
-            if (call_confirmed && text_media_active && !text_sent && !call_disconnected) {
-                text_sent = true;
-                should_send = true;
-            }
+            text_sent = true;
         }
-        if (!should_send) {
-            return;
-        }
-
-        try {
-            CallSendTextParam param;
-            param.medIdx = -1;
-            param.text = configured_text;
-            sendText(param);
-            std::cout << "PJSIP_NATIVE_T140_UAS_SEND_REQUESTED text="
-                      << configured_text << std::endl;
-        } catch (...) {
-            {
-                std::lock_guard<std::mutex> lock(state_mutex);
-                text_sent = false;
-            }
-            throw;
-        }
+        std::cout << "PJSIP_NATIVE_T140_UAS_SEND_REQUESTED text="
+                  << configured_text << std::endl;
         state_cv.notify_all();
     }
 };
@@ -128,6 +109,13 @@ public:
         call->answer(answer);
         std::cout << "PJSIP_NATIVE_T140_UAS_ANSWER_REQUESTED textCount=1" << std::endl;
         state_cv.notify_all();
+    }
+
+    void sendConfiguredText() {
+        if (!call) {
+            throw std::runtime_error("incoming call object is unavailable");
+        }
+        call->sendConfiguredText();
     }
 
 private:
@@ -166,12 +154,14 @@ int main() {
         {
             std::unique_lock<std::mutex> lock(state_mutex);
             if (!state_cv.wait_for(lock, std::chrono::seconds(15), [] {
-                    return incoming_call_observed && text_sent;
+                    return incoming_call_observed && call_confirmed && text_media_active;
                 })) {
-                throw std::runtime_error("timed out waiting for incoming native text send");
+                throw std::runtime_error("timed out waiting for confirmed active incoming text media");
             }
         }
 
+        std::cout << "PJSIP_NATIVE_T140_UAS_TEXT_MEDIA_ACTIVE" << std::endl;
+        account.sendConfiguredText();
         std::cout << "PJSIP_NATIVE_T140_UAS_TEXT_SENT" << std::endl;
 
         {
