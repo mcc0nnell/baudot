@@ -347,8 +347,10 @@ public final class BaudotProbe {
             ToHeader to = headerFactory.createToHeader(toAddress, null);
 
             List<ViaHeader> vias = new ArrayList<>();
-            vias.add(headerFactory.createViaHeader(
-                    config.callerSipIp(), config.callerSipPort(), ListeningPoint.UDP, null));
+            ViaHeader via = headerFactory.createViaHeader(
+                    config.callerSipIp(), config.callerSipPort(), ListeningPoint.UDP, null);
+            via.setRPort();
+            vias.add(via);
 
             CallIdHeader callId = provider.getNewCallId();
             CSeqHeader cseq = headerFactory.createCSeqHeader(1L, Request.INVITE);
@@ -364,7 +366,8 @@ public final class BaudotProbe {
             inviteTransaction = provider.getNewClientTransaction(invite);
             evidence.event("sip.invite.sent", Map.of(
                     "target", config.calleeSipIp() + ":" + config.calleeSipPort(),
-                    "callId", callId.getCallId()));
+                    "callId", callId.getCallId(),
+                    "rport", "requested"));
             inviteTransaction.sendRequest();
         }
 
