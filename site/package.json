@@ -7,7 +7,8 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "dev": "astro dev",
+    "dev": "node scripts/link-testkit.mjs && astro dev",
+    "prebuild": "node scripts/link-testkit.mjs",
     "build": "astro build",
     "preview": "astro preview"
   },
