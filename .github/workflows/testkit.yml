@@ -17,6 +17,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
       - name: Run reference reducer, block, and transport tests
         run: python -m unittest discover -s tests -p "test_*.py"
       - name: Syntax-check external Elixip runner
@@ -37,3 +42,7 @@ jobs:
         run: python -m scripts.validate_gateway_contracts
       - name: Execute runnable cross-transport gateway contract
         run: python -m scripts.run_gateway_trials
+      - name: Exercise deterministic iTRS fixture matrix
+        run: bash scripts/run-itrs-mocks.sh
+      - name: Prove iTRS logical route to JAIN-SIP handoff
+        run: bash scripts/run-itrs-sip-handoff.sh
