@@ -44,6 +44,12 @@ static void pad_silence(int16_t *samples, int actual, int target)
         memset(&samples[actual], 0, (size_t) (target - actual) * sizeof(*samples));
 }
 
+static void free_v18(v18_state_t *state)
+{
+    if (state != NULL)
+        v18_free(state);
+}
+
 int main(int argc, char **argv)
 {
     const char *message = argc > 1 ? argv[1] : "HELLO GA";
@@ -75,15 +81,15 @@ int main(int argc, char **argv)
 
     if (tx == NULL || rx == NULL) {
         fprintf(stderr, "failed to initialize SpanDSP V.18 contexts\n");
-        v18_free(tx);
-        v18_free(rx);
+        free_v18(tx);
+        free_v18(rx);
         return 2;
     }
 
     if (v18_put(tx, message, -1) != (int) strlen(message)) {
         fprintf(stderr, "v18_put rejected part of the message\n");
-        v18_free(tx);
-        v18_free(rx);
+        free_v18(tx);
+        free_v18(rx);
         return 2;
     }
 
@@ -108,8 +114,8 @@ int main(int argc, char **argv)
     printf("sent=%s\n", message);
     printf("received=%s\n", received.text);
 
-    v18_free(tx);
-    v18_free(rx);
+    free_v18(tx);
+    free_v18(rx);
 
     if (strcmp(received.text, message) != 0) {
         fprintf(stderr, "V.18 round-trip mismatch\n");
