@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate routed RTT evidence without trusting the Java sender's classification."""
+"""Validate RTT evidence without trusting the Java sender's protocol classification."""
 
 from __future__ import annotations
 
@@ -59,6 +59,7 @@ def main() -> None:
     parser.add_argument("--run-dir", type=Path, required=True)
     args = parser.parse_args()
     run_dir = args.run_dir
+    scenario = run_dir.parent.name
 
     caller = run_dir / "caller"
     callee = run_dir / "callee"
@@ -71,14 +72,14 @@ def main() -> None:
         (callee / "rtt-datagram-1-received.bin").read_bytes(),
         (callee / "rtt-datagram-2-received.bin").read_bytes(),
     ]
-    require(sent == received, "routed RTT datagrams changed between sender and receiver evidence")
-    require(len(sent) == 2, "expected exactly two routed RTT datagrams")
+    require(sent == received, "RTT datagrams changed between sender and receiver evidence")
+    require(len(sent) == 2, "expected exactly two RTT datagrams")
 
     offer = validate_sdp((callee / "offer.sdp").read_text(encoding="utf-8"), direction="sendonly", label="offer")
     answer = validate_sdp((caller / "answer.sdp").read_text(encoding="utf-8"), direction="recvonly", label="answer")
 
     observed_pts = [(packet[1] & 0x7F) for packet in received if len(packet) >= 2]
-    require(observed_pts == [T140_PT, RED_PT], f"unexpected routed payload-type sequence: {observed_pts}")
+    require(observed_pts == [T140_PT, RED_PT], f"unexpected payload-type sequence: {observed_pts}")
 
     primary = PrimaryT140RtpPacket.from_bytes(received[0], expected_payload_type=T140_PT)
     red = Rfc2198T140Packet.from_bytes(
@@ -104,12 +105,12 @@ def main() -> None:
     recovered = recover_forward_gap(primary.sequence_number, red)
     normalized_text = primary.block.text + "".join(item.block.text for item in recovered)
     presentation = apply_t140_baseline(ord(character) for character in normalized_text)
-    require(presentation.display_text == "Hi", "normalized routed RTT presentation is not 'Hi'")
-    require(presentation.missing_text_markers == 0, "normal routed RTT path introduced a missing-text marker")
+    require(presentation.display_text == "Hi", "normalized RTT presentation is not 'Hi'")
+    require(presentation.missing_text_markers == 0, "normal RTT path introduced a missing-text marker")
 
     evidence = {
-        "schema": "baudot.wiretap-rtt-evidence/v1",
-        "scenario": "003-rtt-rfc4103-wiretap",
+        "schema": "baudot.rtt-transport-evidence/v1",
+        "scenario": scenario,
         "validationAuthority": "baudot-python-reference",
         "wireBytesPreserved": True,
         "sdp": {"offer": offer, "answer": answer},
@@ -139,7 +140,7 @@ def main() -> None:
 
     output = run_dir / "rtt-validation.json"
     output.write_text(json.dumps(evidence, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    print("✓ routed RTT bytes preserved and independently validated as RFC 4103/RFC 2198 T.140")
+    print("✓ RTT bytes preserved and independently validated as RFC 4103/RFC 2198 T.140")
     print("✓ presentation: 'Hi' (missing-text markers: 0)")
 
 
