@@ -25,3 +25,5 @@ jobs:
         run: python -m scripts.validate_t140block_vectors
       - name: Validate RFC 4103 primary RTP wire vectors
         run: python -m scripts.validate_rfc4103_vectors
+      - name: Validate RFC 2198 T.140 redundancy vectors
+        run: python -m scripts.validate_rfc2198_vectors
