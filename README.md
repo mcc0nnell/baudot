@@ -81,11 +81,28 @@ Baudot reducers and reference code retain terminal verdict authority within expl
 
 The first external-oracle lane is documented in [`interop/elixip/`](interop/elixip/). It admits one exact clean upstream Elixip checkout and hash-binds Baudot-owned FSL inputs before execution without vendoring or linking Elixip into Baudot.
 
+## Federation horizon
+
+[ADR-0002](docs/adr/0002-federated-call-assembly-and-prospective-platform-peers.md) extends that separation to whole calls.
+
+The target abstraction is not "call through provider X." It is:
+
+```text
+Call this person
+with the accessibility services I require
+```
+
+Baudot treats VRS/interpreter services, RTT, captions, SIP/PSTN, WebRTC, conferencing systems, and future platform-specific peers as independent participants that can be assembled from explicit capabilities and user intent.
+
+A motivating long-term case is a VRS provider participating in a call whose hearing endpoint is on a mainstream video platform such as FaceTime. **FaceTime is a prospective federation peer, not a current protocol dependency or conformance claim.** Baudot will use documented interoperability surfaces only; deeper closed-platform integration belongs behind a supportable platform adapter.
+
+The near-term proving path is deliberately open: first model caller + interpreter + destination, then prove SIP/WebRTC federation, then experiment with native calling surfaces such as CallKit/LiveCommunicationKit. Closed-platform adapters come only after the missing interoperability boundary is precisely demonstrated.
+
 ## Status and claim boundary
 
 Baudot is in active proving-ground development. Several scenarios are **runnable**, but runnable is not the same as proven or conformant.
 
-The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, or implementation conformance. Promotion toward stronger interoperability claims requires independent implementations, broader endpoint/timing coverage, production-representative gateway evidence, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
+The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, FaceTime, or implementation conformance. Promotion toward stronger interoperability claims requires independent implementations, broader endpoint/timing coverage, production-representative gateway evidence, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
 
 ## Project name
 
