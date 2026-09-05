@@ -133,6 +133,36 @@ The first machine-readable bridge protocol is [`bridges/omni-emulytics-bridge-v1
 
 A command remains intent, not evidence. For example, an Omni command requesting a REFER cannot itself establish `referAccepted=true`; that fact must come from an identified observation source. Likewise, successful signaling or RTT negotiation does not imply `rttReady=true` unless the active Baudot scenario's evidence rule is satisfied.
 
+### First live bridge slice: BAUDOT-INTEROP-004
+
+After the existing live JAIN SIP REFER and replacement-leg RTT gates produce a local `RUNNABLE_PASS`, `scripts.export_omni_interop004_observations` converts the preserved evidence into source-identified ACE Omni `ObservationInput` candidates.
+
+The split is intentional:
+
+- JAIN SIP sources may report signaling, target-correlation, negotiated-media, and old-leg continuity facts;
+- the independent Python RFC 4103/T.140 reference owns `firstT140CharacterObserved` and `rttReady` classifications; and
+- Baudot emits no `payloadSha256`, envelope `version`, ledger sequence, or authoritative replay result. Those fields belong to ACE Omni when it accepts the inputs.
+
+The bridge export contains its own SHA-256 manifest and binds every fact back to the exact preserved Baudot source artifact. `scripts.validate_omni_interop004_export` checks that boundary in CI before the bundle is uploaded with the rest of the scenario evidence.
+
+### Downstream Omni round-trip proof
+
+ACE Omni PR #43 pins the exact 17-record JSONL emitted by the green Baudot PR #45 CI run and exercises the other side of the boundary.
+
+That downstream integration validates the source run/adapter binding, creates Omni-owned `ObservationEnvelope` records under a separate target run, computes canonical payload digests, assigns stable ledger sequence, accepts exact replay idempotently, rejects a conflicting replay, exports a stable ledger digest, and projects the original Baudot facts back out unchanged.
+
+The round trip preserves the accessibility distinction that matters here:
+
+```text
+control:rttReady = true
+signaling-only:rttReady = false
+signaling-only:oldLegPreserved = true
+```
+
+This is evidence that Omni can preserve Baudot facts without becoming the authority that defines those facts. The Baudot CI gate itself still proves only candidate generation; downstream Omni ingestion is a separate cross-repository proof.
+
+The source provenance, run-identity split, replay behavior, and limitations are documented in [`docs/ace-omni-interop004-roundtrip.md`](../docs/ace-omni-interop004-roundtrip.md).
+
 Execution through ACE Omni does **not** promote a Baudot scenario to `proven`. Existing evidence requirements and `requiredBeforeProven` conditions remain authoritative for the Baudot claim.
 
 Historical ACE Direct behavior may motivate scenarios, but donor code and old workarounds are not treated as proof of a current implementation defect.
