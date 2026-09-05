@@ -25,6 +25,18 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def read_properties(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        require(bool(separator) and bool(key), f"{path}: malformed property line: {raw!r}")
+        values[key] = value
+    return values
+
+
 def validate_sdp(text: str, *, direction: str, label: str) -> dict[str, object]:
     lines = [line.strip() for line in text.replace("\r\n", "\n").split("\n") if line.strip()]
     media = next((line for line in lines if line.startswith("m=text ")), None)
@@ -54,6 +66,93 @@ def validate_sdp(text: str, *, direction: str, label: str) -> dict[str, object]:
     }
 
 
+def validate_normal(primary: PrimaryT140RtpPacket, red: Rfc2198T140Packet) -> dict[str, object]:
+    require(primary.marker is True, "initial direct T.140 packet must carry the marker bit")
+    require(primary.sequence_number == 1, "unexpected initial RTP sequence number")
+    require(primary.timestamp == 1000, "unexpected initial RTP timestamp")
+    require(primary.block.text == "H", "unexpected initial T140block")
+
+    require(red.marker is False, "follow-up RED packet must not carry the initial marker bit")
+    require(red.sequence_number == 2, "unexpected RED RTP sequence number")
+    require(red.timestamp == 1300, "unexpected RED RTP timestamp")
+    require(len(red.redundant) == 1, "expected one redundant generation")
+    require(red.redundant[0].timestamp_offset == 300, "unexpected RED timestamp offset")
+    require(red.redundant[0].block.text == "H", "redundant T140block does not match prior primary")
+    require(red.primary.text == "i", "unexpected RED primary T140block")
+    require(infer_redundant_sequence_numbers(red) == (1,), "RED history does not map back to RTP sequence 1")
+
+    recovered = recover_forward_gap(primary.sequence_number, red)
+    normalized_text = primary.block.text + "".join(item.block.text for item in recovered)
+    presentation = apply_t140_baseline(ord(character) for character in normalized_text)
+    require(presentation.display_text == "Hi", "normalized RTT presentation is not 'Hi'")
+    require(presentation.missing_text_markers == 0, "normal RTT path introduced a missing-text marker")
+
+    return {
+        "presentation": presentation.as_dict(),
+        "recovery": {
+            "gapDetected": False,
+            "recoveredSequenceNumbers": [],
+            "sources": [item.source for item in recovered],
+        },
+    }
+
+
+def validate_recovery(
+    caller: Path,
+    primary: PrimaryT140RtpPacket,
+    red: Rfc2198T140Packet,
+) -> dict[str, object]:
+    plan_path = caller / "rtt-loss-plan.json"
+    require(plan_path.is_file(), "recovery profile is missing rtt-loss-plan.json")
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    require(plan.get("injection") == "controlled-source-omission", "unexpected recovery injection type")
+    require(plan.get("emittedSequenceNumbers") == [0, 2], "recovery plan must emit RTP sequences 0 and 2")
+    require(plan.get("omittedSequenceNumbers") == [1], "recovery plan must omit RTP sequence 1")
+    require(plan.get("omittedTimestamp") == 1000, "recovery plan omitted timestamp must be 1000")
+    require(plan.get("omittedT140Text") == "B", "recovery plan omitted T140block must be 'B'")
+    require(plan.get("recoveryCarrierSequence") == 2, "RED recovery carrier must be RTP sequence 2")
+    require(plan.get("redundantTimestampOffset") == 300, "RED recovery offset must be 300 ms")
+
+    require(primary.marker is True, "recovery prior packet must carry the marker bit")
+    require(primary.sequence_number == 0, "recovery prior RTP sequence must be 0")
+    require(primary.timestamp == 700, "recovery prior RTP timestamp must be 700")
+    require(primary.block.text == "A", "recovery prior T140block must be 'A'")
+
+    require(red.marker is False, "recovery RED packet marker must be clear")
+    require(red.sequence_number == 2, "recovery RED RTP sequence must be 2")
+    require(red.timestamp == 1300, "recovery RED RTP timestamp must be 1300")
+    require(len(red.redundant) == 1, "recovery RED packet must contain one redundant generation")
+    require(red.redundant[0].timestamp_offset == 300, "recovery RED timestamp offset must be 300")
+    require(red.redundant[0].block.text == "B", "redundant T140block must recover omitted 'B'")
+    require(red.primary.text == "C", "recovery RED primary T140block must be 'C'")
+    require(infer_redundant_sequence_numbers(red) == (1,), "RED history must map to omitted RTP sequence 1")
+
+    recovered = recover_forward_gap(primary.sequence_number, red)
+    require([item.sequence_number for item in recovered] == [1, 2], "recovery output must contain sequences 1 and 2")
+    require([item.source for item in recovered] == ["redundant", "primary"], "missing sequence must be recovered from redundancy")
+    require(recovered[0].block.text == "B", "recovered sequence 1 must contain 'B'")
+    require(all(item.source != "missing-marker" for item in recovered), "recovery path introduced a missing-text marker source")
+
+    normalized_text = primary.block.text + "".join(item.block.text for item in recovered)
+    presentation = apply_t140_baseline(ord(character) for character in normalized_text)
+    require(presentation.display_text == "ABC", "recovered RTT presentation is not 'ABC'")
+    require(presentation.missing_text_markers == 0, "successful RED recovery introduced a missing-text marker")
+
+    return {
+        "presentation": presentation.as_dict(),
+        "lossInjection": plan,
+        "recovery": {
+            "gapDetected": True,
+            "previousSequenceNumber": 0,
+            "observedNextSequenceNumber": 2,
+            "missingSequenceNumbers": [1],
+            "recoveredSequenceNumbers": [1],
+            "sources": [item.source for item in recovered],
+            "missingTextMarkers": 0,
+        },
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-dir", type=Path, required=True)
@@ -63,6 +162,11 @@ def main() -> None:
 
     caller = run_dir / "caller"
     callee = run_dir / "callee"
+    caller_result = read_properties(caller / "result.properties")
+    callee_result = read_properties(callee / "result.properties")
+    profile = caller_result.get("rtt.profile", "normal")
+    require(callee_result.get("rtt.profile", "normal") == profile, "caller/callee RTT profile mismatch")
+    require(profile in {"normal", "recovery"}, f"unsupported RTT profile: {profile}")
 
     sent = [
         (caller / "rtt-datagram-1-sent.bin").read_bytes(),
@@ -88,29 +192,12 @@ def main() -> None:
         expected_t140_payload_type=T140_PT,
     )
 
-    require(primary.marker is True, "initial direct T.140 packet must carry the marker bit")
-    require(primary.sequence_number == 1, "unexpected initial RTP sequence number")
-    require(primary.timestamp == 1000, "unexpected initial RTP timestamp")
-    require(primary.block.text == "H", "unexpected initial T140block")
+    semantic = validate_normal(primary, red) if profile == "normal" else validate_recovery(caller, primary, red)
 
-    require(red.marker is False, "follow-up RED packet must not carry the initial marker bit")
-    require(red.sequence_number == 2, "unexpected RED RTP sequence number")
-    require(red.timestamp == 1300, "unexpected RED RTP timestamp")
-    require(len(red.redundant) == 1, "expected one redundant generation")
-    require(red.redundant[0].timestamp_offset == 300, "unexpected RED timestamp offset")
-    require(red.redundant[0].block.text == "H", "redundant T140block does not match prior primary")
-    require(red.primary.text == "i", "unexpected RED primary T140block")
-    require(infer_redundant_sequence_numbers(red) == (1,), "RED history does not map back to RTP sequence 1")
-
-    recovered = recover_forward_gap(primary.sequence_number, red)
-    normalized_text = primary.block.text + "".join(item.block.text for item in recovered)
-    presentation = apply_t140_baseline(ord(character) for character in normalized_text)
-    require(presentation.display_text == "Hi", "normalized RTT presentation is not 'Hi'")
-    require(presentation.missing_text_markers == 0, "normal RTT path introduced a missing-text marker")
-
-    evidence = {
-        "schema": "baudot.rtt-transport-evidence/v1",
+    evidence: dict[str, object] = {
+        "schema": "baudot.rtt-transport-evidence/v2",
         "scenario": scenario,
+        "profile": profile,
         "validationAuthority": "baudot-python-reference",
         "wireBytesPreserved": True,
         "sdp": {"offer": offer, "answer": answer},
@@ -123,7 +210,7 @@ def main() -> None:
             "redundantText": red.redundant[0].block.text,
             "primaryText": [primary.block.text, red.primary.text],
         },
-        "presentation": presentation.as_dict(),
+        **semantic,
         "claimBoundary": {
             "doesNotEstablish": [
                 "full RFC 3261 conformance",
@@ -133,6 +220,7 @@ def main() -> None:
                 "out-of-order recovery",
                 "browser or WebRTC interoperability",
                 "production network readiness",
+                "network-induced packet loss" if profile == "recovery" else "packet-loss recovery beyond the exercised path",
             ]
         },
         "verdict": "pass",
@@ -140,8 +228,12 @@ def main() -> None:
 
     output = run_dir / "rtt-validation.json"
     output.write_text(json.dumps(evidence, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    print("✓ RTT bytes preserved and independently validated as RFC 4103/RFC 2198 T.140")
-    print("✓ presentation: 'Hi' (missing-text markers: 0)")
+    if profile == "recovery":
+        print("✓ controlled source omission created RTP sequence gap 0 → 2")
+        print("✓ RFC 2198 recovered sequence 1 from redundancy: presentation 'ABC', missing markers 0")
+    else:
+        print("✓ RTT bytes preserved and independently validated as RFC 4103/RFC 2198 T.140")
+        print("✓ presentation: 'Hi' (missing-text markers: 0)")
 
 
 if __name__ == "__main__":
