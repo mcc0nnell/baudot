@@ -1,0 +1,80 @@
+{
+  "id": "BAUDOT-RFC8865-DATACHANNEL-001",
+  "version": 1,
+  "status": "baseline",
+  "title": "RFC 8865 T.140 WebRTC data-channel boundary",
+  "scope": "Validates generic RFC 8865 T.140 data-channel properties and T140block content carriage. It does not implement SCTP, DTLS, browser APIs, SDP dcmap negotiation, channel reestablishment, flow control, or complete RFC 8865 conformance.",
+  "sources": [
+    {
+      "specification": "RFC 8865 section 3",
+      "url": "https://www.rfc-editor.org/rfc/rfc8865.html#section-3",
+      "basis": [
+        "the T.140 data-channel subprotocol identifier is t140",
+        "transmission reliability is reliable",
+        "transmission order is in-order",
+        "application-level redundancy and reordering are unnecessary on the reliable ordered data channel"
+      ]
+    },
+    {
+      "specification": "RFC 8865 sections 4.2.1 and 5.2",
+      "url": "https://www.rfc-editor.org/rfc/rfc8865.html",
+      "basis": [
+        "the default cps value is 30 when no cps parameter is present",
+        "T.140 text is encoded and framed as T140blocks",
+        "one or more T140blocks can be sent in a single SCTP user message",
+        "the recommended default transmission interval is 300 ms"
+      ]
+    },
+    {
+      "specification": "RFC 8865 section 5.4",
+      "url": "https://www.rfc-editor.org/rfc/rfc8865.html#section-5.4",
+      "basis": [
+        "after channel reestablishment the sender must not retransmit prior T140blocks",
+        "the receiver should indicate possible text loss and may use the T.140 missing-text marker"
+      ]
+    }
+  ],
+  "profile": {
+    "subprotocol": "t140",
+    "reliable": true,
+    "ordered": true,
+    "defaultTransmissionIntervalMs": 300,
+    "defaultCps": 30,
+    "usesRfc2198Redundancy": false
+  },
+  "vectors": [
+    {
+      "id": "single-block-message",
+      "blocks": ["48 69"],
+      "messageHex": "48 69",
+      "expectedText": "Hi"
+    },
+    {
+      "id": "multiple-block-message",
+      "blocks": ["41", "c3 a9"],
+      "messageHex": "41 c3 a9",
+      "expectedText": "Aé"
+    },
+    {
+      "id": "empty-block-within-message",
+      "blocks": ["41", "", "42"],
+      "messageHex": "41 42",
+      "expectedText": "AB"
+    },
+    {
+      "id": "missing-text-marker-message",
+      "blocks": ["ef bf bd"],
+      "messageHex": "ef bf bd",
+      "expectedText": "�"
+    }
+  ],
+  "deferred": [
+    "SDP dcmap and dcsa negotiation",
+    "SCTP stream creation",
+    "DTLS and WebRTC browser API integration",
+    "channel-failure detection and reestablishment",
+    "loss-indication policy",
+    "cps flow-control behavior",
+    "language negotiation with hlang-send and hlang-recv"
+  ]
+}

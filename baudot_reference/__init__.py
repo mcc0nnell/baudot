@@ -14,6 +14,14 @@ from .rfc4103_recovery import (
     infer_redundant_sequence_numbers,
     recover_forward_gap,
 )
+from .rfc8865 import (
+    DEFAULT_CPS,
+    DEFAULT_TRANSMISSION_INTERVAL_MS,
+    InvalidT140DataChannelMessage,
+    T140DataChannelMessage,
+    T140DataChannelProfile,
+    replacement_marker_for_possible_loss,
+)
 from .t140 import BaselineSemanticGap, PresentationResult, apply_t140_baseline, encode_utf8
 from .t140block import InvalidT140Block, T140Block, concatenate_blocks
 
@@ -35,4 +43,10 @@ __all__ = [
     "UnsupportedSequenceProgression",
     "infer_redundant_sequence_numbers",
     "recover_forward_gap",
+    "DEFAULT_CPS",
+    "DEFAULT_TRANSMISSION_INTERVAL_MS",
+    "InvalidT140DataChannelMessage",
+    "T140DataChannelMessage",
+    "T140DataChannelProfile",
+    "replacement_marker_for_possible_loss",
 ]
