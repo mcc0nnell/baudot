@@ -1,0 +1,87 @@
+{
+  "id": "BAUDOT-INTEROP-003",
+  "title": "In-dialog re-INVITE correlation under externally supplied SDP",
+  "status": "planned",
+  "contract": "baudot.modality-readiness@1",
+  "objective": "Turn historical ACE Direct JsSIP re-INVITE workarounds into a portable interoperability scenario that can detect stale SDP reuse, request-correlation overwrite, and signaling/media readiness divergence without copying the workaround forward.",
+  "historicalBasis": {
+    "source": "mitre-ace-direct/ace-direct",
+    "sourceCommit": "39c8f9ba73d889e743de56a2d49faf418b575c32",
+    "files": [
+      "acedirect-kurento/confs/jssip-modifications/RTCSession.js",
+      "acedirect-kurento/README.md",
+      "acedirect-kurento/Dockerfile",
+      "videomail-service/src/server.js"
+    ],
+    "observation": "ACE Direct pinned JsSIP 3.5.1 and replaced installed RTCSession/UA implementation files with local modifications. The modified RTCSession keeps re-INVITE request and SDP state outside the individual transaction and exposes respondReinvite() for application-controlled response handling.",
+    "scope": "Motivating interoperability evidence only. Baudot does not copy the patch forward and does not infer that current JsSIP, JAIN SIP, browsers, ACE Direct deployments, or other SIP implementations have the same defect."
+  },
+  "arms": [
+    {
+      "id": "control",
+      "condition": "single_in_dialog_reinvite_with_request_local_state_and_fresh_sdp"
+    },
+    {
+      "id": "externally-supplied-sdp",
+      "condition": "single_reinvite_response_uses_declared_external_sdp_while_preserving_transaction_identity"
+    },
+    {
+      "id": "overlapping-reinvite",
+      "condition": "second_reinvite_arrives_before_first_response_and_each_response_must_bind_to_its_original_request"
+    },
+    {
+      "id": "stale-sdp-reuse",
+      "condition": "second_reinvite_is_answered_with_prior_sdp_and_readiness_evidence_must_not_be_upgraded_from_signaling_success_alone"
+    }
+  ],
+  "observations": [
+    "sessionEstablished",
+    "peerConnectionStable",
+    "connectionReady",
+    "iceReady",
+    "candidatePairReady",
+    "audioInbound",
+    "videoInbound",
+    "videoDecoded",
+    "videoRendered",
+    "rttNegotiated",
+    "firstT140CharacterObserved"
+  ],
+  "assertions": [
+    "sessionEstablished does not imply iceReady",
+    "iceReady does not imply videoRendered",
+    "videoDecoded does not imply videoRendered",
+    "videoRendered does not imply rttReady",
+    "rttReady requires rttNegotiated and firstT140CharacterObserved",
+    "one pending re-INVITE must not overwrite another pending request correlation",
+    "a successful re-INVITE response does not prove that the active media description is fresh or usable",
+    "stale SDP reuse must remain observable even when the SIP dialog stays established",
+    "late observations do not rewrite earlier evidence"
+  ],
+  "requiredBeforeRunnable": [
+    "JAIN SIP in-dialog re-INVITE execution adapter",
+    "deterministic scheduler capable of overlapping two re-INVITE transactions",
+    "per-transaction correlation identifiers preserved in send and receive evidence",
+    "raw offer and answer SDP preserved with hashes for each re-INVITE",
+    "normal control arm using fresh SDP",
+    "one deterministic stale-SDP arm",
+    "independent readiness observations after each transaction"
+  ],
+  "requiredBeforeProven": [
+    "repeatable execution evidence for single and overlapping re-INVITE arms",
+    "proof that each response is bound to the intended request transaction",
+    "portable normalized trace showing SDP identity and readiness transitions separately",
+    "independent media or RTT observation sufficient to distinguish signaling success from usability",
+    "terminal verdict bound to the exact scenario inputs and source evidence"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "T.140 conformance",
+      "RFC 4103 conformance",
+      "SIP conformance",
+      "root cause of any contemporary ACE Direct, browser, VRS, or WebRTC failure",
+      "that ACE Direct's historical workaround is incorrect",
+      "that module-level state necessarily caused a production defect"
+    ]
+  }
+}
