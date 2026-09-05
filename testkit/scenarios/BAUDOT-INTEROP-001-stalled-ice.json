@@ -1,0 +1,79 @@
+{
+  "id": "BAUDOT-INTEROP-001",
+  "title": "Modality readiness under stalled ICE",
+  "status": "planned",
+  "contract": "baudot.modality-readiness@1",
+  "objective": "Preserve the exact point at which signaling, transport, media presentation, and RTT readiness diverge when ICE gathering is delayed or incomplete.",
+  "historicalBasis": {
+    "source": "mitre-ace-direct/ace-direct",
+    "observation": "ACE Direct carried a JsSIP 3.5.1 workaround that bounded ICE candidate gathering with a two-second escape path.",
+    "scope": "Motivating interoperability evidence only. This scenario does not assert that current JsSIP, browsers, Asterisk, Elixip, OpenMeetings, ACE Omni, or Baudot reproduce the historical defect."
+  },
+  "arms": [
+    {
+      "id": "control",
+      "condition": "normal_candidate_gathering"
+    },
+    {
+      "id": "delayed-final-candidate",
+      "condition": "delay_final_candidate"
+    },
+    {
+      "id": "no-end-of-candidates",
+      "condition": "suppress_end_of_candidates"
+    },
+    {
+      "id": "turn-only",
+      "condition": "turn_only"
+    },
+    {
+      "id": "stun-only",
+      "condition": "stun_only"
+    },
+    {
+      "id": "ice-restart",
+      "condition": "ice_restart"
+    }
+  ],
+  "observations": [
+    "sessionEstablished",
+    "peerConnectionStable",
+    "connectionReady",
+    "iceReady",
+    "candidatePairReady",
+    "audioInbound",
+    "videoInbound",
+    "videoDecoded",
+    "videoRendered",
+    "rttNegotiated",
+    "firstT140CharacterObserved"
+  ],
+  "assertions": [
+    "sessionEstablished does not imply iceReady",
+    "iceReady does not imply videoRendered",
+    "videoDecoded does not imply videoRendered",
+    "videoRendered does not imply rttReady",
+    "rttReady requires rttNegotiated and firstT140CharacterObserved",
+    "late observations do not rewrite earlier evidence"
+  ],
+  "requiredBeforeRunnable": [
+    "one controllable execution adapter",
+    "normal control arm",
+    "at least one deterministic stalled-ICE arm",
+    "preserved readiness observations"
+  ],
+  "requiredBeforeProven": [
+    "repeatable execution evidence",
+    "portable normalized readiness trace",
+    "independent rendered-video observation",
+    "explicit RTT observation when RTT is required",
+    "terminal verdict bound to scenario inputs"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "T.140 conformance",
+      "RFC 4103 conformance",
+      "root cause of any contemporary black-screen failure"
+    ]
+  }
+}
