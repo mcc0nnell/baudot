@@ -35,15 +35,12 @@ try {
 
     let remoteChannel;
     let receivedText = null;
-    const remoteChannelPromise = new Promise((resolve) => {
-      pcB.ondatachannel = (event) => {
-        remoteChannel = event.channel;
-        remoteChannel.onmessage = (messageEvent) => {
-          receivedText = String(messageEvent.data);
-        };
-        resolve(remoteChannel);
+    pcB.ondatachannel = (event) => {
+      remoteChannel = event.channel;
+      remoteChannel.onmessage = (messageEvent) => {
+        receivedText = String(messageEvent.data);
       };
-    });
+    };
 
     const localChannel = pcA.createDataChannel("baudot-t140", {
       ordered: true,
@@ -53,12 +50,12 @@ try {
     await pcA.setLocalDescription(await pcA.createOffer());
     await waitForIceGathering(pcA, "offerer");
     await pcB.setRemoteDescription(pcA.localDescription);
-    await remoteChannelPromise;
 
     await pcB.setLocalDescription(await pcB.createAnswer());
     await waitForIceGathering(pcB, "answerer");
     await pcA.setRemoteDescription(pcB.localDescription);
 
+    await waitFor(() => remoteChannel !== undefined, "remote T.140 data channel");
     await waitFor(
       () => localChannel.readyState === "open" && remoteChannel?.readyState === "open",
       "T.140 data channel open",
