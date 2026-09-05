@@ -78,7 +78,19 @@ BAUDOT_ELIXIP_SIP_HOST=127.0.0.1 \
 BAUDOT_ELIXIP_SIP_PORT="$ELIXIP_PORT" \
   java -cp "$CP" org.mcc0nnell.baudot.harness.ElixipReferSignalingOnlyProbe
 
-python3 -m scripts.validate_elixip_refer_signaling_only --run-dir "$RUN"
+ack_observed=0
+for _ in $(seq 1 30); do
+  if grep -q 'BAUDOT-ELIXIP replacementAckObserved=true' "$OUT/elixip.stdout.log"; then
+    ack_observed=1
+    break
+  fi
+  sleep .1
+done
+[[ "$ack_observed" == 1 ]] || { echo "Elixip did not record replacement ACK receipt" >&2; exit 4; }
+
+python3 -m scripts.validate_elixip_refer_signaling_only \
+  --run-dir "$RUN" \
+  --elixip-log "$OUT/elixip.stdout.log"
 
 # Stop the server only after Baudot's bounded observation and reduction complete.
 kill "$TARGET_PID" 2>/dev/null || true
@@ -98,6 +110,7 @@ TARGET_PID=""
     jain-to-elixip-signaling-only/result.properties
     jain-to-elixip-signaling-only/replacement-invite.request.sip
     jain-to-elixip-signaling-only/replacement-response-200.sip
+    jain-to-elixip-signaling-only/replacement-ack.request.sip
     jain-to-elixip-signaling-only/notify-200.request.sip
   )
   for artifact in "${required[@]}"; do test -f "$artifact"; done
