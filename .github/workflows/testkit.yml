@@ -31,3 +31,5 @@ jobs:
         run: python -m scripts.validate_rfc4103_recovery_vectors
       - name: Validate RFC 8865 data-channel vectors
         run: python -m scripts.validate_rfc8865_vectors
+      - name: Validate planned cross-transport gateway contract
+        run: python -m scripts.validate_gateway_contracts
