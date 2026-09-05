@@ -1,0 +1,87 @@
+{
+  "id": "BAUDOT-RFC4103-PRIMARY-001",
+  "version": 1,
+  "status": "baseline",
+  "title": "RFC 4103 primary text/t140 RTP mapping",
+  "scope": "Validates only the direct, non-redundant text/t140 RTP payload mapping using a minimal RTP v2 fixed header and one T140block. It does not establish a complete RFC 4103 sender or receiver because RFC 2198 redundancy, loss recovery, reordering, RTCP, buffering timers, and SDP negotiation are deferred.",
+  "sources": [
+    {
+      "specification": "RFC 3550 section 5.1",
+      "url": "https://www.rfc-editor.org/rfc/rfc3550.html#section-5.1",
+      "basis": [
+        "the RTP fixed header starts with version, marker/payload type, sequence number, timestamp, and SSRC",
+        "RTP version is 2",
+        "sequence number is 16 bits"
+      ]
+    },
+    {
+      "specification": "RFC 4103 sections 3.2, 3.3, and 3.5",
+      "url": "https://www.rfc-editor.org/rfc/rfc4103.html",
+      "basis": [
+        "a direct text/t140 RTP payload consists of exactly one T140block with no additional payload-format header",
+        "the timestamp clock frequency is 1000 Hz",
+        "the marker bit distinguishes the first packet in a session or after an idle period from ordinary packets"
+      ]
+    }
+  ],
+  "vectors": [
+    {
+      "id": "ordinary-primary-text",
+      "fields": {
+        "payloadType": 98,
+        "sequenceNumber": 1,
+        "timestamp": 1000,
+        "ssrc": 16909060,
+        "marker": false,
+        "t140blockHex": "48 69"
+      },
+      "packetHex": "80 62 00 01 00 00 03 e8 01 02 03 04 48 69"
+    },
+    {
+      "id": "marker-after-idle",
+      "fields": {
+        "payloadType": 98,
+        "sequenceNumber": 2,
+        "timestamp": 1300,
+        "ssrc": 1,
+        "marker": true,
+        "t140blockHex": "41"
+      },
+      "packetHex": "80 e2 00 02 00 00 05 14 00 00 00 01 41"
+    },
+    {
+      "id": "empty-primary-block",
+      "fields": {
+        "payloadType": 98,
+        "sequenceNumber": 3,
+        "timestamp": 1600,
+        "ssrc": 1,
+        "marker": false,
+        "t140blockHex": ""
+      },
+      "packetHex": "80 62 00 03 00 00 06 40 00 00 00 01"
+    },
+    {
+      "id": "multibyte-primary-block",
+      "fields": {
+        "payloadType": 98,
+        "sequenceNumber": 4,
+        "timestamp": 1900,
+        "ssrc": 2864434397,
+        "marker": false,
+        "t140blockHex": "63 61 66 c3 a9"
+      },
+      "packetHex": "80 62 00 04 00 00 07 6c aa bb cc dd 63 61 66 c3 a9"
+    }
+  ],
+  "deferred": [
+    "RFC 2198 redundancy",
+    "redundant T140block generation ordering",
+    "packet-loss recovery",
+    "out-of-order buffering",
+    "RTCP",
+    "T.140 transmission buffering timers",
+    "SDP payload-type negotiation",
+    "network socket transport"
+  ]
+}
