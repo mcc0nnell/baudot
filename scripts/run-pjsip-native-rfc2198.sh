@@ -6,7 +6,7 @@ PJSIP_ROOT=${PJSIP_ROOT:?set PJSIP_ROOT to the exact clean pjsip/pjproject check
 EXPECTED_COMMIT=${BAUDOT_PJSIP_EXPECTED_COMMIT:?set BAUDOT_PJSIP_EXPECTED_COMMIT}
 PROFILE=${BAUDOT_PJSIP_PROFILE_LABEL:?set BAUDOT_PJSIP_PROFILE_LABEL}
 CORRELATION=${BAUDOT_PJSIP_RFC2198_CORRELATION:?set BAUDOT_PJSIP_RFC2198_CORRELATION}
-EXPECT_RECOVERY=${BAUDOT_PJSIP_EXPECT_RECOVERY:?set BAUDOT_PJSIP_EXPECT_RECOVERY to true or false}
+EXPECTED_OUTCOME=${BAUDOT_PJSIP_EXPECT_OUTCOME:?set BAUDOT_PJSIP_EXPECT_OUTCOME}
 EXPECTED_TAG=${BAUDOT_PJSIP_EXPECTED_TAG:-}
 SIP_PORT=${BAUDOT_PJSIP_REMOTE_PORT:-5310}
 LOCAL_PORT=${BAUDOT_PJSIP_LOCAL_PORT:-5311}
@@ -33,6 +33,11 @@ for bin in cmake c++ git java mvn python3 sha256sum grep ldd timeout; do
   command -v "$bin" >/dev/null || { echo "missing required executable: $bin" >&2; exit 2; }
 done
 
+case "$EXPECTED_OUTCOME" in
+  recovery|zero-length-history|age-order-invalid) ;;
+  *) echo "unsupported expected outcome: $EXPECTED_OUTCOME" >&2; exit 2 ;;
+esac
+
 actual_commit=$(git -C "$PJSIP_ROOT" rev-parse HEAD)
 [[ "$actual_commit" == "$EXPECTED_COMMIT" ]] || { echo "unexpected PJSIP commit: $actual_commit" >&2; exit 2; }
 [[ -z "$(git -C "$PJSIP_ROOT" status --porcelain=v1 --untracked-files=normal)" ]] || { echo "PJSIP checkout must be clean" >&2; exit 2; }
@@ -46,7 +51,7 @@ mkdir -p "$OUT"
 
 sender_source="$ROOT/interop/pjsip/native_rfc2198_sender.cpp"
 sender_source_sha=$(sha256sum "$sender_source" | awk '{print $1}')
-python3 - "$OUT/pjsip-admission.json" "$sender_source_sha" "$SENDER_TIMEOUT" "$RECEIVER_TIMEOUT" "$EXPECTED_COMMIT" "$PROFILE" "$EXPECT_RECOVERY" "${actual_tag:-}" <<'PY'
+python3 - "$OUT/pjsip-admission.json" "$sender_source_sha" "$SENDER_TIMEOUT" "$RECEIVER_TIMEOUT" "$EXPECTED_COMMIT" "$PROFILE" "$EXPECTED_OUTCOME" "${actual_tag:-}" <<'PY'
 import json
 import pathlib
 import sys
@@ -56,7 +61,7 @@ out.write_text(json.dumps({
     "repository": "pjsip/pjproject",
     "commit": sys.argv[5],
     "profile": sys.argv[6],
-    "expectedRecovery": sys.argv[7].lower() == "true",
+    "expectedOutcome": sys.argv[7],
     "exactTag": sys.argv[8] or None,
     "cleanCheckout": True,
     "role": "native-rfc2198-media-oracle",
@@ -80,6 +85,7 @@ PY
 printf '%s\n' "$actual_commit" >"$OUT/pjsip-commit.txt"
 printf '%s\n' "${actual_tag:-none}" >"$OUT/pjsip-exact-tag.txt"
 printf '%s\n' "$PROFILE" >"$OUT/pjsip-profile.txt"
+printf '%s\n' "$EXPECTED_OUTCOME" >"$OUT/expected-outcome.txt"
 git -C "$PJSIP_ROOT" status --short >"$OUT/pjsip-status.txt"
 cmake --version >"$OUT/cmake-version.txt"
 c++ --version >"$OUT/cxx-version.txt"
@@ -153,7 +159,7 @@ BAUDOT_EVIDENCE_ROOT="$EVIDENCE" \
 BAUDOT_PJSIP_RFC2198_CORRELATION="$CORRELATION" \
 BAUDOT_PJSIP_EXPECTED_COMMIT="$EXPECTED_COMMIT" \
 BAUDOT_PJSIP_PROFILE_LABEL="$PROFILE" \
-BAUDOT_PJSIP_EXPECT_RECOVERY="$EXPECT_RECOVERY" \
+BAUDOT_PJSIP_EXPECT_OUTCOME="$EXPECTED_OUTCOME" \
   python3 -m scripts.validate_pjsip_native_rfc2198
 
 (
@@ -164,6 +170,7 @@ BAUDOT_PJSIP_EXPECT_RECOVERY="$EXPECT_RECOVERY" \
     pjsip-commit.txt
     pjsip-exact-tag.txt
     pjsip-profile.txt
+    expected-outcome.txt
     pjsip-status.txt
     cmake-version.txt
     cxx-version.txt
