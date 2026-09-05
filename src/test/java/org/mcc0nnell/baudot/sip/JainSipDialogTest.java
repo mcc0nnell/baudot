@@ -14,14 +14,6 @@ class JainSipDialogTest {
     void provesInviteAckByeAndPreservesCanonicalEvidence() throws Exception {
         SipTrace trace = new SipTrace();
         int[] ports = reserveTwoUdpPorts();
-
-        try (JainSipEndpoint alice = new JainSipEndpoint("alice", "alice", ports[0], trace);
-             JainSipEndpoint bob = new JainSipEndpoint("bob", "bob", ports[1], trace)) {
-
-            alice.invite("bob", ports[1]);
-            assertTrue(alice.awaitCompletion(Duration.ofSeconds(5)), "SIP dialog did not complete");
-        }
-
         List<String> expected = List.of(
                 "alice -> INVITE",
                 "bob -> 100 INVITE",
@@ -31,11 +23,18 @@ class JainSipDialogTest {
                 "alice -> BYE",
                 "bob -> 200 BYE"
         );
-        List<String> observed = trace.sentSignals();
-        assertEquals(expected, observed);
-
         Path evidence = Path.of("target", "baudot-evidence", "sip-dialog.json");
-        SipEvidenceWriter.write(evidence, expected, observed);
+
+        try (JainSipEndpoint alice = new JainSipEndpoint("alice", "alice", ports[0], trace);
+             JainSipEndpoint bob = new JainSipEndpoint("bob", "bob", ports[1], trace)) {
+
+            alice.invite("bob", ports[1]);
+            assertTrue(alice.awaitCompletion(Duration.ofSeconds(5)), "SIP dialog did not complete");
+        } finally {
+            SipEvidenceWriter.write(evidence, expected, trace.sentSignals());
+        }
+
+        assertEquals(expected, trace.sentSignals());
         assertTrue(java.nio.file.Files.isRegularFile(evidence));
     }
 
