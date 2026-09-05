@@ -29,3 +29,5 @@ jobs:
         run: python -m scripts.validate_rfc2198_vectors
       - name: Validate RFC 4103 deterministic recovery vectors
         run: python -m scripts.validate_rfc4103_recovery_vectors
+      - name: Validate RFC 8865 data-channel vectors
+        run: python -m scripts.validate_rfc8865_vectors
