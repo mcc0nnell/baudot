@@ -147,9 +147,11 @@ Those behaviors motivate a provider-neutral question:
 
 > Can a call move from provider A to provider B while the REFER transaction, NOTIFY outcome, replacement dialog, target identity, old-leg teardown, and accessibility readiness remain independently attributable?
 
-The first gate is deliberately implementation-neutral. `testkit/refer/provider-transfer-matrix.json` defines three synthetic provider identities, every directed cross-provider pair, and blind/warm transfer as separate dimensions. That produces twelve provider/mode cells without assigning protocol semantics to any provider label.
+#### Gate 1: provider-neutral transfer matrix
 
-`scripts/validate_refer_provider_matrix.py` then exercises positive and negative reducer cases. It keeps these facts separate:
+`testkit/refer/provider-transfer-matrix.json` defines three synthetic provider identities, every directed cross-provider pair, and blind/warm transfer as separate dimensions. That produces six directed pairs and twelve provider/mode cells without assigning protocol semantics to any provider label.
+
+`scripts.validate_refer_provider_matrix` exercises positive and negative reducer cases while keeping these facts separate:
 
 ```text
 REFER accepted
@@ -162,20 +164,69 @@ first T.140 character observed
 RTT ready
 ```
 
-The terminal transfer verdict cannot be `PASS` unless all required layers pass. In particular:
+The reducer distinguishes signaling failure, target-correlation drift, premature teardown, and accessibility-readiness failure rather than collapsing them into a generic transfer failure.
+
+#### Gate 2: live JAIN SIP REFER/NOTIFY transfer
+
+`LiveReferProviderTransferProbe` moves the transfer skeleton onto the wire. A raw referrer establishes a live dialog with synthetic `provider-a` and sends an in-dialog REFER whose `Refer-To` points at independently addressed `provider-b`.
+
+The JAIN SIP provider role answers the REFER, emits `Event: refer` NOTIFY requests carrying `message/sipfrag` progress, follows the referred target with a replacement INVITE, observes the replacement 180/200 and ACK, emits the terminal NOTIFY, and tears down the old leg only after the replacement dialog is established and the final NOTIFY is acknowledged.
+
+This gate preserves original-dialog, REFER, NOTIFY, replacement-dialog, target-correlation, ACK, and teardown evidence. It still does not promote accessibility readiness by itself.
+
+#### Gate 3: replacement-leg RTT readiness
+
+`LiveReferRttHandoffProbe` executes two live provider-a to provider-b transfer arms with `m=text` / `t140/1000` negotiated on the replacement dialog.
+
+In the control arm, provider-b sends Baudot's existing canonical primary T.140 RTP datagram only after the replacement ACK. Java preserves the received bytes and uses only an exact canonical-byte match as the continuity gate before releasing the old leg. `scripts.validate_refer_rtt_handoff` independently parses those preserved bytes through Baudot's Python RFC 4103 primitive before deriving:
 
 ```text
-REFER 2xx + NOTIFY 2xx + replacement dialog
-    != RTT ready
+rttNegotiated=true
+firstT140CharacterObserved=true
+rttReady=true
+old leg released after RTT observation
 ```
 
-The reducer also distinguishes target-correlation drift, premature old-leg teardown, signaling failure, and accessibility-readiness failure rather than collapsing all of them into a generic transfer failure.
+The signaling-only arm completes the same REFER, NOTIFY, replacement INVITE, 2xx, and ACK sequence but deliberately withholds RTT. It therefore preserves the distinction:
 
-`BAUDOT-INTEROP-004` remains **planned** because this first gate is a deterministic transfer contract, not a live SIP transfer. The next execution slice is a live JAIN SIP REFER/NOTIFY adapter with two independently addressed provider-role endpoints, raw original/replacement dialog evidence, and independent replacement-leg RTT observation. Provider names remain configuration so the same test can later become an A→B, A→C, B→A, or other real-world matrix without rewriting the reducer.
+```text
+REFER accepted=true
+replacement dialog established=true
+rttNegotiated=true
+firstT140CharacterObserved=false
+rttReady=false
+old leg preserved
+```
+
+The accessibility invariant is explicit:
+
+```text
+REFER 2xx + NOTIFY success + replacement dialog
+    != replacement accessibility readiness
+```
+
+#### Terminal reduction
+
+`scripts.validate_ace_refer_scenario` joins the matrix, live signaling transfer, control RTT handoff, and signaling-only failure arm only after those facts remain independently attributable. A runnable terminal result requires target correlation, continuity ordering, a positive independently parsed T.140 control, and a negative signaling-only readiness result.
+
+Expected terminal evidence:
+
+```text
+terminalVerdict=RUNNABLE_PASS
+status=runnable
+```
+
+The complete scenario can be executed with:
+
+```text
+bash scripts/run-ace-refer-scenario.sh
+```
+
+`BAUDOT-INTEROP-004` is therefore **runnable**, not proven. Provider identities remain synthetic configuration. Moving to `proven` requires additional SIP implementations, live coverage across the configured provider directions and transfer modes, and production-representative gateway or VRS observations without weakening the claim boundaries.
 
 ## Next donor candidates
 
-With re-INVITE runnable and REFER modeled, inspect ACE behavior around:
+With re-INVITE and REFER runnable, inspect ACE behavior around:
 
 - hold/resume renegotiation;
 - DTMF behavior across application and SIP layers;
