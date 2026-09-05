@@ -7,7 +7,7 @@ import unittest
 from baudot_reference.gateway import run_gateway_contract
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTRACT = ROOT / "testkit" / "gateways" / "rfc4103-rfc8865-equivalence-v1.json"
+CONTRACT = ROOT / "testkit" / "gateways" / "rfc4103-rfc8865-equivalence-v2.json"
 
 
 class GatewayEquivalenceTests(unittest.TestCase):
@@ -15,6 +15,11 @@ class GatewayEquivalenceTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
         cls.results = {result.trial_id: result for result in run_gateway_contract(cls.contract)}
+
+    def test_contract_is_runnable_not_proven(self) -> None:
+        self.assertEqual(self.contract["version"], 2)
+        self.assertEqual(self.contract["status"], "runnable")
+        self.assertEqual(self.contract["execution"]["kind"], "deterministic-reference-harness")
 
     def test_all_declared_trials_execute_and_pass(self) -> None:
         declared = {trial["id"] for trial in self.contract["trials"]}
