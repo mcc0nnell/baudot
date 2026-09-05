@@ -1,0 +1,130 @@
+{
+  "id": "BAUDOT-FED-002",
+  "title": "SIP caller through explicit interpreter to WebRTC T.140 boundary",
+  "status": "runnable",
+  "objective": "Prove the open federation boundary in stages: a live SIP dialog reaches an explicit interpreter participant, the interpreter is independently readiness-gated, and the destination-facing boundary preserves the RFC 8865 T.140 data-channel profile without treating a reference boundary as a real browser implementation.",
+  "topology": [
+    "sip-caller",
+    "interpreter",
+    "webrtc-destination-boundary"
+  ],
+  "requiredFacts": [
+    "sipDialogEstablished",
+    "interpreterJoined",
+    "interpreterReady",
+    "browserBoundaryNegotiated",
+    "browserBoundaryT140Observed"
+  ],
+  "webrtcBoundaryProfile": {
+    "subprotocol": "t140",
+    "reliable": true,
+    "ordered": true
+  },
+  "arms": [
+    {
+      "id": "control",
+      "observations": {
+        "sipDialogEstablished": true,
+        "interpreterJoined": true,
+        "interpreterReady": true,
+        "browserBoundaryNegotiated": true,
+        "browserBoundaryProfile": {
+          "subprotocol": "t140",
+          "reliable": true,
+          "ordered": true
+        },
+        "browserBoundaryT140Hex": "48 69",
+        "browserBoundaryT140Observed": true
+      }
+    },
+    {
+      "id": "sip-only",
+      "observations": {
+        "sipDialogEstablished": true,
+        "interpreterJoined": true,
+        "interpreterReady": true,
+        "browserBoundaryNegotiated": false,
+        "browserBoundaryT140Observed": false
+      }
+    },
+    {
+      "id": "interpreter-not-ready",
+      "observations": {
+        "sipDialogEstablished": true,
+        "interpreterJoined": true,
+        "interpreterReady": false,
+        "browserBoundaryNegotiated": true,
+        "browserBoundaryProfile": {
+          "subprotocol": "t140",
+          "reliable": true,
+          "ordered": true
+        },
+        "browserBoundaryT140Hex": "48 69",
+        "browserBoundaryT140Observed": true
+      }
+    },
+    {
+      "id": "wrong-datachannel-profile",
+      "observations": {
+        "sipDialogEstablished": true,
+        "interpreterJoined": true,
+        "interpreterReady": true,
+        "browserBoundaryNegotiated": true,
+        "browserBoundaryProfile": {
+          "subprotocol": "chat",
+          "reliable": true,
+          "ordered": true
+        },
+        "browserBoundaryT140Hex": "48 69",
+        "browserBoundaryT140Observed": true
+      }
+    },
+    {
+      "id": "invalid-t140",
+      "observations": {
+        "sipDialogEstablished": true,
+        "interpreterJoined": true,
+        "interpreterReady": true,
+        "browserBoundaryNegotiated": true,
+        "browserBoundaryProfile": {
+          "subprotocol": "t140",
+          "reliable": true,
+          "ordered": true
+        },
+        "browserBoundaryT140Hex": "c3 28",
+        "browserBoundaryT140Observed": true
+      }
+    }
+  ],
+  "execution": {
+    "sipLeftBoundary": "existing JAIN SIP BaudotProbe caller/callee harness with the callee interpreted as the explicit interpreter participant",
+    "browserRightBoundary": "baudot_reference RFC 8865 profile and T.140 message parser",
+    "terminalReducer": "baudot_reference.federation_lab.reduce_sip_webrtc_boundary",
+    "expectedControlVerdict": "ready"
+  },
+  "runnableEvidence": [
+    "live JAIN SIP dialog establishment is available independently of browser-boundary reduction",
+    "interpreter readiness remains a separate terminal fact from SIP establishment",
+    "destination-facing T.140 content is parsed through the RFC 8865 reference boundary",
+    "the t140/reliable/ordered data-channel profile is checked independently of provider identity",
+    "wrong profile and invalid UTF-8 remain distinguishable from SIP or interpreter failure"
+  ],
+  "requiredBeforeProven": [
+    "one repeatable run with a real browser RTCPeerConnection",
+    "SCTP data-channel establishment observed in the browser implementation",
+    "DTLS and ICE state preserved as evidence rather than inferred from application success",
+    "subprotocol t140 observed from the live browser data channel",
+    "first browser-originated or browser-received T.140 user message preserved and independently parsed",
+    "same terminal reducer exercised without provider-specific branches"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "WebRTC conformance",
+      "RFC 8865 conformance",
+      "SIP conformance",
+      "production VRS interoperability",
+      "FaceTime interoperability",
+      "that the reference right boundary is a browser"
+    ]
+  }
+}
