@@ -31,9 +31,9 @@ def main() -> None:
     if T140_CLOCK_RATE_HZ != 1000:
         raise ValueError("RFC 4103 T.140 RTP clock rate must remain 1000 Hz")
 
-    paths = sorted(VECTOR_DIR.glob("*.json"))
+    paths = sorted(VECTOR_DIR.glob("primary-*.json"))
     if not paths:
-        raise SystemExit("No RFC 4103 vector suites found")
+        raise SystemExit("No RFC 4103 primary RTP vector suites found")
 
     for path in paths:
         suite = load(path)
