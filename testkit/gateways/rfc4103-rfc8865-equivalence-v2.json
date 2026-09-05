@@ -1,0 +1,147 @@
+{
+  "id": "BAUDOT-INTEROP-002",
+  "version": 2,
+  "status": "runnable",
+  "title": "RFC 4103 ↔ RFC 8865 T.140 semantic equivalence",
+  "objective": "Demonstrate that a two-party T.140 conversation preserves the same presentation-level text semantics when interworked between RFC 4103 RTP/RED and an RFC 8865 reliable ordered T.140 data channel, while keeping transport-specific reliability mechanisms on their own side of the gateway.",
+  "scope": "This version is runnable through Baudot's deterministic reference gateway harness. It proves executable semantic composition of the repository's reference adapters; it does not establish live network, browser, SIP, production gateway, or full protocol conformance.",
+  "supersedes": {
+    "version": 1,
+    "mergedCommit": "8bf9bf07484ed5128a697ba002b7a965e7adf1a2",
+    "reason": "The v1 planning contract's deterministic adapter and normalized gateway-harness gates are now executable in-repository."
+  },
+  "execution": {
+    "kind": "deterministic-reference-harness",
+    "harness": "baudot_reference.gateway.run_gateway_contract",
+    "runner": "python -m scripts.run_gateway_trials",
+    "network": "none",
+    "adapters": {
+      "rfc4103": [
+        "baudot_reference.rfc4103.PrimaryT140RtpPacket",
+        "baudot_reference.rfc2198.Rfc2198T140Packet",
+        "baudot_reference.rfc4103_recovery.recover_forward_gap"
+      ],
+      "rfc8865": [
+        "baudot_reference.rfc8865.T140DataChannelMessage",
+        "baudot_reference.rfc8865.replacement_marker_for_possible_loss"
+      ],
+      "presentation": "baudot_reference.t140.apply_t140_baseline"
+    },
+    "emits": [
+      "source transport trace",
+      "normalized T.140 trace",
+      "target transport trace",
+      "presentation result",
+      "explicit missing-text marker count",
+      "terminal trial verdict"
+    ]
+  },
+  "sources": [
+    {
+      "specification": "RFC 8865 section 6",
+      "url": "https://www.rfc-editor.org/rfc/rfc8865.html#section-6",
+      "basis": [
+        "normal T140blocks are forwarded between RTP-based and data-channel T.140 transports",
+        "RTP redundancy is used by default on the RFC 4103 side while the T.140 data channel has no redundancy",
+        "unrecovered or suspected RTP loss should be represented by a T.140 missing-text marker on the outgoing data channel",
+        "suspected loss across data-channel failure/reestablishment should be represented by a T.140 missing-text marker on the outgoing transport",
+        "the same text transmission direction must be indicated on both sides"
+      ]
+    }
+  ],
+  "requiredAdapters": [
+    "rfc4103-rtp-red-receiver",
+    "rfc4103-rtp-red-sender",
+    "rfc8865-t140-datachannel-receiver",
+    "rfc8865-t140-datachannel-sender"
+  ],
+  "invariants": [
+    "normal T.140 content is preserved across the transport boundary",
+    "RFC 2198 redundancy metadata never becomes T.140 application content on the data-channel side",
+    "data-channel reliability is not represented as synthetic RFC 2198 history on the WebRTC side",
+    "an unrecovered missing T140block is represented by U+FFFD before forwarding to the opposite transport",
+    "an empty T140block is not converted into a missing-text marker",
+    "text transmission direction is preserved across the gateway",
+    "presentation semantics are compared after transport-specific recovery and before transport-specific re-encoding",
+    "transport packet or message boundaries are not required to remain identical when presentation semantics are equivalent"
+  ],
+  "trials": [
+    {
+      "id": "normal-rtp-to-datachannel",
+      "sourceTransport": "rfc4103",
+      "targetTransport": "rfc8865",
+      "inputT140": ["U+0048", "U+0069", "U+2028", "U+00E9"],
+      "condition": "all RFC 4103 primary T140blocks available after any RED processing",
+      "expectedPresentation": "Hi\né",
+      "expectedMissingMarkers": 0
+    },
+    {
+      "id": "normal-datachannel-to-rtp",
+      "sourceTransport": "rfc8865",
+      "targetTransport": "rfc4103",
+      "inputT140": ["U+0041", "U+0042", "U+0008", "U+0043"],
+      "condition": "reliable in-order T.140 data-channel delivery",
+      "expectedPresentation": "AC",
+      "expectedMissingMarkers": 0
+    },
+    {
+      "id": "recovered-rtp-loss-does-not-leak-marker",
+      "sourceTransport": "rfc4103",
+      "targetTransport": "rfc8865",
+      "inputT140": ["U+0041", "U+0042", "U+0043"],
+      "condition": "one lost RFC 4103 primary T140block is recovered from RFC 2198 redundancy",
+      "expectedPresentation": "ABC",
+      "expectedMissingMarkers": 0
+    },
+    {
+      "id": "unrecovered-rtp-loss-becomes-marker",
+      "sourceTransport": "rfc4103",
+      "targetTransport": "rfc8865",
+      "inputT140": ["U+0041", "U+FFFD", "U+0043"],
+      "condition": "one lost RFC 4103 primary T140block remains unrecovered after available redundancy",
+      "expectedPresentation": "A�C",
+      "expectedMissingMarkers": 1
+    },
+    {
+      "id": "datachannel-reestablishment-suspected-loss",
+      "sourceTransport": "rfc8865",
+      "targetTransport": "rfc4103",
+      "inputT140": ["U+0041", "U+FFFD", "U+0043"],
+      "condition": "the T.140 data channel is reestablished and the gateway detects or suspects intervening text loss",
+      "expectedPresentation": "A�C",
+      "expectedMissingMarkers": 1
+    },
+    {
+      "id": "empty-block-is-not-loss",
+      "sourceTransport": "rfc4103",
+      "targetTransport": "rfc8865",
+      "inputT140": ["U+0041", "U+0042"],
+      "condition": "an empty RFC 4103 T140block occurs between non-empty T140blocks and is recovered or received normally",
+      "expectedPresentation": "AB",
+      "expectedMissingMarkers": 0
+    }
+  ],
+  "evidenceRequiredBeforeProven": [
+    "immutable runnable contract identity",
+    "pinned input vectors",
+    "preserved source transport trace",
+    "preserved normalized post-recovery T.140 trace",
+    "preserved target transport trace",
+    "preserved presentation result from the shared T.140 reducer",
+    "preserved explicit missing-marker count and reason",
+    "live independent transport execution beyond the in-process reference harness",
+    "terminal evidence-bound verdict per trial"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "full T.140 conformance",
+      "full RFC 4103 conformance",
+      "full RFC 8865 conformance",
+      "live network interoperability",
+      "browser WebRTC interoperability",
+      "SIP signaling interoperability",
+      "production gateway readiness",
+      "multi-party interworking"
+    ]
+  }
+}
