@@ -93,6 +93,16 @@ The source hierarchy for this layer is:
 
 That ordering matters: transport adapters will eventually have to satisfy the T.140 vectors rather than redefine them.
 
+## iTRS mock proving ground
+
+`itrs/` contains a deterministic, clean-room iTRS routing mock suite. It covers direct and aliased `E2U+sip` resolution, NAPTR priority, SIP service discovery, negative responses, authority outage, and latency without requiring live TRS Numbering Directory access.
+
+The executable handoff trial keeps the iTRS-derived logical SIP URI as the SIP Request-URI while JAIN-SIP routes the packet to a separate loopback mock VRS peer. This is the first testkit proof of the Tilden/Baudot rule:
+
+> Resolve the logical route first. Connect second.
+
+The trial proves local route consumption and SIP transaction behavior only. It does not claim live iTRS access or production VRS interoperability.
+
 ## Scenario status
 
 Scenarios may be:
