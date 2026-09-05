@@ -49,8 +49,9 @@ The executable proving ground now includes:
 - RFC 2198 redundancy parsing and deterministic T.140 recovery;
 - independently routed signaling and text-media paths through Wiretap;
 - fail-fast topology preflight with evidence-bound reserved-prefix, route, namespace, host-link, and reverse-path assertions;
-- `BAUDOT-INTEROP-003`, a runnable re-INVITE / SDP-freshness / RTT-readiness evidence chain; and
-- `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain.
+- `BAUDOT-INTEROP-003`, a runnable re-INVITE / SDP-freshness / RTT-readiness evidence chain;
+- `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain; and
+- a bidirectional JAIN SIP ↔ Elixip `BAUDOT-INTEROP-004` matrix with controlled negative and positive readiness arms, preserved wire evidence, and independent terminal reduction.
 
 A passing transfer does **not** mean that REFER succeeded. The relevant evidence can distinguish:
 
@@ -64,6 +65,20 @@ old leg preserved
 ```
 
 from a usable replacement leg where independently validated T.140 is observed before teardown.
+
+The current cross-implementation matrix executes that decision in both implementation directions:
+
+```text
+JAIN SIP -> Elixip
+  no observed T.140  => preserve original leg
+  canonical T.140    => independently parse, then release original leg
+
+Elixip -> JAIN SIP
+  no observed T.140  => preserve original leg
+  canonical T.140    => independently parse, then release original leg
+```
+
+The positive arms use explicitly Baudot-owned deterministic media stimulus and therefore do not claim native Elixip RFC 4103 media behavior.
 
 See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model.
 
@@ -79,13 +94,13 @@ See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed 
 
 Baudot reducers and reference code retain terminal verdict authority within explicit claim boundaries. Implementation agreement is evidence, not correctness by majority vote.
 
-The first external-oracle lane is documented in [`interop/elixip/`](interop/elixip/). It admits one exact clean upstream Elixip checkout and hash-binds Baudot-owned FSL inputs before execution without vendoring or linking Elixip into Baudot.
+The external-oracle lane is documented in [`interop/elixip/`](interop/elixip/). It admits one exact clean upstream Elixip checkout and hash-binds Baudot-owned FSL inputs before execution without vendoring or linking Elixip into Baudot. `BAUDOT-INTEROP-004` now exercises that boundary in both directions while keeping REFER acceptance, NOTIFY progression, replacement-dialog establishment, RTT negotiation, T.140 observation, old-leg teardown, and terminal readiness as separate evidence facts.
 
 ## Status and claim boundary
 
 Baudot is in active proving-ground development. Several scenarios are **runnable**, but runnable is not the same as proven or conformant.
 
-The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, or implementation conformance. Promotion toward stronger interoperability claims requires independent implementations, broader endpoint/timing coverage, production-representative gateway evidence, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
+The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, or implementation conformance. Promotion toward stronger interoperability claims requires additional independent implementations, broader endpoint/timing coverage, production-representative gateway evidence, native independent RFC 4103/T.140 media participation, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
 
 ## Project name
 
