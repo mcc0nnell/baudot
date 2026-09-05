@@ -25,5 +25,9 @@ done
 curl --fail --silent "http://127.0.0.1:${PORT}/health" >/dev/null
 
 mvn -q exec:java \
+  -Dexec.mainClass=org.mcc0nnell.baudot.itrs.ItrsRouteGateProbe \
+  -Dexec.args="http://127.0.0.1:${PORT}"
+
+mvn -q exec:java \
   -Dexec.mainClass=org.mcc0nnell.baudot.itrs.ItrsSipHandoffProbe \
   -Dexec.args="http://127.0.0.1:${PORT}"
