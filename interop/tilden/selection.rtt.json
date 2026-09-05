@@ -1,0 +1,19 @@
+{
+  "version": "0.1",
+  "selectionId": "sel-rtt-local-0001",
+  "target": "tel:+12025550123",
+  "resolutionDigest": "sha256:resolution-rtt-local-0001",
+  "requestDigest": "sha256:request-rtt-local-0001",
+  "evaluatedAt": "2026-09-05T23:55:00Z",
+  "candidates": [
+    {
+      "uri": "sip:callee@127.0.0.1:5091;transport=udp",
+      "priority": 1,
+      "preferenceScore": 100,
+      "outcome": "selected",
+      "matchedPreferred": ["security.e2ee"]
+    }
+  ],
+  "terminal": "selected",
+  "selectedEndpoint": "sip:callee@127.0.0.1:5091;transport=udp"
+}
