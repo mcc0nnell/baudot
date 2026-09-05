@@ -39,6 +39,14 @@ JAIN SIP is intentionally below the semantic boundary. It owns SIP transactions,
 
 The first cross-project research integration is with ACE Omni: Omni can execute controlled communications experiments while Baudot owns the portable accessibility behavior and test vocabulary.
 
+## VRS privacy boundary
+
+Baudot treats end-to-end encryption as a **decryption-authorization boundary**, not a transport-encryption checkbox. In an interpreted VRS session, the current caller, callee, and active communications assistant set are the participants whose roles require access to the media content. Routing and observability infrastructure such as SFUs, TURN services, SIP proxies, Wiretap, and evidence collectors remain outside that decrypting set.
+
+A communications-assistant handoff is a privacy boundary: a former CA must not retain the ability to decrypt media from the new epoch. Baudot records that authorization state as evidence independently from signaling, transport, decoder, and rendering success.
+
+ADR 0003 and `docs/vrs-e2ee-contract.md` define the initial executable trust-boundary contract. SFrame (RFC 9605) is identified as a candidate media-protection layer because it can preserve media confidentiality from an SFU while leaving forwarding metadata available; no key-management or cryptographic implementation choice is claimed by this slice.
+
 ## First executable slice
 
 The first SIP proof is deliberately small and headless. Two loopback endpoints exercise a real JAIN SIP dialog, exchange an SDP video offer/answer, and preserve deterministic evidence for signaling, negotiated media description, and RTP transport observation.
@@ -65,13 +73,14 @@ Run the suite with:
 mvn verify
 cat target/baudot-evidence/sip-dialog-rtp.json
 cat target/baudot-evidence/sip-dialog-no-rtp.json
+cat target/baudot-evidence/vrs-e2ee-trust-boundary.json
 ```
 
 CI verifies the slice on Java 17 and Java 21 and preserves the Java 21 evidence directory.
 
 ## Status
 
-Early design and testkit bootstrap. The JAIN SIP/RTP vertical slice demonstrates only the explicitly observed signaling, SDP, and RTP transport mechanics. No RFC 4103, T.140, SIP, RTP profile, codec, media rendering, security, accessibility, or implementation conformance claim is made yet.
+Early design and testkit bootstrap. The JAIN SIP/RTP vertical slice demonstrates only the explicitly observed signaling, SDP, and RTP transport mechanics. The VRS E2EE slice currently proves only the decryption-authorization contract; it does not implement or claim cryptographic E2EE. No RFC 4103, T.140, SIP, RTP profile, codec, media rendering, security, accessibility, or implementation conformance claim is made yet.
 
 ## Project name
 
