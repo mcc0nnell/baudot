@@ -78,6 +78,23 @@ The first runnable slice should exercise four arms:
 
 The evidence bundle should preserve raw SIP messages, transaction/dialog identifiers, raw SDP with hashes, chronological readiness observations, and the terminal verdict. Dynamic transport identifiers may be normalized only after the raw evidence is preserved.
 
+#### First executable gate: JAIN SIP message correlation
+
+The first executable gate is intentionally narrower than the full scenario. `ReinviteCorrelationProbe` uses JAIN SIP message objects to construct stable in-dialog request identities and then exercises the correlation boundary directly.
+
+The gate preserves Call-ID, From/To tags, CSeq, method, Via branch, raw SIP messages, raw SDP, and SHA-256 hashes. It observes the later overlapping request's `491 Request Pending` result before the earlier request's `200 OK`, verifies that both responses remain bound to the intended request identity, binds a declared external SDP answer to one request by hash, and deliberately returns stale SDP under a `200 OK` to prove that signaling success alone cannot establish SDP freshness.
+
+This split also respects the JAIN SIP RI's own dialog behavior: the RI contains explicit re-INVITE serialization logic intended to avoid interleaving INVITEs while a previous INVITE transaction or ACK is pending. Baudot therefore does not treat two simultaneously successful re-INVITEs as a required baseline behavior.
+
+A passing message-correlation gate still records:
+
+```text
+live.dialog.overlap.proven=false
+media.readiness.proven=false
+```
+
+The full `BAUDOT-INTEROP-003` scenario remains `planned` until a live dialog/UAS test independently injects the overlapping transactions and preserves media or RTT readiness observations after each transaction.
+
 ## Next donor candidates
 
 After the re-INVITE slice is executable, inspect ACE behavior around:
