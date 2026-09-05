@@ -11,16 +11,29 @@ public final class SipEvidenceWriter {
     private SipEvidenceWriter() {
     }
 
-    public static void write(Path path, List<String> expected, List<String> observed) throws IOException {
+    public static void write(
+            Path path,
+            List<String> expectedSignals,
+            List<String> observedSignals,
+            List<String> expectedSdp,
+            List<String> observedSdp) throws IOException {
         Files.createDirectories(path.getParent());
         String json = "{\n"
-                + "  \"schema\": \"baudot.sip-dialog-evidence/v1\",\n"
-                + "  \"scenario\": \"invite-ack-bye\",\n"
+                + "  \"schema\": \"baudot.sip-dialog-evidence/v2\",\n"
+                + "  \"scenario\": \"invite-sdp-ack-bye\",\n"
                 + "  \"transport\": \"UDP-loopback\",\n"
-                + "  \"semanticBoundary\": \"SIP-signaling-only\",\n"
-                + "  \"expected\": " + array(expected) + ",\n"
-                + "  \"observed\": " + array(observed) + ",\n"
-                + "  \"matched\": " + expected.equals(observed) + "\n"
+                + "  \"semanticBoundary\": \"SIP-signaling-and-SDP-description\",\n"
+                + "  \"signaling\": {\n"
+                + "    \"expected\": " + array(expectedSignals) + ",\n"
+                + "    \"observed\": " + array(observedSignals) + ",\n"
+                + "    \"matched\": " + expectedSignals.equals(observedSignals) + "\n"
+                + "  },\n"
+                + "  \"sdp\": {\n"
+                + "    \"expected\": " + array(expectedSdp) + ",\n"
+                + "    \"observed\": " + array(observedSdp) + ",\n"
+                + "    \"matched\": " + expectedSdp.equals(observedSdp) + "\n"
+                + "  },\n"
+                + "  \"mediaTransportProven\": false\n"
                 + "}\n";
         Files.writeString(path, json, StandardCharsets.UTF_8);
     }
