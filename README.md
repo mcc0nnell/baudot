@@ -47,7 +47,9 @@ mediaState=MEDIA_FAILED
 
 That means the experiment successfully reproduced a call whose SIP dialog established while its media path did not. The current media check is a correlated UDP heartbeat, not RTP or RFC 4103 conformance.
 
-See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the boundary, distributed caller/callee roles, Wiretap route model, and evidence bundle.
+The next SIP proving layer adds PJSIP as an independent endpoint/media oracle rather than replacing JAIN SIP. JAIN SIP remains the glass-box signaling instrument; PJSIP exercises real endpoint/media behavior, including RFC 4103 support, against the same canonical Baudot scenarios and controlled Wiretap topology. Stack agreement is evidence, while stack disagreement becomes a reproducible interoperability case.
+
+See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the current transport harness and [`docs/sip-stack-strategy.md`](docs/sip-stack-strategy.md) for the dual-stack proving model.
 
 ## Status
 
