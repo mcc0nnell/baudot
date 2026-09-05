@@ -15,7 +15,7 @@ CORR=${BAUDOT_CORRELATION:-$(python3 -c 'import uuid; print(uuid.uuid4())')}
 
 UL_HOST=192.0.2.1
 UL_CLIENT=192.0.2.2
-SIP_HOST=10.77.10.1
+SIG_HOST=10.77.10.1
 SIP_SERVER=10.77.10.2
 MEDIA_HOST=10.77.20.1
 MEDIA_SERVER=10.77.20.2
@@ -26,10 +26,12 @@ WT_PORT=51820
 SIG_NET=10.77.10.0/24
 MEDIA_NET=10.77.20.0/24
 
-server_pid=""; callee_pid=""; relay_up=0; e2ee_up=0
+server_pid=""; callee_pid=""; socat_pid=""; relay_up=0; e2ee_up=0; RUN=""
 cleanup() {
   set +e
   [[ -n "$callee_pid" ]] && kill "$callee_pid" 2>/dev/null
+  [[ -n "$socat_pid" ]] && kill "$socat_pid" 2>/dev/null
+  if [[ -n "$RUN" && -f "$WORK/server.log" ]]; then cp "$WORK/server.log" "$RUN/wiretap-server.log" 2>/dev/null; fi
   [[ -n "$server_pid" ]] && kill "$server_pid" 2>/dev/null
   if ip netns list | grep -q "^${CNS}\b"; then
     ((e2ee_up)) && ip netns exec "$CNS" wg-quick down "$WORK/wiretap.conf" >/dev/null 2>&1
@@ -45,7 +47,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for bin in "$WT" ip wg-quick java mvn; do command -v "$bin" >/dev/null; done
+for bin in "$WT" ip wg-quick java mvn socat; do command -v "$bin" >/dev/null; done
 rm -rf "$WORK"; mkdir -p "$WORK" "$EVIDENCE"
 
 cd "$ROOT"
@@ -59,11 +61,10 @@ ip link add bdt-ul-h type veth peer name bdt-ul-c
 ip link set bdt-ul-c netns "$CNS"
 ip addr add "$UL_HOST/24" dev bdt-ul-h; ip link set bdt-ul-h up
 ip -n "$CNS" addr add "$UL_CLIENT/24" dev bdt-ul-c; ip -n "$CNS" link set bdt-ul-c up
-ip -n "$CNS" addr add "$SIP_HOST/32" dev lo
 
 ip link add bdt-sig-h type veth peer name bdt-sig-s
 ip link set bdt-sig-s netns "$SNS"
-ip addr add "$SIP_HOST/24" dev bdt-sig-h; ip link set bdt-sig-h up
+ip addr add "$SIG_HOST/24" dev bdt-sig-h; ip link set bdt-sig-h up
 ip -n "$SNS" addr add "$SIP_SERVER/24" dev bdt-sig-s; ip -n "$SNS" link set bdt-sig-s up
 
 ip link add bdt-med-h type veth peer name bdt-med-s
@@ -75,13 +76,19 @@ routes="$SIG_NET"
 if [[ "$scenario" == 001 ]]; then
   routes="$SIG_NET,$MEDIA_NET"
 else
+  # Keep send() successful while proving the media CIDR is absent from Wiretap.
+  # The isolated dummy interface absorbs the packet instead of allowing any
+  # fallback path to the callee namespace.
   ip -n "$CNS" link add bdt-med-drop type dummy
+  ip -n "$CNS" addr add 10.77.20.254/24 dev bdt-med-drop
   ip -n "$CNS" link set bdt-med-drop up
-  ip -n "$CNS" route add "$MEDIA_NET" dev bdt-med-drop
 fi
 
 cd "$WORK"
-"$WT" configure --endpoint "$UL_CLIENT:$WT_PORT" --routes "$routes" --port "$WT_PORT" >configure.log
+"$WT" configure --disable-ipv6 --endpoint "$UL_CLIENT:$WT_PORT" --routes "$routes" --port "$WT_PORT" >configure.log
+CALLER_SIP=$(sed -n 's/^Address = \([0-9.]*\)\/.*/\1/p' "$WORK/wiretap.conf" | head -n1)
+[[ -n "$CALLER_SIP" ]] || { echo "unable to read Wiretap E2EE IPv4 address" >&2; exit 1; }
+
 ip netns exec "$CNS" wg-quick up "$WORK/wiretap_relay.conf"; relay_up=1
 ip netns exec "$CNS" wg-quick up "$WORK/wiretap.conf"; e2ee_up=1
 "$WT" serve -f "$WORK/wiretap_server.conf" >server.log 2>&1 & server_pid=$!
@@ -93,8 +100,14 @@ for _ in $(seq 1 100); do
 done
 ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1 || { echo "Wiretap API did not become reachable" >&2; cat server.log >&2; exit 1; }
 
-# SIP replies follow Via as a separate reverse UDP flow. Wiretap's UDP expose
-# makes the caller's listener reachable from the server-side network.
+# The caller must source routed packets from Wiretap's E2EE identity so the
+# WireGuard peer accepts them. SIP 200 responses follow Via/received to the
+# server-side exposed port. Wiretap's IPv4 expose forwards to client loopback;
+# this shim delivers that datagram to the JAIN listener on the E2EE address.
+ip netns exec "$CNS" socat -u \
+  UDP4-RECVFROM:"$SIP_PORT",bind=127.0.0.1,reuseaddr,fork \
+  UDP4-SENDTO:"$CALLER_SIP:$SIP_PORT" >/dev/null 2>&1 &
+socat_pid=$!
 ip netns exec "$CNS" "$WT" expose --local "$SIP_PORT" --remote "$SIP_PORT" --protocol udp >/dev/null
 
 SCENARIO_ID="$scenario-wiretap-routed"
@@ -104,8 +117,10 @@ mkdir -p "$RUN"
 cat >"$RUN/topology.properties" <<EOF
 wiretap.version=$($WT --version 2>/dev/null | head -n1)
 wiretap.routes=$routes
+wiretap.clientE2EE=$CALLER_SIP
 underlay=$UL_HOST/24<->$UL_CLIENT/24
-signaling=$SIP_HOST/24<->$SIP_SERVER/24
+signaling.serverSide=$SIG_HOST/24<->$SIP_SERVER/24
+signaling.reverseExpose=$SIG_HOST:$SIP_PORT->127.0.0.1:$SIP_PORT->$CALLER_SIP:$SIP_PORT
 media=$MEDIA_HOST/24<->$MEDIA_SERVER/24
 scenario.expectMedia=$EXPECT_MEDIA
 EOF
@@ -117,7 +132,7 @@ COMMON=(
   BAUDOT_SCENARIO="$SCENARIO_ID"
   BAUDOT_CORRELATION="$CORR"
   BAUDOT_EVIDENCE_DIR="$EVIDENCE"
-  BAUDOT_CALLER_SIP_IP="$SIP_HOST"
+  BAUDOT_CALLER_SIP_IP="$CALLER_SIP"
   BAUDOT_CALLER_SIP_PORT="$SIP_PORT"
   BAUDOT_CALLEE_SIP_BIND_IP="$SIP_SERVER"
   BAUDOT_CALLEE_SIP_IP="$SIP_SERVER"
@@ -147,9 +162,10 @@ ip netns exec "$CNS" env "${COMMON[@]}" BAUDOT_ROLE=caller \
 wait "$callee_pid"; callee_pid=""
 
 java -cp "$CP" org.mcc0nnell.baudot.harness.EvidenceAggregator "$RUN/caller" "$RUN/callee"
+cp "$WORK/server.log" "$RUN/wiretap-server.log"
 (
   cd "$RUN"
-  sha256sum topology.properties caller-routes.txt callee-routes.txt wiretap-status.txt \
+  sha256sum topology.properties caller-routes.txt callee-routes.txt wiretap-status.txt wiretap-server.log \
     caller/manifest.sha256 callee/manifest.sha256 aggregate/manifest.sha256 >bundle.manifest.sha256
 )
 cat "$RUN/aggregate/result.json"
