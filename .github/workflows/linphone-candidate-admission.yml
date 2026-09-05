@@ -8,6 +8,7 @@ on:
       - 'interop/linphone/**'
       - 'scripts/linphone_candidate_admission.py'
       - 'docs/adr/0003-linphone-native-rtt-candidate.md'
+      - 'README.md'
 
 permissions:
   contents: read
@@ -36,6 +37,10 @@ jobs:
             10f0cb98eb5ae7dae973d6666894561ce5eea561
           test -z "$(git -C /tmp/baudot-linphone-sdk status --porcelain=v1 --untracked-files=normal)"
 
+      - name: Validate admission script syntax
+        shell: bash
+        run: python3 -m py_compile scripts/linphone_candidate_admission.py
+
       - name: Run source-admission gate
         shell: bash
         env:
@@ -46,11 +51,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'linphone_call_params_enable_realtime_text' interop/linphone/native_t140_sender.c
-          grep -q 'linphone_chat_message_put_char' interop/linphone/native_t140_sender.c
-          ! grep -Eq 'pjmedia_txt_stream_send_text|MS_RTT_4103_SOURCE|RtpSession|rtp_session_send' \
-            interop/linphone/native_t140_sender.c
-          sha256sum interop/linphone/native_t140_sender.c \
+          driver=interop/linphone/native_t140_sender.c
+          grep -q 'linphone_factory_create_core_3' "$driver"
+          grep -q 'linphone_core_start' "$driver"
+          grep -q 'linphone_call_params_enable_realtime_text' "$driver"
+          grep -q 'linphone_chat_room_create_message_from_utf8' "$driver"
+          grep -q 'linphone_chat_message_put_char' "$driver"
+          ! grep -Eq 'linphone_core_new\(|linphone_chat_room_create_message\(' "$driver"
+          ! grep -Eq 'pjmedia_txt_stream_send_text|MS_RTT_4103_SOURCE|RtpSession|rtp_session_send|sendto\(|socket\(' \
+            "$driver"
+          sha256sum "$driver" \
             > target/evidence-external/LINPHONE-CANDIDATE/source-admission/baudot-driver.sha256
 
       - name: Seal source-admission evidence
