@@ -5,7 +5,7 @@ on:
     paths:
       - ".github/workflows/federation-lab.yml"
       - "baudot_reference/federation*.py"
-      - "scripts/run-fed002-open-boundary.sh"
+      - "scripts/*fed002*"
       - "scripts/run_federation_boundary.py"
       - "src/main/java/org/mcc0nnell/baudot/harness/**"
       - "testkit/federation/**"
@@ -31,12 +31,28 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Exercise federation reducers
         run: python -m unittest tests.test_federation_readiness tests.test_federation_lab
       - name: Syntax-check joined lab runner
         run: bash -n scripts/run-fed002-open-boundary.sh
       - name: Run live SIP to RFC8865 open-boundary lab
         run: bash scripts/run-fed002-open-boundary.sh
+      - name: Install pinned Chromium driver
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run real Chromium RTCPeerConnection T.140 peer
+        env:
+          BAUDOT_BROWSER_EVIDENCE: target/evidence/fed002/browser-webrtc.json
+        run: node scripts/fed002-browser-peer.mjs
+      - name: Independently reduce browser evidence
+        run: >-
+          python -m scripts.validate_fed002_browser
+          target/evidence/fed002/browser-webrtc.json
+          --output target/evidence/fed002/browser-validation-result.json
       - name: Preserve federation evidence
         if: always()
         uses: actions/upload-artifact@v4
