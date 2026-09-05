@@ -108,6 +108,7 @@ def main() -> None:
     for marker in (
         "PJSIP_NATIVE_T140_START release=2.17",
         "PJSIP_NATIVE_T140_CALL_CONFIRMED",
+        "PJSIP_NATIVE_T140_TEXT_MEDIA_ACTIVE",
         "PJSIP_NATIVE_T140_SEND_REQUESTED text=H",
         "PJSIP_NATIVE_T140_COMPLETE",
     ):
@@ -127,6 +128,7 @@ def main() -> None:
         "negotiation": {
             "textOffered": True,
             "t140Offered": True,
+            "nativeTextMediaActive": True,
             "selectedPayloadType": 98,
             "clockRate": 1000,
         },
@@ -166,6 +168,7 @@ def main() -> None:
     )
 
     print("✓ PJSIP 2.17 native PJMEDIA text emission observed on the wire")
+    print("✓ native PJSUA2 text media reported active before sendText()")
     print("✓ independent RFC 4103 reference parsed first non-empty T.140 text as 'H'")
     print(f"evidence: {result_path}")
 
