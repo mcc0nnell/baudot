@@ -1,0 +1,13 @@
+{
+  "spandsp": {
+    "repository": "freeswitch/spandsp",
+    "commit": "8f1e1646bdec99eac5fd2cd92c35563f736b9b89",
+    "version": "3.1.1",
+    "role": "primary external V.18 DSP oracle"
+  },
+  "minimodem": {
+    "repository": "kamalmostafa/minimodem",
+    "commit": "bb2f34cf5148f101563aa926e201d306edbacbd3",
+    "role": "independent secondary TDD generator/decoder"
+  }
+}
