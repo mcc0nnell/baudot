@@ -26,9 +26,15 @@ DEFAULT_OUTPUT = Path(
 )
 
 SOURCE_REQUIREMENTS: dict[str, tuple[str, ...]] = {
+    "liblinphone/include/linphone/api/c-factory.h": (
+        "linphone_factory_create_core_3",
+    ),
     "liblinphone/include/linphone/call_params.h": (
         "linphone_call_params_enable_realtime_text",
         "rfc4103",
+    ),
+    "liblinphone/include/linphone/api/c-chat-room.h": (
+        "linphone_chat_room_create_message_from_utf8",
     ),
     "liblinphone/include/linphone/api/c-chat-message.h": (
         "linphone_chat_message_put_char",
@@ -143,8 +149,15 @@ def main() -> int:
         "oracleAdmitted": False,
         "verdictAuthority": False,
         "nativePath": {
+            "coreLifecycleApi": [
+                "linphone_factory_create_core_3",
+                "linphone_core_start",
+                "linphone_core_stop",
+                "linphone_core_unref",
+            ],
             "applicationApi": [
                 "linphone_call_params_enable_realtime_text",
+                "linphone_chat_room_create_message_from_utf8",
                 "linphone_chat_message_put_char",
             ],
             "mediaImplementation": "Mediastreamer2 RFC 4103 text stream/source/sink",
