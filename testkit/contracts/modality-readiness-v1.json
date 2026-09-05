@@ -1,0 +1,38 @@
+{
+  "id": "baudot.modality-readiness",
+  "version": 1,
+  "readinessStates": ["unknown", "pending", "ready", "failed"],
+  "observations": [
+    "sessionEstablished",
+    "peerConnectionStable",
+    "connectionReady",
+    "iceReady",
+    "candidatePairReady",
+    "audioInbound",
+    "videoInbound",
+    "videoDecoded",
+    "videoRendered",
+    "rttNegotiated",
+    "firstT140CharacterObserved"
+  ],
+  "derived": {
+    "rttReady": {
+      "allOf": ["rttNegotiated", "firstT140CharacterObserved"]
+    }
+  },
+  "invariants": [
+    "sessionEstablished does not imply iceReady",
+    "iceReady does not imply videoRendered",
+    "videoDecoded does not imply videoRendered",
+    "videoRendered does not imply rttReady",
+    "rttReady requires rttNegotiated and firstT140CharacterObserved"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "T.140 conformance",
+      "RFC 4103 conformance",
+      "SIP conformance",
+      "WebRTC conformance"
+    ]
+  }
+}
