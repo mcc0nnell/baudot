@@ -48,7 +48,6 @@ import javax.sip.message.Response;
 public final class PjsipNativeRedReceiverProbe implements SipListener, AutoCloseable {
     private static final String HOST = "127.0.0.1";
     private static final String SCENARIO = "PJSIP-NATIVE-RFC2198";
-    private static final String CORRELATION = "pjsip-2.17-native-red-v1";
     private static final Duration TIMEOUT = Duration.ofSeconds(12);
 
     private final int sipPort;
@@ -89,9 +88,11 @@ public final class PjsipNativeRedReceiverProbe implements SipListener, AutoClose
     public static void main(String[] args) throws Exception {
         int sipPort = envInt("BAUDOT_PJSIP_REMOTE_PORT", 5310);
         int mediaPort = envInt("BAUDOT_PJSIP_MEDIA_PORT", 5312);
+        String correlation = env("BAUDOT_PJSIP_RFC2198_CORRELATION", "pjsip-native-red-v1");
+        String profile = env("BAUDOT_PJSIP_PROFILE_LABEL", "unknown");
         Path root = Path.of(env("BAUDOT_EVIDENCE_ROOT", "target/evidence-external"));
 
-        try (EvidenceRecorder evidence = new EvidenceRecorder(root, SCENARIO, CORRELATION, "jain-red-receiver");
+        try (EvidenceRecorder evidence = new EvidenceRecorder(root, SCENARIO, correlation, "jain-red-receiver");
              MediaReceiver media = new MediaReceiver(mediaPort, evidence);
              PjsipNativeRedReceiverProbe receiver =
                      new PjsipNativeRedReceiverProbe(sipPort, mediaPort, evidence)) {
@@ -101,12 +102,13 @@ public final class PjsipNativeRedReceiverProbe implements SipListener, AutoClose
             evidence.event("pjsip.native_red.receiver_ready", Map.of(
                     "sipBind", HOST + ":" + sipPort,
                     "mediaBind", HOST + ":" + mediaPort,
+                    "profile", profile,
                     "semanticAuthority", "python-reference"));
 
-            boolean packetsObserved = media.awaitMinimum(2, TIMEOUT);
+            boolean packetsObserved = media.awaitMinimum(TIMEOUT);
             boolean ackObserved = receiver.ack.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
             if (packetsObserved) {
-                Thread.sleep(650L);
+                Thread.sleep(1000L);
             }
 
             boolean pass = receiver.inviteObserved.get()
@@ -118,9 +120,9 @@ public final class PjsipNativeRedReceiverProbe implements SipListener, AutoClose
                     && packetsObserved;
 
             evidence.result(Map.ofEntries(
-                    Map.entry("correlation.id", CORRELATION),
+                    Map.entry("correlation.id", correlation),
                     Map.entry("implementation", "pjsip/pjproject"),
-                    Map.entry("implementation.release", "2.17"),
+                    Map.entry("implementation.profile", profile),
                     Map.entry("scenario.id", SCENARIO),
                     Map.entry("sip.invite.observed", Boolean.toString(receiver.inviteObserved.get())),
                     Map.entry("sip.text.offered", Boolean.toString(receiver.textOffered.get())),
@@ -295,7 +297,7 @@ public final class PjsipNativeRedReceiverProbe implements SipListener, AutoClose
         MediaReceiver(int port, EvidenceRecorder evidence) throws Exception {
             this.evidence = evidence;
             this.socket = new DatagramSocket(new InetSocketAddress(InetAddress.getByName(HOST), port));
-            this.socket.setSoTimeout(2200);
+            this.socket.setSoTimeout(2600);
         }
 
         void start() {
@@ -304,10 +306,7 @@ public final class PjsipNativeRedReceiverProbe implements SipListener, AutoClose
             thread.start();
         }
 
-        boolean awaitMinimum(int count, Duration timeout) throws InterruptedException {
-            if (count != 2) {
-                throw new IllegalArgumentException("this probe requires exactly the two-packet minimum gate");
-            }
+        boolean awaitMinimum(Duration timeout) throws InterruptedException {
             return minimumTwo.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
         }
 
