@@ -35,6 +35,14 @@ baudot-testkit
 
 The first cross-project research integration is with ACE Omni: Omni can execute controlled communications experiments while Baudot owns the portable accessibility behavior and test vocabulary.
 
+## MCP control plane
+
+Baudot's planned agent-facing control surface is a thin Apache Juneau MCP adapter over the existing Java testkit and JAIN SIP harness. MCP does not own SIP state or T.140 semantics; it exposes bounded inspection and evidence tools while SIPp remains an independent proving peer and Beckett/Godot remains downstream visualization.
+
+The first surface is deliberately read/observe/export oriented: `inspect_dialog`, `observe_sip_trace`, `compare_sdp`, and `export_evidence`. Live mutation tools are deferred behind explicit policy gates.
+
+See [`docs/mcp-control-plane.md`](docs/mcp-control-plane.md) for the architectural boundary, initial tool contract, and staged implementation plan.
+
 ## Current vertical slice
 
 The first transport harness uses JAIN SIP for signaling and Sandia Wiretap as an external controlled-network substrate. It records signaling and media-path reachability independently so a run can prove states such as:
