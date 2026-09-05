@@ -6,14 +6,12 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 WT=${WIRETAP_BIN:-wiretap}
 CNS=${BAUDOT_CALLER_NS:-bdt-fed005-caller}
-SNS=${BAUDOT_SERVER_NS:-bdt-fed005-server}
 WORK=${BAUDOT_WIRETAP_DIR:-$ROOT/target/wiretap-routed/fed005}
 RUN=${BAUDOT_RUN_DIR:-$ROOT/target/evidence-routed/BAUDOT-FED-005/network-loss}
 
 UL_HOST=198.18.5.1
 UL_CLIENT=198.18.5.2
 SIG_NET=10.77.15.0/24
-MEDIA_HOST=10.77.25.1
 MEDIA_SERVER=10.77.25.2
 MEDIA_NET=10.77.25.0/24
 ROUTES="$SIG_NET,$MEDIA_NET"
@@ -54,12 +52,19 @@ cleanup() {
     ((relay_up)) && ip netns exec "$CNS" wg-quick down "$WORK/wiretap_relay.conf" >/dev/null 2>&1
   fi
   ip netns del "$CNS" 2>/dev/null
-  ip netns del "$SNS" 2>/dev/null
   ip link del bdt-f5-ul-h 2>/dev/null
   ip link del bdt-f5-med-h 2>/dev/null
   [[ -n "${SUDO_UID:-}" && -d "$RUN" ]] && chown -R "${SUDO_UID}:${SUDO_GID}" "$RUN" 2>/dev/null
 }
 trap cleanup EXIT
+
+run_as_runner() {
+  if [[ -n "$RUNNER_USER" ]]; then
+    sudo -u "$RUNNER_USER" -H env PATH="$PATH" "$@"
+  else
+    "$@"
+  fi
+}
 
 run_as_runner_in_ns() {
   local ns=$1
@@ -85,7 +90,6 @@ python3 scripts/wiretap_topology_preflight.py \
   --routes "$ROUTES" \
   --response-routing "$RESPONSE_ROUTING" \
   --namespace "$CNS" \
-  --namespace "$SNS" \
   --host-link bdt-f5-ul-h \
   --host-link bdt-f5-med-h \
   --require-bin ip \
@@ -96,9 +100,7 @@ python3 scripts/wiretap_topology_preflight.py \
   --output "$RUN/preflight.properties"
 
 ip netns add "$CNS"
-ip netns add "$SNS"
 ip -n "$CNS" link set lo up
-ip -n "$SNS" link set lo up
 
 ip link add bdt-f5-ul-h type veth peer name bdt-f5-ul-c
 ip link set bdt-f5-ul-c netns "$CNS"
@@ -107,12 +109,11 @@ ip link set bdt-f5-ul-h up
 ip -n "$CNS" addr add "$UL_CLIENT/24" dev bdt-f5-ul-c
 ip -n "$CNS" link set bdt-f5-ul-c up
 
-ip link add bdt-f5-med-h type veth peer name bdt-f5-med-s
-ip link set bdt-f5-med-s netns "$SNS"
-ip addr add "$MEDIA_HOST/24" dev bdt-f5-med-h
+# Host-owned routed media endpoint. Wiretap server re-originates UDP into the
+# host network stack; Chromium stays in the already-proven host environment.
+ip link add bdt-f5-med-h type dummy
+ip addr add "$MEDIA_SERVER/24" dev bdt-f5-med-h
 ip link set bdt-f5-med-h up
-ip -n "$SNS" addr add "$MEDIA_SERVER/24" dev bdt-f5-med-s
-ip -n "$SNS" link set bdt-f5-med-s up
 
 cd "$WORK"
 "$WT" configure --endpoint "$UL_CLIENT:$WT_PORT" --routes "$ROUTES" --port "$WT_PORT" >configure.log
@@ -137,7 +138,7 @@ done
 ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1 || { safe_server_log >&2; exit 1; }
 
 ip netns exec "$CNS" ip route show >"$RUN/caller-routes.txt"
-ip netns exec "$SNS" ip route show >"$RUN/server-routes.txt"
+ip route show >"$RUN/server-routes.txt"
 ip netns exec "$CNS" "$WT" status >"$RUN/wiretap-status.txt"
 cd "$ROOT"
 
@@ -153,6 +154,7 @@ payload = {
     "mediaNetwork": "$MEDIA_NET",
     "gatewayEndpoint": "$MEDIA_SERVER:$GATEWAY_PORT",
     "sinkEndpoint": "127.0.0.1:$SINK_PORT",
+    "gatewayExecutionNamespace": "host",
     "lossPoint": "host-output-after-wiretap-server-reoriginates-udp",
     "faultInjector": "nftables",
     "faultRule": "drop UDP destination $MEDIA_SERVER:$GATEWAY_PORT when RTP sequence field equals 1",
@@ -171,7 +173,7 @@ nft add rule inet "$NFT_TABLE" output \
 nft -a list table inet "$NFT_TABLE" >"$RUN/network-loss-ruleset-before.txt"
 
 SINK_READY="$RUN/sink/ready.json"
-run_as_runner_in_ns "$SNS" python3 "$ROOT/scripts/fed005-rtt-sink.py" \
+run_as_runner python3 "$ROOT/scripts/fed005-rtt-sink.py" \
   --bind-host 127.0.0.1 \
   --bind-port "$SINK_PORT" \
   --expect 2 \
@@ -180,7 +182,7 @@ run_as_runner_in_ns "$SNS" python3 "$ROOT/scripts/fed005-rtt-sink.py" \
 sink_pid=$!
 
 GATEWAY_READY="$RUN/gateway/ready.json"
-run_as_runner_in_ns "$SNS" env \
+run_as_runner env \
   BAUDOT_GATEWAY_BIND_IP="$MEDIA_SERVER" \
   BAUDOT_GATEWAY_BIND_PORT="$GATEWAY_PORT" \
   BAUDOT_GATEWAY_FORWARD_IP=127.0.0.1 \
@@ -271,5 +273,5 @@ safe_server_log >"$RUN/wiretap-server.log"
   sha256sum "${required[@]}" >bundle.manifest.sha256
 )
 
-echo "BAUDOT-FED-005 RUNNABLE_PASS: all three RTP packets emitted; sequence 1 dropped on Wiretap-routed network path; RED recovery delivered ABC to real Chromium"
+echo "BAUDOT-FED-005 RUNNABLE_PASS: all three RTP packets emitted; sequence 1 dropped on Wiretap-routed host network path; RED recovery delivered ABC to real Chromium"
 cat "$RUN/fed005-terminal-result.json"
