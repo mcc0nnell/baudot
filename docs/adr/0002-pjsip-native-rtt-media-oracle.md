@@ -75,7 +75,7 @@ m=text <port> RTP/AVP 98
 a=rtpmap:98 t140/1000
 ```
 
-This keeps the first native-media observation focused on direct T.140 rather than mixing the independent-implementation threshold with RFC 2198 recovery behavior. A later PJSIP RED qualification may be added as a separate evidence case.
+This keeps the first native-media observation focused on direct T.140 rather than mixing the independent-implementation threshold with RFC 2198 recovery behavior. RFC 2198 remains a separate evidence case and does not inherit the direct-T.140 qualification merely because the same implementation participates.
 
 ### 4. PJSIP is not promoted to the second SIP oracle
 
@@ -132,7 +132,7 @@ exact clean PJSIP 2.17 checkout
 
 The first non-empty packet is preserved as `rtt-datagram-001.bin`; the second observed packet carries an empty T.140 block. The outer evidence manifest independently re-verifies the implementation identity, build metadata, process observations, SIP evidence, terminal reduction, and both datagrams.
 
-This evidence accepts the architecture decision and the pinned native-media oracle profile. It does not promote the profile to SIP, RTP, RFC 4103, T.140, or production conformance.
+This evidence accepts the architecture decision and the pinned **direct-T.140** native-media oracle profile. It does not promote the profile to SIP, RTP, RFC 4103, RFC 2198, T.140, or production conformance.
 
 ## Implementation status
 
@@ -170,13 +170,67 @@ The PJSIP replacement endpoint is required to remain alive through the transfer 
 
 These implementation observations satisfy the architectural next step that motivated this ADR. They do not change the conformance boundary in Decision 6.
 
+## RFC 2198 characterization status
+
+Baudot has now exercised PJSIP's native RFC 2198/T.140 path as a **separate characterization**, without changing the accepted direct-T.140 profile.
+
+The controlled RED profile requests PJSUA2 text redundancy level 2 and negotiates:
+
+```text
+m=text <port> RTP/AVP 100 98
+a=rtpmap:100 red/1000
+a=fmtp:100 98/98/98
+a=rtpmap:98 t140/1000
+```
+
+The driver sends ordinary `H` and `I` text through `Call::sendText()`. PJMEDIA owns all RTP and RED construction. JAIN preserves packets but reports RFC 2198 and recovery as `UNCLASSIFIED_BY_JAVA`; Baudot's Python reference remains terminal authority.
+
+### Release 2.17 baseline
+
+Exact release 2.17 at `5a457451fa2712ba18e12b01738e8ff3af2b26fd` negotiates RED and emits PT100, but the controlled observation carries zero-length redundant history. The independent reducer records `OBSERVED_LIMITATION` and requires `lossRecovered=false`.
+
+This establishes a useful negative baseline:
+
+```text
+RED negotiated=true
+PT100 observed=true
+usable historical redundancy=false
+controlled recovery=false
+```
+
+It does not establish an RFC 2198 implementation failure outside this controlled profile, and it does not weaken the accepted direct-T.140 evidence.
+
+### Post-2.17 upstream fixes
+
+Two exact upstream snapshots were then exercised with the same Baudot driver and unchanged strict parser:
+
+- PJPROJECT #4984, merge commit `aed27c1ce1c9b47fb5b16b24bac68a1741baef67`, titled `pjmedia: Fix T.140 RTT engine and RFC 2198 RED compliance`;
+- PJPROJECT #5117, merge commit `b9ce4d9b9b9a52df7e3ea93192dec01b9eb0887f`, titled `pjmedia: fix RTT T140 and RED payload type assignment. Made it case insensitive`.
+
+Both snapshots moved beyond the 2.17 empty-history behavior, but their observed multi-generation RED was rejected by Baudot's RFC 2198/T.140 reference because the redundant T140blocks were not in required age order. RFC 4103 §4.2 requires redundant data to be placed in age order, with the most recent redundant T140block last.
+
+Baudot did **not** respond by relaxing that invariant. A PT100 packet rejected by the strict parser cannot become accessibility readiness evidence, and no simulated-loss recovery PASS is emitted from it.
+
+The characterization workflow therefore treats version-specific limitations as executable expected outcomes. It pins release 2.17 to the zero-length-history baseline and an exact current-upstream snapshot to an age-order limitation probe. If an upstream change makes either expectation stale, CI fails until the evidence is reclassified.
+
+This status does not admit any PJSIP RFC 2198 recovery profile under ADR-0002. Direct PT98 T.140 remains the accepted PJSIP native-media oracle profile.
+
 ## Next threshold
 
-Broaden independent native-media evidence without weakening the current direct-T.140 path. Useful candidates include:
+For native RED, the next threshold is deliberately narrow:
 
-- a second independently implemented native RTT media endpoint in the replacement role;
-- PJSIP RFC 2198/T.140 redundancy qualification as a separate profile; and
-- broader timing, gateway, SBC/NAT, and production-representative path coverage.
+```text
+exact upstream identity
+-> RED negotiated
+-> implementation-generated RED accepted by unchanged strict parser
+-> earlier non-empty primary deliberately treated as lost
+-> later RED recovers that exact T140block
+-> independent terminal result PASS
+```
+
+Until that chain exists, RED negotiation and PT100 emission remain observations rather than readiness evidence.
+
+Broader independent native-media work remains separate: add another native RTT implementation, expand timing/loss patterns, and exercise gateway, SBC/NAT, and production-representative paths without weakening the direct-T.140 evidence model.
 
 Any stronger claim must remain tied to explicit evidence requirements rather than implementation agreement alone.
 
@@ -186,6 +240,9 @@ Any stronger claim must remain tied to explicit evidence requirements rather tha
 - `pjmedia_txt_stream_send_text()` is the PJMEDIA native text-send API.
 - PJSUA2 `Call::sendText()` exposes that path at the call API.
 - The PJSUA2 sample requests one text stream and sends text using `Call::sendText()`.
+- PJPROJECT #4984 was merged after 2.17 and was targeted toward release 2.18.
+- PJPROJECT #5117 was also merged after 2.17 and was targeted toward release 2.18.
+- RFC 4103 §4.2 requires redundant T140blocks to be placed in age order, most recent redundant block last.
 - The upstream source tree includes GPLv2 terms in `COPYING`.
 
-These observations motivate the external qualification boundary. They are not themselves interoperability or conformance findings.
+These observations motivate and delimit the external qualification boundary. Upstream issue or PR titles are not themselves interoperability or conformance findings; Baudot's preserved wire evidence and independent reducers control Baudot's claims.
