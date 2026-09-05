@@ -33,12 +33,21 @@ add_executable(baudot-pjsip-native-t140 native_t140_sender.cpp)
 target_compile_features(baudot-pjsip-native-t140 PRIVATE cxx_std_17)
 target_link_libraries(baudot-pjsip-native-t140 PRIVATE pjsua2)
 
-# PJSIP's CMake build generates pjsip/sip_autoconf.h under the pjsip binary
-# directory. The upstream pjsip target consumes it through its config_headers
-# file set, but that generated include directory is not propagated far enough
-# through pjsua2 for an external consumer that includes <pjsua2.hpp>. Add only
-# the generated build include surface; the source headers still arrive through
-# the upstream targets.
+# PJPROJECT's internal targets have the include roots they need to compile, but
+# the aggregate PJSUA2 target does not propagate every public/transitive source
+# and generated header root to an external source file including <pjsua2.hpp>.
+# Make that external-consumer boundary explicit without modifying the pinned
+# PJPROJECT checkout.
+set(PJPROJECT_BUILD_ROOT "${CMAKE_BINARY_DIR}/pjproject")
 target_include_directories(baudot-pjsip-native-t140 PRIVATE
-  "${CMAKE_BINARY_DIR}/pjproject/pjsip/include"
+  "${PJSIP_SOURCE_DIR}/pjlib/include"
+  "${PJSIP_SOURCE_DIR}/pjlib-util/include"
+  "${PJSIP_SOURCE_DIR}/pjmedia/include"
+  "${PJSIP_SOURCE_DIR}/pjnath/include"
+  "${PJSIP_SOURCE_DIR}/pjsip/include"
+  "${PJPROJECT_BUILD_ROOT}/pjlib/include"
+  "${PJPROJECT_BUILD_ROOT}/pjlib-util/include"
+  "${PJPROJECT_BUILD_ROOT}/pjmedia/include"
+  "${PJPROJECT_BUILD_ROOT}/pjnath/include"
+  "${PJPROJECT_BUILD_ROOT}/pjsip/include"
 )
