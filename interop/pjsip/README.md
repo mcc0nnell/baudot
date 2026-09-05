@@ -2,7 +2,7 @@
 
 Baudot uses PJSIP/PJPROJECT here as an **external native-media oracle**, not as a replacement for the JAIN SIP glass-box signaling harness or the Elixip SIP/call-state oracle.
 
-See [ADR-0002](../../docs/adr/0002-pjsip-native-rtt-media-oracle.md).
+See [ADR-0002](../../docs/adr/0002-pjsip-native-rtt-media-oracle.md), now accepted on the initial qualification evidence.
 
 ## Pinned identity
 
@@ -14,9 +14,9 @@ commit:     5a457451fa2712ba18e12b01738e8ff3af2b26fd
 
 The checkout must be exact and clean.
 
-## First qualification
+## Qualified profile
 
-The initial lane asks PJSIP to generate RTT through its own media stack:
+The accepted initial lane asks PJSIP to generate RTT through its own media stack:
 
 ```text
 Baudot-owned PJSUA2 driver
@@ -34,23 +34,28 @@ Baudot JAIN SIP UAS
         +-- selects direct PT 98 t140/1000
         +-- confirms dialog
         v
+PJSIP reports native text media active
+        |
+        v
 PJSIP Call::sendText("H")
         |
         v
 PJMEDIA native text stream
         |
-        +-- UDP/RTP bytes on the wire
+        +-- live RTP datagrams
         v
 Baudot datagram evidence
         |
         v
 Python RFC 4103/T.140 reference
-        `-- first non-empty text must be "H"
+        `-- first non-empty text = "H"
 ```
 
-Java records signaling facts and raw datagram receipt but deliberately leaves `firstT140CharacterObserved` and `rttReady` as `UNCLASSIFIED_BY_JAVA`.
+The passing qualification preserved two direct-PT98 datagrams. The first non-empty packet independently reduced to `H`; the second carried an empty T.140 block. The terminal reference result records `rttReady=true`.
 
-`scripts.validate_pjsip_native_t140` owns the terminal semantic reduction.
+Java records signaling facts and raw datagram receipt but deliberately leaves `firstT140CharacterObserved` and `rttReady` as `UNCLASSIFIED_BY_JAVA`. `scripts.validate_pjsip_native_t140` owns the terminal semantic reduction.
+
+Both the native sender and JAIN observer have explicit external execution bounds. Implementation process lifetime cannot silently become evidence of readiness.
 
 ## Running locally
 
@@ -61,9 +66,9 @@ PJSIP_ROOT=/path/to/pjproject \
   bash scripts/run-pjsip-native-t140.sh
 ```
 
-The runner builds PJSIP and the small qualification executable ephemerally, starts the JAIN receiver, executes the native text send, independently validates the preserved packet(s), and creates an outer SHA-256 evidence bundle.
+The runner builds the required PJSUA2/PJMEDIA dependency closure and the small qualification executable ephemerally, starts the JAIN receiver, executes the native text send, independently validates the preserved packet(s), and creates an outer SHA-256 evidence bundle.
 
-The linked PJSIP qualification executable is not uploaded as a Baudot evidence artifact. Only its hash, build metadata, process logs, SIP evidence, wire evidence, and reducers are preserved.
+The linked PJSIP qualification executable is not uploaded as a Baudot evidence artifact. Only its hash, build metadata, bounded process observations, SIP evidence, wire evidence, independent reduction, and manifests are preserved.
 
 ## Claim boundary
 
