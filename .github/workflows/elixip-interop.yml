@@ -1,0 +1,80 @@
+name: elixip-interop
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/elixip-interop.yml'
+      - 'interop/elixip/**'
+      - 'scripts/elixip_oracle_admission.py'
+      - 'scripts/run-elixip-interop004-signaling-only.sh'
+      - 'scripts/validate_elixip_refer_signaling_only.py'
+      - 'src/main/java/org/mcc0nnell/baudot/harness/ElixipReferSignalingOnlyProbe.java'
+      - 'pom.xml'
+
+permissions:
+  contents: read
+
+jobs:
+  jain-to-elixip-signaling-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '26.2.5'
+          elixir-version: '1.18.3'
+
+      - name: Fetch exact independent Elixip oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/neutrino38/elixip.git /tmp/baudot-elixip
+          git -C /tmp/baudot-elixip checkout --detach d5f942768213200576031346099a896fb61bef4f
+          test "$(git -C /tmp/baudot-elixip rev-parse HEAD)" = d5f942768213200576031346099a896fb61bef4f
+          test -z "$(git -C /tmp/baudot-elixip status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Build pinned Elixip test executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/baudot-elixip
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get
+          mix compile
+          cd apps/elixipp
+          mix escript.build
+          test -x elixipp
+          ./elixipp --help >/dev/null
+
+      - name: Execute BAUDOT-INTEROP-004 cross-stack signaling-only arm
+        shell: bash
+        env:
+          ELIXIP_ROOT: /tmp/baudot-elixip
+        run: bash scripts/run-elixip-interop004-signaling-only.sh
+
+      - name: Verify outer evidence manifest
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=target/evidence-external/BAUDOT-INTEROP-004/jain-to-elixip-signaling-only-v1/bundle.manifest.sha256
+          test -f "$manifest"
+          (cd "$(dirname "$manifest")" && sha256sum -c bundle.manifest.sha256)
+
+      - name: Preserve cross-stack evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-elixip-interop004-signaling-only
+          path: target/evidence-external/BAUDOT-INTEROP-004/jain-to-elixip-signaling-only-v1
+          if-no-files-found: warn
