@@ -26,8 +26,25 @@ concurrency:
 
 jobs:
   native-rfc2198-evidence:
+    name: native-rfc2198-${{ matrix.short }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - short: release-2.17-baseline
+            commit: 5a457451fa2712ba18e12b01738e8ff3af2b26fd
+            profile: release-2.17
+            correlation: pjsip-2.17-native-red-baseline-v1
+            expect_recovery: 'false'
+            expected_tag: '2.17'
+          - short: post-fix-4984
+            commit: aed27c1ce1c9b47fb5b16b24bac68a1741baef67
+            profile: post-2.17-rfc2198-fix
+            correlation: pjsip-aed27c1-native-red-v1
+            expect_recovery: 'true'
+            expected_tag: ''
     steps:
       - uses: actions/checkout@v4
 
@@ -49,14 +66,19 @@ jobs:
             libssl-dev \
             pkg-config
 
-      - name: Fetch exact PJSIP 2.17 native-media oracle
+      - name: Fetch exact PJSIP oracle profile
         shell: bash
+        env:
+          PJSIP_COMMIT: ${{ matrix.commit }}
+          PJSIP_EXPECTED_TAG: ${{ matrix.expected_tag }}
         run: |
           set -euo pipefail
           git clone https://github.com/pjsip/pjproject.git /tmp/baudot-pjproject
-          git -C /tmp/baudot-pjproject checkout --detach 5a457451fa2712ba18e12b01738e8ff3af2b26fd
-          test "$(git -C /tmp/baudot-pjproject rev-parse HEAD)" = 5a457451fa2712ba18e12b01738e8ff3af2b26fd
-          test "$(git -C /tmp/baudot-pjproject describe --tags --exact-match HEAD)" = 2.17
+          git -C /tmp/baudot-pjproject checkout --detach "$PJSIP_COMMIT"
+          test "$(git -C /tmp/baudot-pjproject rev-parse HEAD)" = "$PJSIP_COMMIT"
+          if [[ -n "$PJSIP_EXPECTED_TAG" ]]; then
+            test "$(git -C /tmp/baudot-pjproject describe --tags --exact-match HEAD)" = "$PJSIP_EXPECTED_TAG"
+          fi
           test -z "$(git -C /tmp/baudot-pjproject status --porcelain=v1 --untracked-files=normal)"
 
       - name: Validate runner syntax
@@ -67,14 +89,21 @@ jobs:
         shell: bash
         env:
           PJSIP_ROOT: /tmp/baudot-pjproject
+          BAUDOT_PJSIP_EXPECTED_COMMIT: ${{ matrix.commit }}
+          BAUDOT_PJSIP_PROFILE_LABEL: ${{ matrix.profile }}
+          BAUDOT_PJSIP_RFC2198_CORRELATION: ${{ matrix.correlation }}
+          BAUDOT_PJSIP_EXPECT_RECOVERY: ${{ matrix.expect_recovery }}
+          BAUDOT_PJSIP_EXPECTED_TAG: ${{ matrix.expected_tag }}
         run: bash scripts/run-pjsip-native-rfc2198.sh
 
       - name: Verify outer evidence manifest
         if: always()
         shell: bash
+        env:
+          CORRELATION: ${{ matrix.correlation }}
         run: |
           set -euo pipefail
-          manifest=target/evidence-external/PJSIP-NATIVE-RFC2198/pjsip-2.17-native-red-v1/bundle.manifest.sha256
+          manifest="target/evidence-external/PJSIP-NATIVE-RFC2198/$CORRELATION/bundle.manifest.sha256"
           test -f "$manifest"
           (cd "$(dirname "$manifest")" && sha256sum -c bundle.manifest.sha256)
 
@@ -82,6 +111,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: baudot-pjsip-2.17-native-rfc2198
-          path: target/evidence-external/PJSIP-NATIVE-RFC2198/pjsip-2.17-native-red-v1
+          name: baudot-pjsip-native-rfc2198-${{ matrix.short }}
+          path: target/evidence-external/PJSIP-NATIVE-RFC2198/${{ matrix.correlation }}
           if-no-files-found: warn
