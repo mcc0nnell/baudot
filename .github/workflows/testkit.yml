@@ -20,4 +20,4 @@ jobs:
       - name: Run reference reducer tests
         run: python -m unittest discover -s tests -p "test_*.py"
       - name: Validate portable testkit contracts and vectors
-        run: python scripts/validate_testkit.py
+        run: python -m scripts.validate_testkit
