@@ -22,12 +22,14 @@ acedirect-kurento/README.md
 acedirect-kurento/Dockerfile
 acedirect-kurento/confs/jssip-modifications/RTCSession.js
 acedirect-kurento/confs/jssip-modifications/UA.js
+acedirect-kurento/src/conf_manager.js
+acedirect/public/js/jssip_agent.js
 videomail-service/src/server.js
 ```
 
 At that commit ACE Direct documents a dependency on JsSIP 3.5.1. Its build replaces installed JsSIP `RTCSession.js` and `UA.js` files with project-local versions.
 
-Those local modifications are useful to Baudot because they identify protocol boundaries where production interoperability pressure accumulated.
+Those local modifications and the surrounding application behavior are useful to Baudot because they identify protocol boundaries where production interoperability pressure accumulated.
 
 ## Donor rule
 
@@ -135,12 +137,47 @@ bash scripts/run-ace-reinvite-scenario.sh
 
 `BAUDOT-INTEROP-003` is therefore **runnable**, not proven. Moving to `proven` requires repeatability across additional implementations and broader timing/endpoint evidence without weakening the current claim boundaries.
 
+### REFER transfer and provider handoff
+
+`BAUDOT-INTEROP-004` captures transfer as a continuity problem rather than a REFER-response problem.
+
+ACE provides a concrete donor path. Its conference manager resolves a transfer target, records warm-transfer state separately from blind transfer, and invokes `jssip_session.refer(...)`. In the multiparty agent flow, the departing host first selects a backup host and emits the host transition before asking the media layer to transfer and then terminating the old leg.
+
+Those behaviors motivate a provider-neutral question:
+
+> Can a call move from provider A to provider B while the REFER transaction, NOTIFY outcome, replacement dialog, target identity, old-leg teardown, and accessibility readiness remain independently attributable?
+
+The first gate is deliberately implementation-neutral. `testkit/refer/provider-transfer-matrix.json` defines three synthetic provider identities, every directed cross-provider pair, and blind/warm transfer as separate dimensions. That produces twelve provider/mode cells without assigning protocol semantics to any provider label.
+
+`scripts/validate_refer_provider_matrix.py` then exercises positive and negative reducer cases. It keeps these facts separate:
+
+```text
+REFER accepted
+NOTIFY reports success
+replacement dialog established
+replacement target correlated
+old-leg continuity preserved
+RTT negotiated
+first T.140 character observed
+RTT ready
+```
+
+The terminal transfer verdict cannot be `PASS` unless all required layers pass. In particular:
+
+```text
+REFER 2xx + NOTIFY 2xx + replacement dialog
+    != RTT ready
+```
+
+The reducer also distinguishes target-correlation drift, premature old-leg teardown, signaling failure, and accessibility-readiness failure rather than collapsing all of them into a generic transfer failure.
+
+`BAUDOT-INTEROP-004` remains **planned** because this first gate is a deterministic transfer contract, not a live SIP transfer. The next execution slice is a live JAIN SIP REFER/NOTIFY adapter with two independently addressed provider-role endpoints, raw original/replacement dialog evidence, and independent replacement-leg RTT observation. Provider names remain configuration so the same test can later become an A→B, A→C, B→A, or other real-world matrix without rewriting the reducer.
+
 ## Next donor candidates
 
-With the first re-INVITE corpus executable, inspect ACE behavior around:
+With re-INVITE runnable and REFER modeled, inspect ACE behavior around:
 
 - hold/resume renegotiation;
-- REFER and transfer handling;
 - DTMF behavior across application and SIP layers;
 - SDP codec/media-line normalization;
 - browser-to-Asterisk/Kamailio dialog edge cases; and
@@ -150,6 +187,6 @@ Each candidate should become a separate scenario only when its failure condition
 
 ## Claim boundary
 
-This corpus does not establish that ACE Direct was defective, that its workarounds were unnecessary, that current JsSIP or JAIN SIP reproduces the same behavior, or that a passing Baudot scenario establishes SIP, WebRTC, RFC 4103, T.140, VRS, or accessibility conformance.
+This corpus does not establish that ACE Direct was defective, that its workarounds were unnecessary, that current JsSIP or JAIN SIP reproduces the same behavior, or that a passing Baudot scenario establishes SIP, REFER, WebRTC, RFC 4103, T.140, VRS, or accessibility conformance.
 
 It establishes a disciplined path for turning real production interoperability history into reproducible tests.

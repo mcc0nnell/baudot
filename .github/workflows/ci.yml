@@ -29,6 +29,8 @@ jobs:
         run: bash scripts/run-live-reinvite-rtt-readiness.sh
       - name: BAUDOT-INTEROP-003 - terminal scenario reduction
         run: python3 -m scripts.validate_ace_reinvite_scenario
+      - name: BAUDOT-INTEROP-004 - provider REFER matrix reducer
+        run: python3 scripts/validate_refer_provider_matrix.py
       - name: Scenario 001 - signaling and media
         run: bash scripts/run-local-scenario.sh scenarios/001-signaling-and-media.env
       - name: Scenario 002 - signaling only
