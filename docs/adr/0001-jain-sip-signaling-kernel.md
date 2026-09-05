@@ -29,7 +29,9 @@ Baudot code should depend on the standard `javax.sip` API wherever possible and 
 
 ## Evidence rule
 
-The first slice records stable semantic observations rather than raw stack logs. Dynamic values such as Call-IDs, Via branches, ephemeral ports, and timestamps are excluded from the canonical evidence artifact. Raw packet capture may be added later as supplemental evidence, but it will not replace the semantic trace.
+The first slice records stable semantic observations rather than raw stack logs. Dynamic values such as Call-IDs, Via branches, ephemeral SIP ports, timestamps, and SDP media ports are excluded from the canonical evidence artifact. Raw packet capture may be added later as supplemental evidence, but it will not replace the semantic trace.
+
+SDP is treated as a separately observable description boundary. The adapter may carry the raw SDP body, while Baudot extracts only the stable media/protocol/codec facts needed by a scenario. A successful SDP offer/answer proves that those descriptions were exchanged and that the selected facts intersect; it does not prove that RTP, SRTP, ICE, DTLS, decoding, rendering, or presentation succeeded.
 
 A passing local dialog proves only that the exercised signaling path completed under the tested environment. It does not establish RFC 3261, RFC 4103, T.140, media, security, or accessibility conformance.
 
