@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 
-from baudot_reference.rfc2198 import Rfc2198T140Packet
+from baudot_reference.rfc2198 import InvalidRedT140Packet, Rfc2198T140Packet
 from baudot_reference.rfc4103 import PrimaryT140RtpPacket
 from baudot_reference.rfc4103_recovery import (
     infer_redundant_sequence_numbers,
@@ -19,6 +19,7 @@ SCENARIO = "PJSIP-NATIVE-RFC2198"
 RED_PT = 100
 T140_PT = 98
 SEQUENCE_MODULUS = 1 << 16
+VALID_OUTCOMES = {"recovery", "zero-length-history", "age-order-invalid"}
 
 
 def load_properties(path: Path) -> dict[str, str]:
@@ -54,7 +55,9 @@ def main() -> None:
     correlation = os.environ["BAUDOT_PJSIP_RFC2198_CORRELATION"]
     expected_commit = os.environ["BAUDOT_PJSIP_EXPECTED_COMMIT"]
     profile = os.environ["BAUDOT_PJSIP_PROFILE_LABEL"]
-    expect_recovery = os.environ.get("BAUDOT_PJSIP_EXPECT_RECOVERY", "true").lower() == "true"
+    expected_outcome = os.environ["BAUDOT_PJSIP_EXPECT_OUTCOME"]
+    if expected_outcome not in VALID_OUTCOMES:
+        raise ValueError(f"unsupported expected outcome: {expected_outcome}")
 
     run_root = root / SCENARIO / correlation
     receiver = run_root / "jain-red-receiver"
@@ -100,6 +103,8 @@ def main() -> None:
         raise ValueError("PJSIP checkout was not clean at admission")
     if admission.get("redundancyLevel") != 2:
         raise ValueError("native RED admission did not pin redundancy level 2")
+    if admission.get("expectedOutcome") != expected_outcome:
+        raise ValueError("admission expected outcome does not match reducer")
 
     stdout = (run_root / "pjsip.stdout.log").read_text(encoding="utf-8")
     for marker in (
@@ -120,6 +125,7 @@ def main() -> None:
 
     primary_by_sequence: dict[int, tuple[str, Path]] = {}
     red_candidates: list[tuple[Path, Rfc2198T140Packet]] = []
+    strict_red_rejections: list[dict[str, str]] = []
     packet_summary: list[dict[str, object]] = []
 
     for path in packet_paths:
@@ -137,11 +143,29 @@ def main() -> None:
                 "text": packet.block.text,
             })
         elif pt == RED_PT:
-            packet = Rfc2198T140Packet.from_bytes(
-                content,
-                expected_red_payload_type=RED_PT,
-                expected_t140_payload_type=T140_PT,
-            )
+            try:
+                packet = Rfc2198T140Packet.from_bytes(
+                    content,
+                    expected_red_payload_type=RED_PT,
+                    expected_t140_payload_type=T140_PT,
+                )
+            except InvalidRedT140Packet as exc:
+                rejection = str(exc)
+                strict_red_rejections.append({
+                    "file": path.name,
+                    "sha256": sha256(path),
+                    "reason": rejection,
+                })
+                packet_summary.append({
+                    "file": path.name,
+                    "sha256": sha256(path),
+                    "payloadType": pt,
+                    "kind": "rfc2198-red-rejected",
+                    "strictParserAccepted": False,
+                    "rejection": rejection,
+                })
+                continue
+
             red_candidates.append((path, packet))
             primary_by_sequence[packet.sequence_number] = (packet.primary.text, path)
             packet_summary.append({
@@ -149,6 +173,7 @@ def main() -> None:
                 "sha256": sha256(path),
                 "payloadType": pt,
                 "kind": "rfc2198-red",
+                "strictParserAccepted": True,
                 "sequenceNumber": packet.sequence_number,
                 "primaryText": packet.primary.text,
                 "redundantTexts": [item.block.text for item in packet.redundant],
@@ -158,7 +183,7 @@ def main() -> None:
         else:
             raise ValueError(f"unexpected native text payload type {pt} in {path.name}")
 
-    if not red_candidates:
+    if not red_candidates and not strict_red_rejections:
         raise ValueError("PJSIP negotiated RED but emitted no PT100 packet")
 
     recovery_match: dict[str, object] | None = None
@@ -199,25 +224,42 @@ def main() -> None:
         if recovery_match is not None:
             break
 
-    if expect_recovery and recovery_match is None:
-        raise ValueError("post-fix native PJSIP RED never recovered an earlier non-empty primary generation")
-    if not expect_recovery and recovery_match is not None:
-        raise ValueError("2.17 baseline unexpectedly recovered text; limitation assumption is stale")
-
     zero_length_redundancy = any(
         len(item.block.payload) == 0
         for _, packet in red_candidates
         for item in packet.redundant
     )
-    if not expect_recovery and not zero_length_redundancy:
-        raise ValueError("2.17 baseline did not reproduce the observed zero-length RED history")
+    age_order_rejections = [
+        item for item in strict_red_rejections
+        if "age order" in item["reason"].lower()
+    ]
 
+    if expected_outcome == "recovery":
+        if strict_red_rejections:
+            raise ValueError(
+                "recovery profile emitted RED packet(s) rejected by the strict RFC2198/T.140 parser"
+            )
+        if recovery_match is None:
+            raise ValueError("native PJSIP RED never recovered an earlier non-empty primary generation")
+    elif expected_outcome == "zero-length-history":
+        if recovery_match is not None:
+            raise ValueError("zero-length baseline unexpectedly recovered text; limitation assumption is stale")
+        if not zero_length_redundancy:
+            raise ValueError("zero-length baseline did not reproduce empty RED history")
+    elif expected_outcome == "age-order-invalid":
+        if recovery_match is not None:
+            raise ValueError("age-order limitation profile unexpectedly recovered text; assumption is stale")
+        if not age_order_rejections:
+            raise ValueError("expected strict age-order rejection was not reproduced")
+
+    observed_limitation = expected_outcome != "recovery"
     terminal.mkdir(parents=True, exist_ok=True)
     result_name = "pjsip-native-rfc2198.json"
     result = {
         "scenarioId": SCENARIO,
         "correlationId": correlation,
-        "result": "PASS" if expect_recovery else "OBSERVED_LIMITATION",
+        "result": "OBSERVED_LIMITATION" if observed_limitation else "PASS",
+        "expectedOutcome": expected_outcome,
         "implementation": {
             "repository": "pjsip/pjproject",
             "profile": profile,
@@ -235,17 +277,20 @@ def main() -> None:
         "wireObservation": {
             "packetCount": len(packet_paths),
             "packets": packet_summary,
-            "rfc2198Observed": True,
+            "rfc2198PayloadTypeObserved": True,
+            "strictRedParserRejectedPacketCount": len(strict_red_rejections),
+            "strictRedParserRejections": strict_red_rejections,
             "zeroLengthRedundantGenerationObserved": zero_length_redundancy,
+            "ageOrderViolationObserved": bool(age_order_rejections),
         },
         "lossSimulation": {
-            "expectedRecovery": expect_recovery,
             "lossRecovered": recovery_match is not None,
             "recovery": recovery_match,
         },
         "claimBoundary": {
-            "nativePjsipRfc2198EmissionObserved": True,
+            "nativePjsipRfc2198PayloadObserved": True,
             "controlledSinglePacketRecoveryObserved": recovery_match is not None,
+            "nativePjsipRfc2198RecoveryQualified": expected_outcome == "recovery",
             "sipConformance": False,
             "rfc2198Conformance": False,
             "rfc4103Conformance": False,
@@ -268,12 +313,15 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    if expect_recovery:
-        print("✓ post-2.17 PJSIP profile negotiated and emitted native RFC2198/T.140")
+    if expected_outcome == "recovery":
+        print("✓ native PJSIP profile emitted strict-parseable RFC2198/T.140 redundancy")
         print("✓ independent reducer recovered an earlier non-empty generation after simulated loss")
-    else:
-        print("✓ PJSIP 2.17 baseline reproduced native PT100 RED with zero-length history")
+    elif expected_outcome == "zero-length-history":
+        print("✓ PJSIP profile reproduced native PT100 RED with zero-length history")
         print("✓ independent reducer correctly refused to claim text recovery")
+    else:
+        print("✓ PJSIP profile reproduced native PT100 RED rejected for RFC4103 age ordering")
+        print("✓ strict parser remained authoritative; no recovery claim was made")
     print(f"evidence: {result_path}")
 
 
