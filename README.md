@@ -50,8 +50,9 @@ The executable proving ground now includes:
 - independently routed signaling and text-media paths through Wiretap;
 - fail-fast topology preflight with evidence-bound reserved-prefix, route, namespace, host-link, and reverse-path assertions;
 - `BAUDOT-INTEROP-003`, a runnable re-INVITE / SDP-freshness / RTT-readiness evidence chain;
-- `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain; and
-- a bidirectional JAIN SIP ↔ Elixip `BAUDOT-INTEROP-004` matrix with controlled negative and positive readiness arms, preserved wire evidence, and independent terminal reduction.
+- `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain;
+- a bidirectional JAIN SIP ↔ Elixip `BAUDOT-INTEROP-004` matrix with controlled negative and positive readiness arms, preserved wire evidence, and independent terminal reduction; and
+- `BAUDOT-INTEROP-005`, a runnable iTRS-derived route-handoff chain that keeps authoritative route identity distinct from immediate SIP transport discovery.
 
 A passing transfer does **not** mean that REFER succeeded. The relevant evidence can distinguish:
 
@@ -109,7 +110,7 @@ loopback mock VRS peer
 
 The trial preserves the iTRS-derived logical SIP URI as the SIP Request-URI while using a separate loose Route header for the immediate loopback transport destination. That keeps authoritative route identity separate from downstream service discovery and transport selection.
 
-The fixture matrix also covers alias forwarding, NAPTR priority, SIP service discovery, no-route, malformed-authority, authority-unavailable, and deterministic-latency cases.
+The fixture matrix also covers alias forwarding, NAPTR priority, SIP service discovery, no-route, malformed-authority, authority-unavailable, and deterministic-latency cases. A clean-room validator independently recomputes ENUM owner derivation, alias traversal, NAPTR selection, `E2U+sip` validation, and synthetic SIP NAPTR/SRV discovery from the fixture data.
 
 Run the fixture matrix with `bash scripts/run-itrs-mocks.sh` and the JAIN-SIP handoff proof with `bash scripts/run-itrs-sip-handoff.sh`.
 
@@ -128,6 +129,29 @@ These are synthetic test fixtures. They do not claim live iTRS access, productio
 Baudot reducers and reference code retain terminal verdict authority within explicit claim boundaries. Implementation agreement is evidence, not correctness by majority vote.
 
 The external-oracle lane is documented in [`interop/elixip/`](interop/elixip/). It admits one exact clean upstream Elixip checkout and hash-binds Baudot-owned FSL inputs before execution without vendoring or linking Elixip into Baudot. `BAUDOT-INTEROP-004` now exercises that boundary in both directions while keeping REFER acceptance, NOTIFY progression, replacement-dialog establishment, RTT negotiation, T.140 observation, old-leg teardown, and terminal readiness as separate evidence facts.
+
+## Evidence and governance
+
+Baudot is being structured so that useful interoperability claims can outlive any one stack, provider, lab, or maintainer.
+
+The project model is:
+
+```text
+claim
+  -> portable contract
+  -> controlled input
+  -> replaceable execution adapter
+  -> observations
+  -> preserved evidence
+  -> independent reduction
+  -> bounded verdict
+```
+
+This is what the project informally means by **Apache-style proof**: the durable asset is becoming the shared contract, test corpus, evidence model, and implementation-independent interoperability process rather than one privileged implementation.
+
+That phrase describes an engineering direction only. Baudot is not currently an Apache Software Foundation project or podling.
+
+See [`docs/evidence-and-governance.md`](docs/evidence-and-governance.md) for the full model, including clean-room donor discipline, scenario promotion rules, implementation independence, and the evidence milestones required before stronger governance or conformance claims would be credible.
 
 ## Status and claim boundary
 
