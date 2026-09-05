@@ -50,7 +50,7 @@ def require_contains(path: Path, needles: tuple[str, ...]) -> None:
             raise ValueError(f"{path.name}: missing {needle!r}")
 
 
-def validate(run_dir: Path) -> dict[str, str]:
+def validate(run_dir: Path, elixip_log: Path) -> dict[str, str]:
     result_path = run_dir / "result.properties"
     if not result_path.is_file():
         raise ValueError(f"missing result.properties: {result_path}")
@@ -62,11 +62,15 @@ def validate(run_dir: Path) -> dict[str, str]:
 
     require_contains(
         run_dir / "replacement-invite.request.sip",
-        ("m=text ", "a=rtpmap:98 t140/1000"),
+        ("m=text ", "a=rtpmap:98 t140/1000", "content-type: application/sdp"),
     )
     require_contains(
         run_dir / "replacement-response-200.sip",
-        ("m=text ", "a=rtpmap:98 t140/1000"),
+        ("m=text ", "a=rtpmap:98 t140/1000", "content-type: application/sdp"),
+    )
+    require_contains(
+        run_dir / "replacement-ack.request.sip",
+        ("ack sip:", "cseq: 1 ack"),
     )
     require_contains(
         run_dir / "notify-200.request.sip",
@@ -88,24 +92,31 @@ def validate(run_dir: Path) -> dict[str, str]:
     if "old_leg.preserved" not in events:
         raise ValueError("old-leg preservation event is missing")
 
+    if not elixip_log.is_file():
+        raise ValueError(f"missing external Elixip log: {elixip_log}")
+    log = elixip_log.read_text(encoding="utf-8", errors="strict")
+    if "BAUDOT-ELIXIP replacementAckObserved=true" not in log:
+        raise ValueError("Elixip did not independently record replacement ACK receipt")
+
     return values
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, required=True)
+    parser.add_argument("--elixip-log", type=Path, required=True)
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        values = validate(args.run_dir)
+        values = validate(args.run_dir, args.elixip_log)
     except (OSError, ValueError) as exc:
         print(f"Elixip REFER reduction failed: {exc}", file=sys.stderr)
         return 2
     print("✓ JAIN SIP -> Elixip signaling-only transfer reduced to PASS")
-    print("  replacement SIP established; T.140 absent; original leg preserved")
+    print("  replacement SIP established on both sides; T.140 absent; original leg preserved")
     print(f"  correlation={values['correlation.id']}")
     return 0
 
