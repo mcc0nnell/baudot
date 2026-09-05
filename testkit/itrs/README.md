@@ -49,7 +49,7 @@ GET /itrs/v1/query?number=2025550101
 
 It returns deterministic JSON for the requested fixture. The HTTP surface is deliberately a test adapter; it is not a claim about the production TRS Numbering Administrator interface.
 
-## Run it
+## Run the fixture matrix
 
 ```bash
 bash scripts/run-itrs-mocks.sh
@@ -61,6 +61,40 @@ Expected final line:
 
 ```text
 iTRS mock probe: 8/8 PASS
+```
+
+## Run the SIP handoff proof
+
+```bash
+bash scripts/run-itrs-sip-handoff.sh
+```
+
+The handoff probe performs the first executable iTRS-to-Baudot call slice:
+
+```text
+2025550101
+  -> mock iTRS query
+  -> sip:2025550101@vrs-a.example.invalid
+  -> JAIN-SIP INVITE
+  -> loopback mock VRS peer
+  -> 200 OK
+  -> ACK
+```
+
+The logical SIP URI remains the SIP Request-URI. A separate loose Route header directs the packet to the loopback mock VRS peer. This is deliberate: the authoritative communications route and the immediate transport destination are not collapsed into one value.
+
+The probe succeeds only if it observes all of the following:
+
+- the iTRS mock returns the expected logical SIP URI;
+- the mock VRS peer receives the INVITE;
+- the INVITE Request-URI still equals the iTRS-derived logical SIP URI;
+- the caller receives `200 OK`; and
+- the mock VRS peer receives the resulting ACK.
+
+Expected final line:
+
+```text
+iTRS -> Baudot -> JAIN-SIP handoff: PASS
 ```
 
 ## Architectural rule
