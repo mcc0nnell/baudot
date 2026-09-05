@@ -1,0 +1,87 @@
+name: pjsip-native-rfc2198
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/pjsip-native-rfc2198.yml'
+      - 'interop/pjsip/CMakeLists.txt'
+      - 'interop/pjsip/native_rfc2198_sender.cpp'
+      - 'scripts/run-pjsip-native-rfc2198.sh'
+      - 'scripts/validate_pjsip_native_rfc2198.py'
+      - 'src/main/java/org/mcc0nnell/baudot/harness/PjsipNativeRedReceiverProbe.java'
+      - 'baudot_reference/rfc2198.py'
+      - 'baudot_reference/rfc4103_recovery.py'
+      - 'docs/adr/0002-pjsip-native-rtt-media-oracle.md'
+      - 'interop/pjsip/README.md'
+      - 'README.md'
+      - 'pom.xml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pjsip-native-rfc2198-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-rfc2198-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Install native build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libasound2-dev \
+            libssl-dev \
+            pkg-config
+
+      - name: Fetch exact PJSIP 2.17 native-media oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/pjsip/pjproject.git /tmp/baudot-pjproject
+          git -C /tmp/baudot-pjproject checkout --detach 5a457451fa2712ba18e12b01738e8ff3af2b26fd
+          test "$(git -C /tmp/baudot-pjproject rev-parse HEAD)" = 5a457451fa2712ba18e12b01738e8ff3af2b26fd
+          test "$(git -C /tmp/baudot-pjproject describe --tags --exact-match HEAD)" = 2.17
+          test -z "$(git -C /tmp/baudot-pjproject status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Validate runner syntax
+        shell: bash
+        run: bash -n scripts/run-pjsip-native-rfc2198.sh
+
+      - name: Execute native RFC2198/T.140 experiment
+        shell: bash
+        env:
+          PJSIP_ROOT: /tmp/baudot-pjproject
+        run: bash scripts/run-pjsip-native-rfc2198.sh
+
+      - name: Verify outer evidence manifest
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=target/evidence-external/PJSIP-NATIVE-RFC2198/pjsip-2.17-native-red-v1/bundle.manifest.sha256
+          test -f "$manifest"
+          (cd "$(dirname "$manifest")" && sha256sum -c bundle.manifest.sha256)
+
+      - name: Preserve native RFC2198 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-pjsip-2.17-native-rfc2198
+          path: target/evidence-external/PJSIP-NATIVE-RFC2198/pjsip-2.17-native-red-v1
+          if-no-files-found: warn
