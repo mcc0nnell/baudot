@@ -7,6 +7,7 @@ import unittest
 
 from baudot_reference.federation_lab import reduce_sip_webrtc_boundary
 from scripts.run_federation_boundary import live_sip_facts
+from scripts.validate_fed002_browser import validate_browser_evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "testkit" / "federation" / "BAUDOT-FED-002-sip-interpreter-webrtc-boundary.json"
@@ -19,6 +20,36 @@ class SipWebRtcFederationBoundaryTests(unittest.TestCase):
 
     def reduce(self, arm_id: str):
         return reduce_sip_webrtc_boundary(self.scenario, arm_id)
+
+    @staticmethod
+    def browser_evidence() -> dict:
+        peer = {
+            "connectionState": "connected",
+            "iceConnectionState": "connected",
+            "iceGatheringState": "complete",
+            "signalingState": "stable",
+            "sctpState": "connected",
+            "dtlsState": "connected",
+            "succeededCandidatePairs": [{"id": "pair-1", "state": "succeeded", "nominated": True}],
+        }
+        channel = {
+            "label": "baudot-t140",
+            "protocol": "t140",
+            "ordered": True,
+            "maxPacketLifeTime": None,
+            "maxRetransmits": None,
+            "negotiated": False,
+            "readyState": "open",
+        }
+        return {
+            "implementation": {"userAgent": "Mozilla/5.0 HeadlessChrome/fixture", "platform": "Linux"},
+            "offerer": dict(peer),
+            "answerer": dict(peer),
+            "localDataChannel": dict(channel),
+            "remoteDataChannel": dict(channel),
+            "receivedText": "Hi",
+            "receivedUtf8Hex": "48 69",
+        }
 
     def test_control_is_ready_and_decodes_t140(self) -> None:
         result = self.reduce("control")
@@ -88,6 +119,26 @@ class SipWebRtcFederationBoundaryTests(unittest.TestCase):
                     "interpreterMediaProbeReceived",
                 },
             )
+
+    def test_browser_evidence_requires_transport_and_t140_facts(self) -> None:
+        result = validate_browser_evidence(self.browser_evidence())
+        self.assertEqual(result.terminal_verdict, "ready")
+        self.assertEqual(result.decoded_text, "Hi")
+        self.assertEqual(result.failed_facts, ())
+
+    def test_browser_evidence_does_not_infer_dtls_from_message_delivery(self) -> None:
+        evidence = self.browser_evidence()
+        evidence["answerer"]["dtlsState"] = "connecting"
+        result = validate_browser_evidence(evidence)
+        self.assertEqual(result.terminal_verdict, "not-ready")
+        self.assertEqual(result.failed_facts, ("dtlsReady",))
+
+    def test_browser_evidence_rejects_wrong_t140_channel(self) -> None:
+        evidence = self.browser_evidence()
+        evidence["remoteDataChannel"]["protocol"] = "chat"
+        result = validate_browser_evidence(evidence)
+        self.assertEqual(result.terminal_verdict, "not-ready")
+        self.assertEqual(result.failed_facts, ("remoteChannelValid",))
 
     def test_scenario_preserves_real_browser_claim_gate(self) -> None:
         gates = set(self.scenario["requiredBeforeProven"])
