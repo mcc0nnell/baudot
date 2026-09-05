@@ -49,6 +49,10 @@ That means the experiment successfully reproduced a call whose SIP dialog establ
 
 See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the boundary, distributed caller/callee roles, Wiretap route model, and evidence bundle.
 
+## Architecture decisions
+
+- [ADR-0001: Treat Apache OpenMeetings as prior art, not a runtime dependency](docs/adr/0001-openmeetings-boundary.md)
+
 ## Status
 
 Early design and testkit bootstrap. No RFC 4103, T.140, SIP, or implementation conformance claim is made yet.
