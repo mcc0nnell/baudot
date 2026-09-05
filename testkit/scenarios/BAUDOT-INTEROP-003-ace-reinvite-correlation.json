@@ -1,7 +1,7 @@
 {
   "id": "BAUDOT-INTEROP-003",
   "title": "In-dialog re-INVITE correlation under externally supplied SDP",
-  "status": "planned",
+  "status": "runnable",
   "contract": "baudot.modality-readiness@1",
   "objective": "Turn historical ACE Direct JsSIP re-INVITE workarounds into a portable interoperability scenario that can detect stale SDP reuse, request-correlation overwrite, and signaling/media readiness divergence without copying the workaround forward.",
   "historicalBasis": {
@@ -58,6 +58,11 @@
     "stale SDP reuse must remain observable even when the SIP dialog stays established",
     "late observations do not rewrite earlier evidence"
   ],
+  "execution": {
+    "runner": "scripts/run-ace-reinvite-scenario.sh",
+    "terminalReducer": "scripts.validate_ace_reinvite_scenario",
+    "expectedTerminalVerdict": "RUNNABLE_PASS"
+  },
   "executionGates": {
     "jainSipMessageCorrelation": {
       "status": "runnable",
@@ -92,19 +97,42 @@
         "production SBC or NAT behavior",
         "SIP conformance"
       ]
+    },
+    "jainSipLiveRttReadiness": {
+      "status": "runnable",
+      "entrypoint": "org.mcc0nnell.baudot.harness.LiveReinviteRttReadinessProbe",
+      "runner": "scripts/run-live-reinvite-rtt-readiness.sh",
+      "referenceValidator": "scripts.validate_reinvite_rtt_readiness",
+      "proves": [
+        "a control re-INVITE returns fresh text/t140 SDP under 200 and reaches RTT ready",
+        "the control RTP bytes are independently parsed as the narrow Baudot RFC 4103 primary T140block primitive",
+        "a later re-INVITE can deliberately reuse the prior SDP answer while still returning 200",
+        "the stale answer is detected by SHA-256 against the intended fresh answer",
+        "the stale arm can preserve RTT negotiation while no first T.140 character reaches the intended fresh receiver",
+        "RTT readiness remains false when negotiation exists without a first T.140 character"
+      ],
+      "doesNotProve": [
+        "that ACE Direct or any contemporary implementation naturally emits stale SDP",
+        "full RFC 4103 or T.140 conformance",
+        "production VRS readiness",
+        "production SBC or NAT behavior",
+        "SIP conformance"
+      ]
     }
   },
-  "requiredBeforeRunnable": [
-    "one live stale-SDP or deliberately mismatched-SDP arm on the established dialog",
-    "independent media or RTT readiness observations after the control and stale-SDP transactions",
-    "terminal scenario reduction that joins live transaction identity, SDP identity, and readiness evidence without collapsing them into signaling success"
+  "runnableEvidence": [
+    "message-level request correlation and externally supplied SDP binding",
+    "live overlapping in-dialog INVITE glare with 491 Request Pending",
+    "live control and stale-SDP RTT readiness arms",
+    "independent Python parsing of the received control T140block RTP packet",
+    "terminal scenario reduction joining transaction identity, SDP identity, and readiness evidence"
   ],
   "requiredBeforeProven": [
-    "repeatable execution evidence for single and overlapping re-INVITE arms",
-    "proof that each response is bound to the intended request transaction",
-    "portable normalized trace showing SDP identity and readiness transitions separately",
-    "independent media or RTT observation sufficient to distinguish signaling success from usability",
-    "terminal verdict bound to the exact scenario inputs and source evidence"
+    "repeatable execution evidence across more than one SIP implementation",
+    "standards-grounded reduction of any stack disagreement rather than treating implementation agreement as authority",
+    "broader re-INVITE timing and retry coverage beyond the single deterministic glare sequence",
+    "production-representative gateway or VRS endpoint observations without weakening the existing claim boundaries",
+    "terminal evidence bundle suitable for an explicit proven-state review"
   ],
   "claimBoundary": {
     "doesNotEstablish": [
@@ -113,7 +141,8 @@
       "SIP conformance",
       "root cause of any contemporary ACE Direct, browser, VRS, or WebRTC failure",
       "that ACE Direct's historical workaround is incorrect",
-      "that module-level state necessarily caused a production defect"
+      "that module-level state necessarily caused a production defect",
+      "production VRS readiness"
     ]
   }
 }
