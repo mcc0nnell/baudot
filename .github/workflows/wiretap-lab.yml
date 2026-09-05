@@ -51,7 +51,7 @@ jobs:
           wiretap --version
 
       - name: Run routed Wiretap scenario
-        run: sudo -E bash scripts/wiretap/run-routed-scenario.sh "${{ matrix.scenario }}"
+        run: sudo -E bash scripts/wiretap/routed-lab.sh "${{ matrix.scenario }}"
 
       - name: Verify routed evidence manifest
         if: always()
