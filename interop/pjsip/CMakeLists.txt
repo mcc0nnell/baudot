@@ -7,7 +7,7 @@ endif()
 
 # Keep the qualification graph intentionally narrow. PJPROJECT stays an
 # external source tree; Baudot builds only the dependency closure required by
-# the PJSUA2 native text sender rather than the upstream install/all target.
+# the PJSUA2 native text probes rather than the upstream install/all target.
 set(PJ_SKIP_EXPERIMENTAL_NOTICE ON CACHE BOOL "" FORCE)
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -30,8 +30,12 @@ add_subdirectory(
 )
 
 add_executable(baudot-pjsip-native-t140 native_t140_sender.cpp)
-target_compile_features(baudot-pjsip-native-t140 PRIVATE cxx_std_17)
-target_link_libraries(baudot-pjsip-native-t140 PRIVATE pjsua2)
+add_executable(baudot-pjsip-native-t140-uas native_t140_uas.cpp)
+
+foreach(target IN ITEMS baudot-pjsip-native-t140 baudot-pjsip-native-t140-uas)
+  target_compile_features(${target} PRIVATE cxx_std_17)
+  target_link_libraries(${target} PRIVATE pjsua2)
+endforeach()
 
 # PJPROJECT's internal targets have the include roots they need to compile, but
 # the aggregate PJSUA2 target does not propagate every public/transitive source
@@ -39,7 +43,7 @@ target_link_libraries(baudot-pjsip-native-t140 PRIVATE pjsua2)
 # Make that external-consumer boundary explicit without modifying the pinned
 # PJPROJECT checkout.
 set(PJPROJECT_BUILD_ROOT "${CMAKE_BINARY_DIR}/pjproject")
-target_include_directories(baudot-pjsip-native-t140 PRIVATE
+set(PJPROJECT_EXTERNAL_INCLUDE_DIRS
   "${PJSIP_SOURCE_DIR}/pjlib/include"
   "${PJSIP_SOURCE_DIR}/pjlib-util/include"
   "${PJSIP_SOURCE_DIR}/pjmedia/include"
@@ -51,3 +55,7 @@ target_include_directories(baudot-pjsip-native-t140 PRIVATE
   "${PJPROJECT_BUILD_ROOT}/pjnath/include"
   "${PJPROJECT_BUILD_ROOT}/pjsip/include"
 )
+
+foreach(target IN ITEMS baudot-pjsip-native-t140 baudot-pjsip-native-t140-uas)
+  target_include_directories(${target} PRIVATE ${PJPROJECT_EXTERNAL_INCLUDE_DIRS})
+endforeach()
