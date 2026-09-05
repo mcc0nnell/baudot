@@ -31,8 +31,15 @@ add_subdirectory(
 
 add_executable(baudot-pjsip-native-t140 native_t140_sender.cpp)
 add_executable(baudot-pjsip-native-t140-uas native_t140_uas.cpp)
+add_executable(baudot-pjsip-native-rfc2198 native_rfc2198_sender.cpp)
 
-foreach(target IN ITEMS baudot-pjsip-native-t140 baudot-pjsip-native-t140-uas)
+set(BAUDOT_PJSIP_PROBES
+  baudot-pjsip-native-t140
+  baudot-pjsip-native-t140-uas
+  baudot-pjsip-native-rfc2198
+)
+
+foreach(target IN LISTS BAUDOT_PJSIP_PROBES)
   target_compile_features(${target} PRIVATE cxx_std_17)
   target_link_libraries(${target} PRIVATE pjsua2)
 endforeach()
@@ -56,6 +63,6 @@ set(PJPROJECT_EXTERNAL_INCLUDE_DIRS
   "${PJPROJECT_BUILD_ROOT}/pjsip/include"
 )
 
-foreach(target IN ITEMS baudot-pjsip-native-t140 baudot-pjsip-native-t140-uas)
+foreach(target IN LISTS BAUDOT_PJSIP_PROBES)
   target_include_directories(${target} PRIVATE ${PJPROJECT_EXTERNAL_INCLUDE_DIRS})
 endforeach()
