@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 199309L
+
 #include "linphone/core.h"
 
 #include <stdio.h>
@@ -56,15 +58,15 @@ int main(int argc, char **argv) {
     const char *dest = destination(argc, argv);
     const int connect_timeout_seconds = env_int("BAUDOT_LINPHONE_CONNECT_TIMEOUT", 20);
     const int settle_milliseconds = env_int("BAUDOT_LINPHONE_SETTLE_MS", 1200);
-    LinphoneCoreVTable vtable = {0};
     LinphoneCore *core = NULL;
     LinphoneCall *call = NULL;
     LinphoneCallParams *params = NULL;
     LinphoneChatRoom *chat_room = NULL;
     LinphoneChatMessage *message = NULL;
-    LCSipTransports transports;
+    LinphoneSipTransports transports;
     int elapsed_ms = 0;
     int result = 1;
+    int core_started = 0;
 
     if (dest == NULL) {
         fprintf(stderr, "usage: %s sip:destination or set BAUDOT_LINPHONE_REMOTE_URI\n", argv[0]);
@@ -76,16 +78,19 @@ int main(int argc, char **argv) {
     transports.tcp_port = LC_SIP_TRANSPORT_RANDOM;
     transports.tls_port = LC_SIP_TRANSPORT_RANDOM;
 
-    core = linphone_core_new(&vtable, NULL, NULL, NULL);
+    core = linphone_factory_create_core_3(linphone_factory_get(), NULL, NULL, NULL);
     if (core == NULL) {
         fprintf(stderr, "failed to create LinphoneCore\n");
         return 3;
     }
 
-    if (linphone_core_set_sip_transports(core, &transports) != 0) {
-        fprintf(stderr, "failed to configure random SIP transports\n");
+    /* Configure the controlled transport before starting the modern Core. */
+    linphone_core_set_sip_transports(core, &transports);
+    if (linphone_core_start(core) < 0) {
+        fprintf(stderr, "failed to start LinphoneCore\n");
         goto cleanup;
     }
+    core_started = 1;
 
     params = linphone_core_create_call_params(core, NULL);
     if (params == NULL) {
@@ -143,7 +148,7 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
-    message = linphone_chat_room_create_message(chat_room, "");
+    message = linphone_chat_room_create_message_from_utf8(chat_room, "");
     if (message == NULL) {
         fprintf(stderr, "failed to create call-associated RTT message\n");
         goto cleanup;
@@ -188,7 +193,10 @@ cleanup:
         linphone_call_unref(call);
     }
     if (core != NULL) {
-        linphone_core_destroy(core);
+        if (core_started) {
+            linphone_core_stop(core);
+        }
+        linphone_core_unref(core);
     }
 
     return result;
