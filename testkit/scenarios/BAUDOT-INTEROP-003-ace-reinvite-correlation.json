@@ -58,14 +58,30 @@
     "stale SDP reuse must remain observable even when the SIP dialog stays established",
     "late observations do not rewrite earlier evidence"
   ],
+  "executionGates": {
+    "jainSipMessageCorrelation": {
+      "status": "runnable",
+      "entrypoint": "org.mcc0nnell.baudot.harness.ReinviteCorrelationProbe",
+      "runner": "scripts/run-reinvite-correlation-proof.sh",
+      "proves": [
+        "per-request correlation survives reversed response observation order",
+        "491 Request Pending remains bound to the later overlapping request identity",
+        "externally supplied SDP can be bound to one request by SHA-256",
+        "stale SDP reuse is detected even when signaling status is 200"
+      ],
+      "doesNotProve": [
+        "live overlapping SIP transactions on a networked dialog",
+        "media or RTT readiness after re-INVITE",
+        "SIP conformance"
+      ]
+    }
+  },
   "requiredBeforeRunnable": [
-    "JAIN SIP in-dialog re-INVITE execution adapter",
-    "deterministic scheduler capable of overlapping two re-INVITE transactions",
-    "per-transaction correlation identifiers preserved in send and receive evidence",
-    "raw offer and answer SDP preserved with hashes for each re-INVITE",
-    "normal control arm using fresh SDP",
-    "one deterministic stale-SDP arm",
-    "independent readiness observations after each transaction"
+    "live JAIN SIP UAS execution with two independently injected in-dialog INVITE transactions",
+    "raw network request and response evidence preserving transaction identity and SDP hashes",
+    "normal and glare control arms on the live dialog",
+    "one live stale-SDP or deliberately mismatched-SDP arm",
+    "independent media or RTT readiness observations after each transaction"
   ],
   "requiredBeforeProven": [
     "repeatable execution evidence for single and overlapping re-INVITE arms",
