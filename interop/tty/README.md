@@ -86,22 +86,57 @@ Run it with installed SpanDSP, libsndfile, and minimodem development/runtime too
 bash scripts/run-tty-v18-cross-oracle.sh
 ```
 
-The dedicated `tty-v18-oracle` workflow builds both external implementations from their exact pinned commits before running the scenario. The evidence bundle preserves:
-
-- source text;
-- declared source commits and observed tool versions;
-- exact command log;
-- both generated WAV files and SHA-256 digests;
-- each decoder's raw output;
-- tool stdout/stderr; and
-- `verdict.json` from Baudot's independent reducer.
+The dedicated `tty-v18-oracle` workflow builds both external implementations from their exact pinned commits before running the scenario. The evidence bundle preserves source text, source commits and observed versions, command logs, generated WAV files and SHA-256 digests, decoder output, tool logs, and Baudot's independent `verdict.json`.
 
 The terminal reducer requires both WAV files to remain 8 kHz mono 16-bit PCM and requires exact decoded-text equality in both directions. Agreement is evidence; it is not a conformance declaration.
+
+## BAUDOT-TTY-002: PCMU/RTP survivability proof
+
+The second scenario inserts deterministic G.711 mu-law companding and RTP packetization between each generator and the opposite decoder:
+
+```text
+minimodem TDD
+    -> PCM16
+    -> PCMU
+    -> RTP v2 / PT 0 / 8 kHz / 160 samples per packet
+    -> PCMU decode
+    -> PCM16
+    -> SpanDSP V.18
+
+SpanDSP V.18
+    -> PCM16
+    -> PCMU
+    -> RTP v2 / PT 0 / 8 kHz / 160 samples per packet
+    -> PCMU decode
+    -> PCM16
+    -> minimodem TDD
+```
+
+Run it after or alongside `BAUDOT-TTY-001`:
+
+```sh
+bash scripts/run-tty-v18-pcmu-rtp.sh
+```
+
+`tty_pcmu_rtp.py` preserves complete RTP datagrams in a length-prefixed `.rtpseq` evidence container. This is intentionally not described as PCAP or live network evidence. `reduce_tty_v18_pcmu_rtp.py` independently parses the preserved RTP headers and requires:
+
+- RTP version 2;
+- static payload type 0 (PCMU);
+- 160-byte payloads / 20 ms packetization at an 8 kHz clock;
+- monotonic sequence numbers;
+- timestamps advancing by 160;
+- a stable SSRC;
+- reconstructed 8 kHz mono PCM16 audio; and
+- exact `HELLO GA` recovery in both implementation directions.
+
+This proves a controlled codec-and-packetization survivability slice before live UDP or Wiretap is introduced.
 
 ## Claim boundary
 
 A passing `BAUDOT-TTY-001` result means that the pinned SpanDSP and minimodem implementations cross-generate and cross-decode the expected text under one lossless local WAV profile, with Baudot independently reducing the preserved artifacts.
 
-It does **not** prove V.18 conformance, PSTN survivability, RTP/SIP gateway interoperability, transcoder tolerance, hardware TTY interoperability, or production readiness.
+A passing `BAUDOT-TTY-002` result additionally means that the same text survives one deterministic local PCMU/RTP datagram transform with independently reduced RTP progression.
 
-Promotion requires controlled impairment cases, G.711/RTP traversal, gateway evidence, and eventually hardware endpoints.
+Neither result proves V.18 conformance, PSTN survivability, live RTP/UDP interoperability, SBC/transcoder tolerance, hardware TTY interoperability, or production readiness.
+
+The next promotion step is to carry these exact PCMU RTP datagrams over live UDP through the existing controlled network/evidence substrate, then add loss, jitter, transcoding, and hardware endpoints.

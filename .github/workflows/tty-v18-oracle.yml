@@ -89,17 +89,23 @@ jobs:
           echo "PKG_CONFIG_PATH=$ORACLE_PREFIX/lib/pkgconfig:$ORACLE_PREFIX/lib64/pkgconfig" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$ORACLE_PREFIX/lib:$ORACLE_PREFIX/lib64" >> "$GITHUB_ENV"
 
-      - name: BAUDOT-TTY-001 cross-oracle proof
+      - name: BAUDOT-TTY-001 cross-oracle WAV proof
         shell: bash
         env:
           BAUDOT_SPANDSP_SOURCE_COMMIT: ${{ env.SPANDSP_COMMIT }}
           BAUDOT_MINIMODEM_SOURCE_COMMIT: ${{ env.MINIMODEM_COMMIT }}
         run: bash scripts/run-tty-v18-cross-oracle.sh
 
+      - name: BAUDOT-TTY-002 PCMU RTP survivability proof
+        shell: bash
+        run: bash scripts/run-tty-v18-pcmu-rtp.sh
+
       - name: Preserve TTY evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: baudot-tty-v18-evidence
-          path: target/evidence/tty-v18-cross-oracle
+          path: |
+            target/evidence/tty-v18-cross-oracle
+            target/evidence/tty-v18-pcmu-rtp
           if-no-files-found: error
