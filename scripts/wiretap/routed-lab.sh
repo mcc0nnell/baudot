@@ -13,7 +13,7 @@ WORK=${BAUDOT_WIRETAP_DIR:-$ROOT/target/wiretap-routed/$scenario}
 EVIDENCE=${BAUDOT_EVIDENCE_DIR:-$ROOT/target/evidence-routed}
 CORR=${BAUDOT_CORRELATION:-$(python3 -c 'import uuid; print(uuid.uuid4())')}
 
-# Do not use 192.0.2.0/24 here: Wiretap reserves that prefix for its IPv4 API.
+# Keep the underlay away from Wiretap's reserved API prefixes.
 UL_HOST=198.18.0.1
 UL_CLIENT=198.18.0.2
 SIG_HOST=10.77.10.1
@@ -27,7 +27,7 @@ WT_PORT=51820
 SIG_NET=10.77.10.0/24
 MEDIA_NET=10.77.20.0/24
 
-server_pid=""; callee_pid=""; socat_pid=""; relay_up=0; e2ee_up=0; RUN=""
+server_pid=""; callee_pid=""; relay_up=0; e2ee_up=0; RUN=""
 
 safe_server_log() {
   [[ -f "$WORK/server.log" ]] || return 0
@@ -40,7 +40,6 @@ safe_server_log() {
 cleanup() {
   set +e
   [[ -n "$callee_pid" ]] && kill "$callee_pid" 2>/dev/null
-  [[ -n "$socat_pid" ]] && kill "$socat_pid" 2>/dev/null
   if [[ -n "$RUN" && -f "$WORK/server.log" ]]; then
     safe_server_log >"$RUN/wiretap-server.log" 2>/dev/null
   fi
@@ -59,7 +58,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for bin in "$WT" ip wg-quick java mvn socat; do command -v "$bin" >/dev/null; done
+for bin in "$WT" ip wg-quick java mvn; do command -v "$bin" >/dev/null; done
 rm -rf "$WORK"; mkdir -p "$WORK" "$EVIDENCE"
 
 cd "$ROOT"
@@ -97,7 +96,7 @@ else
 fi
 
 cd "$WORK"
-"$WT" configure --disable-ipv6 --endpoint "$UL_CLIENT:$WT_PORT" --routes "$routes" --port "$WT_PORT" >configure.log
+"$WT" configure --endpoint "$UL_CLIENT:$WT_PORT" --routes "$routes" --port "$WT_PORT" >configure.log
 CALLER_SIP=$(sed -n 's/^Address = \([0-9.]*\)\/.*/\1/p' "$WORK/wiretap.conf" | head -n1)
 [[ -n "$CALLER_SIP" ]] || { echo "unable to read Wiretap E2EE IPv4 address" >&2; exit 1; }
 
@@ -119,16 +118,6 @@ if ! ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1; then
   exit 1
 fi
 
-# The caller sources routed packets from Wiretap's E2EE identity so WireGuard
-# accepts them. SIP 200 responses follow Via/received to the server-side exposed
-# port. Wiretap forwards that IPv4 UDP port to client loopback; this shim hands
-# the datagram to the JAIN listener bound to the E2EE address.
-ip netns exec "$CNS" socat -u \
-  UDP4-RECVFROM:"$SIP_PORT",bind=127.0.0.1,reuseaddr,fork \
-  UDP4-SENDTO:"$CALLER_SIP:$SIP_PORT" >/dev/null 2>&1 &
-socat_pid=$!
-ip netns exec "$CNS" "$WT" expose --local "$SIP_PORT" --remote "$SIP_PORT" --protocol udp >/dev/null
-
 SCENARIO_ID="$scenario-wiretap-routed"
 EXPECT_MEDIA=$([[ "$scenario" == 001 ]] && echo true || echo false)
 RUN="$EVIDENCE/$SCENARIO_ID/$CORR"
@@ -137,10 +126,10 @@ cat >"$RUN/topology.properties" <<EOF
 wiretap.version=$($WT --version 2>/dev/null | head -n1)
 wiretap.routes=$routes
 wiretap.clientE2EE=$CALLER_SIP
-wiretap.ipv4Api=192.0.2.2
+wiretap.controlApi=::2
 underlay=$UL_HOST/24<->$UL_CLIENT/24
 signaling.serverSide=$SIG_HOST/24<->$SIP_SERVER/24
-signaling.reverseExpose=$SIG_HOST:$SIP_PORT->127.0.0.1:$SIP_PORT->$CALLER_SIP:$SIP_PORT
+signaling.responseRouting=rfc3581-rport-over-transparent-flow
 media=$MEDIA_HOST/24<->$MEDIA_SERVER/24
 scenario.expectMedia=$EXPECT_MEDIA
 EOF
