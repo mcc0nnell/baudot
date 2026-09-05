@@ -133,6 +133,18 @@ The first machine-readable bridge protocol is [`bridges/omni-emulytics-bridge-v1
 
 A command remains intent, not evidence. For example, an Omni command requesting a REFER cannot itself establish `referAccepted=true`; that fact must come from an identified observation source. Likewise, successful signaling or RTT negotiation does not imply `rttReady=true` unless the active Baudot scenario's evidence rule is satisfied.
 
+### First live bridge slice: BAUDOT-INTEROP-004
+
+After the existing live JAIN SIP REFER and replacement-leg RTT gates produce a local `RUNNABLE_PASS`, `scripts.export_omni_interop004_observations` converts the preserved evidence into source-identified ACE Omni `ObservationInput` candidates.
+
+The split is intentional:
+
+- JAIN SIP sources may report signaling, target-correlation, negotiated-media, and old-leg continuity facts;
+- the independent Python RFC 4103/T.140 reference owns `firstT140CharacterObserved` and `rttReady` classifications; and
+- Baudot emits no `payloadSha256`, envelope `version`, ledger sequence, or authoritative replay result. Those fields belong to ACE Omni when it accepts the inputs.
+
+The bridge export contains its own SHA-256 manifest and binds every fact back to the exact preserved Baudot source artifact. `scripts.validate_omni_interop004_export` checks that boundary in CI before the bundle is uploaded with the rest of the scenario evidence.
+
 Execution through ACE Omni does **not** promote a Baudot scenario to `proven`. Existing evidence requirements and `requiredBeforeProven` conditions remain authoritative for the Baudot claim.
 
 Historical ACE Direct behavior may motivate scenarios, but donor code and old workarounds are not treated as proof of a current implementation defect.
