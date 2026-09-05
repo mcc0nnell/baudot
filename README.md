@@ -53,8 +53,9 @@ The executable proving ground now includes:
 - `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain;
 - a bidirectional JAIN SIP ↔ Elixip `BAUDOT-INTEROP-004` matrix with controlled negative and positive readiness arms, preserved wire evidence, and independent terminal reduction;
 - a PJSIP 2.17 native-media qualification lane in which PJSUA2/PJMEDIA generates live text traffic that Baudot independently reduces to T.140 behavior;
-- an incoming PJSIP 2.17 native-text endpoint qualification in which JAIN releases the controlled call only after the live Baudot reference publishes readiness; and
-- a JAIN SIP → PJSIP 2.17 `BAUDOT-INTEROP-004` positive arm in which native PJMEDIA text replaces Baudot-owned canonical stimulus and original-leg release is gated by the independent live readiness token.
+- an incoming PJSIP 2.17 native-text endpoint qualification in which JAIN releases the controlled call only after the live Baudot reference publishes readiness;
+- a JAIN SIP → PJSIP 2.17 `BAUDOT-INTEROP-004` positive arm in which native PJMEDIA text replaces Baudot-owned canonical stimulus and original-leg release is gated by the independent live readiness token; and
+- a native PJSIP RFC 2198 characterization lane that treats RED negotiation, PT100 emission, usable historical redundancy, and recoverability as separate evidence facts.
 
 A passing transfer does **not** mean that REFER succeeded. The relevant evidence can distinguish:
 
@@ -100,7 +101,17 @@ JAIN SIP original dialog
 
 Java does not parse the implementation-generated RTP and does not compare it to canonical packet bytes. PJSIP does not declare readiness. The live Python reference owns the replacement `m=text` observation socket and is the only component that can publish `rttReady=true` for this arm.
 
-[ADR-0002](docs/adr/0002-pjsip-native-rtt-media-oracle.md) admits PJSIP/PJPROJECT 2.17 as an external native RTT media oracle at exact commit `5a457451fa2712ba18e12b01738e8ff3af2b26fd`. The accepted profile remains external and ephemeral; the linked qualification executable is not distributed as a Baudot artifact.
+[ADR-0002](docs/adr/0002-pjsip-native-rtt-media-oracle.md) admits PJSIP/PJPROJECT 2.17 as an external native RTT media oracle at exact commit `5a457451fa2712ba18e12b01738e8ff3af2b26fd`. The accepted direct-T.140 profile remains external and ephemeral; the linked qualification executable is not distributed as a Baudot artifact.
+
+### PJSIP RFC 2198 boundary
+
+Native RED is tracked separately from the accepted direct-T.140 profile. Baudot does not treat `red/1000` negotiation or PT100 emission as proof that lost text is recoverable.
+
+The exact PJSIP 2.17 release baseline negotiates PT100 `red/1000` plus PT98 `t140/1000` and emits PT100, but the controlled `H`/`I` stream preserves zero-length historical redundancy. The independent reducer therefore records an observed limitation and requires `lossRecovered=false`.
+
+Two post-2.17 upstream fixes were also exercised as exact snapshots. PJPROJECT #4984 (`aed27c1ce1c9b47fb5b16b24bac68a1741baef67`) rewrote the T.140/RED engine, and #5117 (`b9ce4d9b9b9a52df7e3ea93192dec01b9eb0887f`) adjusted T.140/RED payload assignment and RED activation. Under Baudot's unchanged controlled profile, both emitted multi-generation RED that the strict reference rejected because the redundant T140blocks were not in RFC 4103 age order. Baudot did not relax the parser or promote either snapshot to a recovery-qualified oracle.
+
+The characterization workflow pins exact upstream identities and expected outcomes. A future upstream snapshot that stops reproducing a limitation makes the characterization job fail until the evidence and claim are deliberately reclassified.
 
 See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model.
 
@@ -110,7 +121,7 @@ See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed 
 
 - **JAIN SIP** — primary glass-box signaling instrument;
 - **Elixip** — first externally installed independent SIP/call-state oracle;
-- **PJSIP/PJPROJECT 2.17** — accepted external native RTT media oracle under ADR-0002, not a replacement for JAIN SIP or Elixip;
+- **PJSIP/PJPROJECT 2.17** — accepted external direct-T.140 native RTT media oracle under ADR-0002, not a replacement for JAIN SIP or Elixip;
 - **Apache OpenMeetings** — integration specimen and scenario donor, not the second independent SIP stack;
 - **ACE Direct** — historical production donor corpus; and
 - **Wiretap** — external network/evidence substrate, never verdict authority.
@@ -119,13 +130,13 @@ Baudot reducers and reference code retain terminal verdict authority within expl
 
 The Elixip external-oracle lane is documented in [`interop/elixip/`](interop/elixip/). It admits one exact clean upstream Elixip checkout and hash-binds Baudot-owned FSL inputs before execution without vendoring or linking Elixip into Baudot. `BAUDOT-INTEROP-004` exercises that boundary in both directions while keeping REFER acceptance, NOTIFY progression, replacement-dialog establishment, RTT negotiation, T.140 observation, old-leg teardown, and terminal readiness as separate evidence facts.
 
-The PJSIP native-media lane is documented in [`interop/pjsip/`](interop/pjsip/). It separately qualifies native outbound text generation, incoming native text endpoint behavior, and participation as the replacement native-media endpoint in a controlled `BAUDOT-INTEROP-004` positive arm. In all three profiles, PJSIP supplies implementation behavior while Baudot's independent reference retains semantic readiness authority.
+The PJSIP native-media lane is documented in [`interop/pjsip/`](interop/pjsip/). It separately qualifies native outbound direct-T.140 generation, incoming native text endpoint behavior, and participation as the replacement native-media endpoint in a controlled `BAUDOT-INTEROP-004` positive arm. Its RFC 2198 lane is currently a characterization/regression surface, not an accepted recovery profile. In every profile, PJSIP supplies implementation behavior while Baudot's independent reference retains semantic authority.
 
 ## Status and claim boundary
 
 Baudot is in active proving-ground development. Several scenarios are **runnable**, but runnable is not the same as proven or conformant.
 
-The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, or other implementation conformance. The native PJSIP handoff arm is evidence that the pinned implementation participated in one controlled replacement-leg flow whose live media was independently reduced before old-leg release; it is not a general conformance finding. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
+The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, or other implementation conformance. The native PJSIP handoff arm is evidence that the pinned direct-T.140 implementation participated in one controlled replacement-leg flow whose live media was independently reduced before old-leg release; it is not a general conformance finding. The RFC 2198 characterization is intentionally evidence of observed limitations, not a PJSIP RED conformance finding. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
 
 ## Project name
 
