@@ -87,13 +87,31 @@
         "production VRS readiness",
         "SIP conformance"
       ]
+    },
+    "jainSipLiveReferTransfer": {
+      "status": "runnable",
+      "entrypoint": "org.mcc0nnell.baudot.harness.LiveReferProviderTransferProbe",
+      "runner": "scripts/run-live-refer-provider-transfer.sh",
+      "proves": [
+        "a live original dialog is established with synthetic provider-a",
+        "an in-dialog REFER with a declared provider-b Refer-To target receives 202",
+        "progress and terminal Event: refer NOTIFY requests carry message/sipfrag transfer status",
+        "the replacement INVITE reaches the independently addressed provider-b target",
+        "the replacement dialog reaches 2xx and ACK before final transfer completion",
+        "the declared referred target remains correlated to the replacement target",
+        "the old leg is torn down only after replacement-dialog establishment and final NOTIFY acknowledgement"
+      ],
+      "doesNotProve": [
+        "replacement-leg RTT or media readiness",
+        "live interoperability with an external provider",
+        "production VRS readiness",
+        "SIP or REFER conformance"
+      ]
     }
   },
   "requiredBeforeRunnable": [
-    "live JAIN SIP REFER and NOTIFY execution adapter on an established dialog",
-    "at least two independently addressed provider-role endpoints with preserved original and replacement dialog identities",
-    "raw REFER, NOTIFY, replacement INVITE, response, and teardown evidence",
-    "independent RTT or media readiness observation on the replacement leg",
+    "independent RTT or media readiness observation on the replacement leg before old-leg teardown",
+    "one live signaling-only transfer arm where REFER and replacement dialog succeed but replacement accessibility readiness does not",
     "terminal reduction that joins transfer signaling, target correlation, continuity, and accessibility readiness without collapsing them"
   ],
   "requiredBeforeProven": [
