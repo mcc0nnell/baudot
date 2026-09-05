@@ -12,8 +12,6 @@ EVIDENCE=${BAUDOT_EVIDENCE_DIR:-$ROOT/target/evidence-external}
 SCENARIO=PJSIP-NATIVE-T140
 CORRELATION=pjsip-2.17-native-text-v1
 OUT="$EVIDENCE/$SCENARIO/$CORRELATION"
-PJ_BUILD=${BAUDOT_PJSIP_BUILD_DIR:-/tmp/baudot-pjsip-build}
-PJ_INSTALL=${BAUDOT_PJSIP_INSTALL_DIR:-/tmp/baudot-pjsip-install}
 APP_BUILD="$ROOT/target/pjsip-native-t140-app"
 APP="$APP_BUILD/baudot-pjsip-native-t140"
 JAIN_PID=""
@@ -46,7 +44,7 @@ actual_release=$(git -C "$PJSIP_ROOT" describe --tags --exact-match HEAD 2>/dev/
   exit 2
 }
 
-rm -rf "$OUT" "$PJ_BUILD" "$PJ_INSTALL" "$APP_BUILD"
+rm -rf "$OUT" "$APP_BUILD"
 mkdir -p "$OUT"
 
 sender_source="$ROOT/interop/pjsip/native_t140_sender.cpp"
@@ -54,7 +52,6 @@ sender_source_sha=$(sha256sum "$sender_source" | awk '{print $1}')
 python3 - "$OUT/pjsip-admission.json" "$sender_source_sha" <<'PY'
 import json
 import pathlib
-import subprocess
 import sys
 
 out = pathlib.Path(sys.argv[1])
@@ -67,6 +64,7 @@ record = {
     "role": "native-media-oracle",
     "verdictAuthority": False,
     "nativeMediaApi": "PJSUA2 Call::sendText -> pjsua_call_send_text -> pjmedia_txt_stream_send_text",
+    "buildProfile": "pjsua2-native-text-dependency-closure",
     "baudotSenderSourceSha256": source_sha,
     "claimBoundary": {
         "sipConformance": False,
@@ -83,21 +81,14 @@ printf '%s\n' "$actual_release" >"$OUT/pjsip-release.txt"
 cmake --version >"$OUT/cmake-version.txt"
 c++ --version >"$OUT/cxx-version.txt"
 
-cmake -S "$PJSIP_ROOT" -B "$PJ_BUILD" \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX="$PJ_INSTALL" \
-  -DBUILD_SHARED_LIBS=ON \
-  -DBUILD_TESTING=OFF \
-  -DPJ_SKIP_EXPERIMENTAL_NOTICE=ON \
-  >"$OUT/pjsip-configure.log" 2>&1
-cmake --build "$PJ_BUILD" --parallel 2 --target install \
-  >"$OUT/pjsip-build.log" 2>&1
-
+# Configure PJPROJECT as an external source subdirectory and build only the
+# Baudot sender target. This preserves the exact source identity while avoiding
+# the upstream install target, which would compile unrelated bundled providers.
 cmake -S "$ROOT/interop/pjsip" -B "$APP_BUILD" \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_PREFIX_PATH="$PJ_INSTALL" \
+  -DPJSIP_SOURCE_DIR="$PJSIP_ROOT" \
   >"$OUT/sender-configure.log" 2>&1
-cmake --build "$APP_BUILD" --parallel 2 \
+cmake --build "$APP_BUILD" --parallel 4 --target baudot-pjsip-native-t140 \
   >"$OUT/sender-build.log" 2>&1
 [[ -x "$APP" ]] || { echo "native PJSIP sender was not built: $APP" >&2; exit 3; }
 ldd "$APP" >"$OUT/sender-ldd.txt" || true
@@ -132,7 +123,6 @@ done
 [[ "$ready" == 1 ]] || { echo "JAIN receiver did not become ready" >&2; exit 4; }
 
 set +e
-LD_LIBRARY_PATH="$PJ_INSTALL/lib:$PJ_INSTALL/lib64:${LD_LIBRARY_PATH:-}" \
 BAUDOT_PJSIP_LOCAL_PORT="$LOCAL_PORT" \
 BAUDOT_PJSIP_REMOTE_PORT="$SIP_PORT" \
 BAUDOT_PJSIP_REMOTE_URI="sip:baudot@127.0.0.1:$SIP_PORT" \
@@ -166,13 +156,18 @@ python3 -m scripts.validate_pjsip_native_t140
     pjsip-commit.txt
     pjsip-release.txt
     pjsip-status.txt
+    cmake-version.txt
+    cxx-version.txt
+    sender-configure.log
+    sender-build.log
+    sender-ldd.txt
+    sender.sha256
     pjsip.stdout.log
     pjsip.stderr.log
     pjsip.exit-code.txt
     jain.stdout.log
     jain.stderr.log
     jain.exit-code.txt
-    sender.sha256
     jain-receiver/manifest.sha256
     jain-receiver/result.properties
     jain-receiver/pjsip-offer.sdp
