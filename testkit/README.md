@@ -106,6 +106,33 @@ Documentation alone cannot promote a scenario to `proven`.
 
 ## ACE Omni integration
 
-ACE Omni is the first research runner targeted by this contract. Omni owns controlled experiment execution and evidence collection. Baudot owns the portable accessibility behavior and test vocabulary.
+ACE Omni is the first research runner targeted by this contract. The integration is a bridge between two independent authorities rather than a merge of their models:
+
+```text
+Baudot scenario / vectors / assertions
+              │
+              ▼
+      Omni communications adapter
+              │
+              ▼
+        attached runtime
+              │
+              ▼
+     source-identified facts
+              │
+              ▼
+       Omni evidence ledger
+              │
+              ▼
+      Baudot terminal reducer
+```
+
+**Baudot owns portable accessibility behavior, readiness vocabulary, scenario assertions, claim scope, and terminal reduction. ACE Omni owns controlled run identity, deterministic execution planning, command sequencing, authoritative observation-envelope/evidence handling, replay, and export. Attached runtimes own external effects.**
+
+The first machine-readable bridge contract is [`contracts/omni-emulytics-bridge-v1.json`](contracts/omni-emulytics-bridge-v1.json). The architectural decision and authority boundary are documented in [`ADR-0002`](../docs/adr/0002-ace-omni-experiment-evidence-bridge.md).
+
+A command remains intent, not evidence. For example, an Omni command requesting a REFER cannot itself establish `referAccepted=true`; that fact must come from an identified observation source. Likewise, successful signaling or RTT negotiation does not imply `rttReady=true` unless the active Baudot scenario's evidence rule is satisfied.
+
+Execution through ACE Omni does **not** promote a Baudot scenario to `proven`. Existing evidence requirements and `requiredBeforeProven` conditions remain authoritative for the Baudot claim.
 
 Historical ACE Direct behavior may motivate scenarios, but donor code and old workarounds are not treated as proof of a current implementation defect.
