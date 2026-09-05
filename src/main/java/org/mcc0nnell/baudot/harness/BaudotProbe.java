@@ -63,9 +63,7 @@ public final class BaudotProbe {
             case CALLER -> runCaller(config);
             case CALLEE -> runCallee(config);
         };
-        if (exit != 0) {
-            System.exit(exit);
-        }
+        System.exit(exit);
     }
 
     private static int runCaller(Config config) throws Exception {
