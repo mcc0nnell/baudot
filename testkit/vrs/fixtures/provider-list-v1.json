@@ -1,0 +1,20 @@
+{
+  "fixture": "baudot.synthetic-rue-provider-list@1",
+  "sourceShape": "RFC 9248 ProviderList",
+  "synthetic": true,
+  "providers": [
+    {
+      "name": "Provider A",
+      "entryPoint": "provider-a.example"
+    },
+    {
+      "name": "Provider B",
+      "entryPoint": "provider-b.example"
+    },
+    {
+      "name": "Provider C",
+      "entryPoint": "provider-c.example"
+    }
+  ],
+  "claimBoundary": "Reserved example domains and invented provider labels only. This fixture does not represent a production VRS provider directory or assert RFC 9248 deployment by any provider."
+}
