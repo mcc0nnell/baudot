@@ -106,14 +106,17 @@ jobs:
           docker logs baudot-nifi > target/nifi-live/nifi-container.log 2>&1 || true
           if [ -f target/nifi-live/evidence.json ]; then
             jq -e '.accepted | length == 2' target/nifi-live/evidence.json >/dev/null
-            jq -e '.quarantined | length == 2' target/nifi-live/evidence.json >/dev/null
-            jq -e '.stagedFiles | all(.bytesPreserved == true)' target/nifi-live/evidence.json >/dev/null
+            jq -e '.quarantined | length == 3' target/nifi-live/evidence.json >/dev/null
+            jq -e '.quarantined | index("cdr-invalid.json") != null' target/nifi-live/evidence.json >/dev/null
+            jq -e '.quarantined | index("cdr-malformed.json") != null' target/nifi-live/evidence.json >/dev/null
+            jq -e '.stagedFiles | length == 5 and all(.bytesPreserved == true)' target/nifi-live/evidence.json >/dev/null
             jq -e '.authority | [ .[] ] | all(. == false)' target/nifi-live/evidence.json >/dev/null
             grep -q 'BAUDOT_NIFI_PROVIDER_EVIDENCE' target/nifi-live/nifi-container.log
             grep -q 'BAUDOT_NIFI_CDR_EVIDENCE' target/nifi-live/nifi-container.log
             for key in sourceSystem sourceObjectId receivedAt contentSha256 flowId correlationId; do
               grep -q "Key: '$key'" target/nifi-live/nifi-container.log
             done
+            grep -q 'cdr-malformed.json' target/nifi-live/nifi-container.log
             ! grep -q 'provider-a,VRS,active' target/nifi-live/nifi-container.log
             ! grep -q '"cdrId":"cdr-001"' target/nifi-live/nifi-container.log
             ! grep -Eq 'subscriberEligible|providerCertified|itrsAuthorized|compensable|claimApproved|paymentAuthorized|fundPeriodClosed|sourceAuthoritative|accessibilityReady' target/nifi-live/nifi-container.log
