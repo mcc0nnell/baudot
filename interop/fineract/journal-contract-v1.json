@@ -7,7 +7,8 @@
     "notes": [
       "request idempotency is supplied by the Baudot synthetic business transaction id",
       "manual journal reversal uses POST journalentries/{transactionId}?command=reverse",
-      "accounting closure blocks posting or reversal on or before the close date"
+      "Fineract posts a manual journal reversal on the original transaction date",
+      "a transaction whose original date is covered by an accounting closure must be corrected with an open-period compensating adjustment rather than a reversal"
     ]
   },
   "fineractApiSurface": {
@@ -76,6 +77,8 @@
     "business-transaction-id-is-forwarded-as-fineract-idempotency-key",
     "fineract-ledger-success-does-not-imply-program-eligibility",
     "reversal-is-explicit-and-evidence-preserving",
+    "fineract-reversal-effective-date-equals-original-journal-date",
+    "closed-period-correction-uses-open-period-compensating-adjustment-not-reversal",
     "posting-after-accounting-closure-must-fail-or-use-an-authorized-open-date",
     "fineract-postings-must-reconcile-to-independent-baudot-fund-state"
   ],
