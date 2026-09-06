@@ -93,6 +93,18 @@ The source hierarchy for this layer is:
 
 That ordering matters: transport adapters will eventually have to satisfy the T.140 vectors rather than redefine them.
 
+## iTRS mock proving ground
+
+`itrs/` contains a deterministic, clean-room iTRS routing mock suite. It covers direct and aliased `E2U+sip` resolution, NAPTR priority, SIP service discovery, negative responses, authority outage, and latency without requiring live TRS Numbering Directory access.
+
+The executable handoff trial keeps the iTRS-derived logical SIP URI as the SIP Request-URI while JAIN-SIP routes the packet to a separate loopback mock VRS peer. This is the first testkit proof of the Tilden/Baudot rule:
+
+> Resolve the logical route first. Connect second.
+
+The trial proves local route consumption and SIP transaction behavior only. It does not claim live iTRS access or production VRS interoperability.
+
+The clean-room fixture validator also recomputes ENUM owner derivation, alias traversal, NAPTR order/preference selection, `E2U+sip` validation, and synthetic SIP NAPTR/SRV discovery from fixture data rather than trusting canned expected output.
+
 ## Scenario status
 
 Scenarios may be:
@@ -103,6 +115,25 @@ Scenarios may be:
 - `regressed` — previously proven behavior is known to diverge.
 
 Documentation alone cannot promote a scenario to `proven`.
+
+## Evidence discipline
+
+The testkit is deliberately implementation-independent. A reference adapter can produce observations, but it does not become normative merely because it runs first or is maintained in this repository.
+
+A mature testkit claim should be reviewable as:
+
+```text
+portable scenario
+    -> implementation A
+    -> implementation B
+    -> preserved observations
+    -> independent reducer
+    -> same bounded claim
+```
+
+Claim boundaries travel with the scenario. A green signaling test does not become a media-readiness claim; a route result does not become proof of transport success; implementation agreement does not become correctness by majority vote.
+
+The broader project model, including clean-room donor discipline and the informal **Apache-style proof** framing, is documented in [`../docs/evidence-and-governance.md`](../docs/evidence-and-governance.md).
 
 ## ACE Omni integration
 

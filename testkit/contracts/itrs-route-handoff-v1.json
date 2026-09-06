@@ -1,0 +1,51 @@
+{
+  "id": "baudot.itrs-route-handoff",
+  "version": 1,
+  "readinessStates": ["unknown", "pending", "ready", "failed"],
+  "observations": [
+    "sessionEstablished",
+    "peerConnectionStable",
+    "connectionReady",
+    "iceReady",
+    "candidatePairReady",
+    "audioInbound",
+    "videoInbound",
+    "videoDecoded",
+    "videoRendered",
+    "rttNegotiated",
+    "firstT140CharacterObserved",
+    "resolutionOutcome",
+    "logicalSipUri",
+    "connectAllowed",
+    "sipInviteSent",
+    "sipInviteReceived",
+    "sipRequestUri",
+    "transportRoute",
+    "sip200Received",
+    "sipAckReceived"
+  ],
+  "derived": {
+    "rttReady": {
+      "allOf": ["rttNegotiated", "firstT140CharacterObserved"]
+    }
+  },
+  "invariants": [
+    "sessionEstablished does not imply iceReady",
+    "iceReady does not imply videoRendered",
+    "videoDecoded does not imply videoRendered",
+    "videoRendered does not imply rttReady",
+    "rttReady requires rttNegotiated and firstT140CharacterObserved",
+    "connectAllowed requires a successful authoritative routing outcome",
+    "logical route identity does not imply an immediate transport destination",
+    "negative routing outcomes do not imply SIP signaling"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "T.140 conformance",
+      "RFC 4103 conformance",
+      "SIP conformance",
+      "ENUM conformance",
+      "production VRS interoperability"
+    ]
+  }
+}
