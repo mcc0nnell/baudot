@@ -1,0 +1,14 @@
+{
+  "schema": "baudot.synthetic-vrs-registration@1",
+  "scenario": "ITRS-REG-001",
+  "userId": "user-001",
+  "defaultProvider": "provider-a.example",
+  "nanpNumber": "+12025550101",
+  "eligibility": "eligible",
+  "identityVerification": "verified",
+  "registeredLocation": {
+    "token": "location-001",
+    "synthetic": true
+  },
+  "provenance": "baudot-authored-synthetic-fixture"
+}
