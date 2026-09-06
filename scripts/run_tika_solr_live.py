@@ -54,7 +54,7 @@ def request_json(url: str, *, method: str = "GET", data=None, user=None, passwor
         return response.status, json.loads(raw.decode() or "{}")
 
 
-def extract_tika(tika: str, path: Path) -> tuple[str, str]:
+def extract_tika(tika: str, path: Path) -> tuple[str | None, str | None, int]:
     raw = path.read_bytes()
     request = urllib.request.Request(
         tika.rstrip("/") + "/tika",
@@ -67,9 +67,20 @@ def extract_tika(tika: str, path: Path) -> tuple[str, str]:
         },
         method="PUT",
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        text = response.read().decode("utf-8", errors="strict")
-    return text, sha256_bytes(text.encode())
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            text = response.read().decode("utf-8", errors="strict")
+            return text, sha256_bytes(text.encode()), response.status
+    except urllib.error.HTTPError as exc:
+        # Tika 4 rejects the deliberately zero-byte fixture at the HTTP layer.
+        # Normalize only that exact bounded case into empty-input quarantine.
+        # A parser error on any non-empty input remains a hard qualification failure.
+        if len(raw) == 0 and exc.code == 422:
+            return None, None, exc.code
+        body = exc.read().decode("utf-8", errors="replace")[:1000]
+        raise RuntimeError(
+            f"Tika parse failed for non-empty fixture {path.name}: HTTP {exc.code}: {body}"
+        ) from exc
 
 
 def find_block_unknown(value):
@@ -118,7 +129,6 @@ def main() -> None:
         },
     }
 
-    # Fail-closed admission check: the live Solr endpoint must reject anonymous access.
     anonymous_status = None
     try:
         request_json(f"{args.solr.rstrip('/')}/solr/baudot_docs/select?q=*:*&wt=json")
@@ -146,9 +156,12 @@ def main() -> None:
         path = FIXTURE_ROOT / item["file"]
         raw = path.read_bytes()
         source_hash = None if item.get("omitSourceHash", False) else sha256_bytes(raw)
-        extracted, extracted_hash = extract_tika(args.tika, path)
-        has_forbidden = any(pattern.search(extracted) for pattern in FORBIDDEN_PATTERNS)
-        parse_nonempty = bool(extracted.strip())
+        extracted, extracted_hash, parser_status = extract_tika(args.tika, path)
+        parse_nonempty = extracted is not None and bool(extracted.strip())
+        has_forbidden = (
+            extracted is not None
+            and any(pattern.search(extracted) for pattern in FORBIDDEN_PATTERNS)
+        )
 
         reasons = []
         if not parse_nonempty:
@@ -172,9 +185,10 @@ def main() -> None:
             "sourceRef": item["sourceRef"],
             "file": item["file"],
             "sourceSha256": source_hash,
+            "parserHttpStatus": parser_status,
             "extractionSha256": extracted_hash,
             "parseNonempty": parse_nonempty,
-            "forbiddenSensitiveFieldDetected": has_forbidden,
+            "forbiddenSensitiveFieldDetected": bool(has_forbidden),
             "decision": decision,
             "reasons": reasons,
         }
@@ -219,7 +233,6 @@ def main() -> None:
     evidence["queries"]["admittedCount"] = len(returned_ids)
     evidence["queries"]["rejectedIdsAbsent"] = sorted(rejected_ids)
 
-    # Retrieval must preserve provenance hashes and the explicit derived-only marker.
     for doc in returned:
         if not doc.get("sourceSha256") or not doc.get("extractionSha256"):
             raise SystemExit(f"indexed document {doc['id']} lost provenance hashes")
