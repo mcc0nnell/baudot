@@ -130,6 +130,8 @@ provider/outcome combination count
 
 Pinot and Druid then consume the same retained Kafka bytes from the earliest offset. The harness does not regenerate a second candidate-specific corpus.
 
+The catch-up gate requires the analytical row count to equal the corpus row count exactly. Extra rows are a failure rather than being accepted as "caught up".
+
 ## Engine-native ingestion configs
 
 Pinot uses:
