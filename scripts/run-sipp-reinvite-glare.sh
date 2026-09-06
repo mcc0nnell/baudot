@@ -15,6 +15,7 @@ SCENARIO_XML="interop/sipp/scenarios/reinvite-glare-uac.xml"
 
 rm -rf "$CORRELATION_ROOT"
 mkdir -p "$RUN_ROOT"
+: > "$ERROR_LOG"
 
 mvn -B -ntp -q compile
 
