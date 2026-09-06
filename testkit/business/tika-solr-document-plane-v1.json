@@ -1,0 +1,160 @@
+{
+  "schema": "baudot.tika-solr-document-plane@1",
+  "tika": {
+    "version": "4.0.0",
+    "releaseTag": "4.0.0",
+    "releaseCommit": "514e1b3d8d29726d02ac6a12479d95f5db263379",
+    "repository": "apache/tika",
+    "role": "content-detection-extraction-normalization",
+    "defaultOutput": "markdown",
+    "parsingIsolation": "out-of-process"
+  },
+  "solr": {
+    "version": "10.0.0",
+    "releaseTag": "releases/solr/10.0.0",
+    "releaseCommit": "6c6c48a6f78486130682ea9c1f7a2723af5a87be",
+    "repository": "apache/solr",
+    "role": "read-only-document-search-index",
+    "security": {
+      "publicAdminSurfaceAllowed": false,
+      "anonymousSearchAllowed": false,
+      "jwtBlockUnknownMustBeTrue": true,
+      "externalProtectionRequired": true
+    }
+  },
+  "pipeline": [
+    "nifi-permitted-document-staging",
+    "tika-extraction",
+    "provenance-envelope",
+    "solr-index",
+    "read-only-search"
+  ],
+  "admittedDocumentClasses": [
+    "public-rule",
+    "public-order",
+    "public-guidance",
+    "public-report",
+    "public-provider-document",
+    "synthetic-contract",
+    "synthetic-test-evidence"
+  ],
+  "provenanceEnvelope": {
+    "fields": [
+      "documentId",
+      "sourceClass",
+      "sourceRef",
+      "sourceSha256",
+      "receivedAt",
+      "mediaType",
+      "extractor",
+      "extractorVersion",
+      "extractedContentSha256",
+      "indexVersion"
+    ],
+    "forbiddenFields": [
+      "credential",
+      "authorizationHeader",
+      "accessToken",
+      "refreshToken",
+      "subscriberName",
+      "subscriberId",
+      "telephoneNumber",
+      "rawCdr",
+      "claimApproved",
+      "paymentAuthorized",
+      "compensable"
+    ]
+  },
+  "solrFields": [
+    "documentId",
+    "sourceClass",
+    "sourceRef",
+    "sourceSha256",
+    "mediaType",
+    "title",
+    "bodyMarkdown",
+    "extractedMetadata",
+    "extractorVersion",
+    "extractedContentSha256",
+    "indexedAt"
+  ],
+  "queryClasses": [
+    "full-text",
+    "faceted-source-class",
+    "source-ref",
+    "sha256-exact",
+    "title",
+    "metadata"
+  ],
+  "authorityBoundary": {
+    "tikaParseSuccessIsSourceAuthenticity": false,
+    "tikaTextIsCanonicalSource": false,
+    "solrIndexSuccessIsSourceAuthority": false,
+    "solrSearchHitIsRegulatoryInterpretation": false,
+    "solrSearchHitIsPolicyDecision": false,
+    "solrRankingIsLegalPrecedence": false,
+    "solrSearchHitIsSubscriberEligibility": false,
+    "solrSearchHitIsCompensability": false,
+    "solrSearchHitIsClaimApproval": false
+  },
+  "cases": [
+    {
+      "id": "DOC-001",
+      "description": "admitted public rule with preserved source hash",
+      "sourceClass": "public-rule",
+      "sourceSha256Present": true,
+      "parseSucceeded": true,
+      "provenanceComplete": true,
+      "containsForbiddenData": false,
+      "expectIndexed": true
+    },
+    {
+      "id": "DOC-002",
+      "description": "unsupported/corrupt parse is quarantined instead of indexed as empty truth",
+      "sourceClass": "public-report",
+      "sourceSha256Present": true,
+      "parseSucceeded": false,
+      "provenanceComplete": true,
+      "containsForbiddenData": false,
+      "expectIndexed": false
+    },
+    {
+      "id": "DOC-003",
+      "description": "missing source hash prevents admission",
+      "sourceClass": "public-guidance",
+      "sourceSha256Present": false,
+      "parseSucceeded": true,
+      "provenanceComplete": false,
+      "containsForbiddenData": false,
+      "expectIndexed": false
+    },
+    {
+      "id": "DOC-004",
+      "description": "forbidden subscriber or credential data is rejected from general search index",
+      "sourceClass": "synthetic-test-evidence",
+      "sourceSha256Present": true,
+      "parseSucceeded": true,
+      "provenanceComplete": true,
+      "containsForbiddenData": true,
+      "expectIndexed": false
+    },
+    {
+      "id": "DOC-005",
+      "description": "successful search retrieval remains derived evidence only",
+      "sourceClass": "public-order",
+      "sourceSha256Present": true,
+      "parseSucceeded": true,
+      "provenanceComplete": true,
+      "containsForbiddenData": false,
+      "expectIndexed": true
+    }
+  ],
+  "claimBoundary": {
+    "productionDocumentSecurityClaimed": false,
+    "regulatoryCompletenessClaimed": false,
+    "legalInterpretationClaimed": false,
+    "sourceAuthenticityClaimedByExtraction": false,
+    "productionSolrSecurityClaimed": false,
+    "productionTikaIsolationClaimed": false
+  }
+}
