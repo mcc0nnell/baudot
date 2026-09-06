@@ -1,0 +1,43 @@
+{
+  "schema": "baudot.itrs-provider-choreography@1",
+  "authority": "synthetic-clean-room",
+  "implementationFixture": {
+    "name": "ACE Connect Lite",
+    "sourceRepository": "https://github.com/mitrefccace/aceconnectlite-public",
+    "baudotProviderProfile": "PR #41 providers/ace-connect-lite",
+    "legacyNumberLookupSeam": "/vrsverify/",
+    "sourceCommit": "da74e6450193be1456ce2cdf65dd5ffdf0e92f1e",
+    "observedConsumerFile": "server.js",
+    "compatibilityContract": "ace-connect-lite-vrsverify-consumer-v1.json"
+  },
+  "roles": [
+    {
+      "fixtureId": "provider-a",
+      "cteSessionId": "provider-a-session",
+      "xspid": "XSPID-A",
+      "implementationRole": "ACE Connect Lite instance A"
+    },
+    {
+      "fixtureId": "provider-b",
+      "cteSessionId": "provider-b-session",
+      "xspid": "XSPID-B",
+      "implementationRole": "ACE Connect Lite instance B"
+    }
+  ],
+  "choreography": [
+    "provider-a and provider-b use their synthetic CTE sessions for directory operations",
+    "an ACE Connect Lite instance points its configured vrscheck host/port at the local Baudot compatibility adapter",
+    "ACE issues GET /vrsverify/?vrsnum=<number> for VRS-number classification",
+    "the adapter translates the CTE routability result into only the message and data[0].vrs fields observed in the public ACE consumer",
+    "AllCallQuery remains the separate source of the logical route; no claim is made that ACE consumes that URI from /vrsverify/",
+    "a synthetic NPAC observation makes provider-b eligible to gain a provider-a TN",
+    "provider-b provisions the TN and the query replica changes after the configured delay",
+    "provider-a is denied further writes after the first accepted gaining-provider provision"
+  ],
+  "claimBoundary": [
+    "ACE Connect Lite is an implementation under test, not normative iTRS truth.",
+    "The observed /vrsverify/ behavior is a classification consumer seam, not evidence that ACE consumes an iTRS logical SIP URI from that response.",
+    "The compatibility facade does not reconstruct the original verifier service or a production provider / Numbering Administrator interface.",
+    "Terminal interoperability verdicts remain Baudot-owned."
+  ]
+}
