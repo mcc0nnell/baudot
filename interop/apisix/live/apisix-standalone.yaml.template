@@ -8,6 +8,7 @@ routes:
       openid-connect:
         client_id: baudot-edge
         client_secret: synthetic-secret
+        discovery: http://baudot-edge-mock:8080/.well-known/openid-configuration
         bearer_only: true
         introspection_endpoint: http://baudot-edge-mock:8080/introspect
         introspection_endpoint_auth_method: client_secret_post
