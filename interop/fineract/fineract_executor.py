@@ -373,6 +373,10 @@ class FineractExecutor:
         target = ledger.require(target_id)
         if not target.fineract_transaction_id or not target.expected_debit_account or not target.expected_credit_account:
             raise ValueError(f"target transaction {target_id} is not a reversible Fineract journal")
+        if event.effective_date != target.posting_date:
+            raise ValueError(
+                "TRANSACTION_REVERSED effective_date must equal target posting date; Fineract reverses on the original journal date"
+            )
 
         reversal_template = self._surface(
             "reversal",
@@ -399,7 +403,7 @@ class FineractExecutor:
         return ExecutionRecord(
             synthetic_business_transaction_id=event.transaction_id,
             event_type=event.event_type,
-            posting_date=event.effective_date,
+            posting_date=target.posting_date,
             operation="reversal",
             amount=target.amount,
             expected_debit_account=expected_debit_code,
