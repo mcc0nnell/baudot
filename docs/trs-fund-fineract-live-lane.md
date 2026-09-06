@@ -7,21 +7,22 @@ It remains a **test bench**, not a production Fund implementation.
 
 ## Pinned implementation under test
 
-The GitHub Actions lane pins Apache Fineract **1.15.0** in two independent ways:
+The GitHub Actions lane pins Apache Fineract **1.15.0** to the release source and builds the container used by the test from that exact tree:
 
 ```text
 release tag:     1.15.0
 source commit:   d5636847ac556c30b437254c353f05526d172b97
-container image: apache/fineract:1.15.0
+container image: fineract:baudot-1.15.0 (source-built in CI)
+compose alias:   fineract:latest
 ```
 
-The workflow verifies that the checked-out source commit is pointed to by the `1.15.0` tag, then pulls the Apache-published `1.15.0` Docker image and records its image ID and repository digest in the CI evidence bundle.
+The workflow verifies the checked-out source commit, builds Fineract with the release's own `:fineract-provider:jibDockerBuild` task on Java 21, records the source tree, build toolchain, local image ID, and repo tags, and only then tags that exact image as `fineract:latest` for Fineract's upstream Docker Compose definition.
 
-Fineract's upstream publish workflow emits the release-number tag for release builds; commit-hash Docker tags are used for `develop`, not for the 1.15.0 release. The source commit therefore pins the code lineage while the captured image digest pins the actual container bytes executed by the test.
+The lane intentionally does **not** assume that a matching `apache/fineract:1.15.0` Docker Hub tag exists. The release source commit is the code-lineage pin; the captured local image ID identifies the exact container bytes executed by the run.
 
 Fineract's Docker artifacts are treated only as development/test infrastructure.
 
-The pin matters: an evidence bundle must identify which ledger implementation accepted a transaction. A moving `latest` image would make a replay ambiguous.
+The pin matters: an evidence bundle must identify which ledger implementation accepted a transaction. A moving external image tag would make a replay ambiguous.
 
 ## Base scenario
 
@@ -62,6 +63,69 @@ TRS Provider Compensation Expense    6,000 debit
 ```
 
 The reversal is intentional. A happy-path posting alone does not prove that corrections preserve history.
+
+## Canonical SF26 -> Fineract account model
+
+The model keeps the regulatory/business domain in Baudot and uses Fineract as the accounting kernel. A provider, contributor, filing, claim, or payment authorization is **not** automatically modeled as a Fineract client, loan, savings account, or product.
+
+The stable synthetic account vocabulary is:
+
+```text
+1100  TRS Fund Cash                         ASSET
+1200  Contributor Receivable                ASSET
+2100  Provider Payable                      LIABILITY
+4100  Contribution Revenue                  INCOME
+5100  TRS Provider Compensation Expense     EXPENSE
+5200  TRS Program Administration Expense    EXPENSE
+5300  NDBEDP Program Expense                EXPENSE
+```
+
+The canonical event-to-journal mapping is:
+
+```text
+contributorAssessment
+  Dr 1200 Contributor Receivable
+  Cr 4100 Contribution Revenue
+
+contributorReceipt
+  Dr 1100 TRS Fund Cash
+  Cr 1200 Contributor Receivable
+
+providerClaimApproved
+  Dr 5100 TRS Provider Compensation Expense
+  Cr 2100 Provider Payable
+
+providerDisbursement
+  Dr 2100 Provider Payable
+  Cr 1100 TRS Fund Cash
+
+programAdministrationAccrued
+  Dr 5200 TRS Program Administration Expense
+  Cr 2100 Provider Payable
+
+ndbedpAccrued
+  Dr 5300 NDBEDP Program Expense
+  Cr 2100 Provider Payable
+```
+
+That split is deliberate:
+
+```text
+Baudot / SF26 owns                  Fineract owns
+------------------                  -------------
+provider identity                   GL resource IDs
+contributor identity                journal acceptance/rejection
+filing lineage                      debit/credit rows
+eligibility                         transaction IDs
+rate/policy selection               reversals
+claim authorization                 accounting closure
+payment authorization               ledger balances
+idempotency/evidence correlation    accounting execution
+```
+
+Fineract resource IDs are therefore execution evidence, not domain identifiers. Baudot event IDs remain the stable correlation and idempotency vocabulary.
+
+This gives the synthetic Fund a useful accounting invariant: a balanced Fineract journal proves only that the accounting instruction was accepted. It does not prove that the underlying provider, contributor, filing, claim, or payment was program-authorized.
 
 ## Accounting-closure probe
 
@@ -133,17 +197,7 @@ Fineract accepted the journal
 
 ## Account bootstrap
 
-The live lane creates dedicated detail accounts using a `BAUDOT-` prefix and maps the synthetic Fund chart into Fineract resource IDs at runtime:
-
-```text
-1100  TRS Fund Cash
-1200  Contributor Receivable
-2100  Provider Payable
-4100  Contribution Revenue
-5100  TRS Provider Compensation Expense
-5200  TRS Program Administration Expense
-5300  NDBEDP Program Expense
-```
+The live lane creates dedicated detail accounts using a `BAUDOT-` prefix and maps the synthetic Fund chart into Fineract resource IDs at runtime.
 
 The source account numbers remain Baudot's stable synthetic vocabulary. Fineract-generated numeric resource IDs are execution evidence, not domain identifiers.
 
@@ -165,8 +219,9 @@ artifacts/trs-fund-fineract/
 
 The evidence records:
 
-- Fineract release tag and source commit;
-- pulled container image ID and repository digest;
+- Fineract release tag, source commit, and source tree;
+- source-build task, Java version, and Gradle version;
+- source-built container image ID and repo tags;
 - synthetic business transaction IDs;
 - event types and amounts;
 - expected debit/credit accounts;
@@ -247,5 +302,7 @@ Once the live base lane and closure probe are green, the next increment is a **r
 5. exercise underpayment and overpayment/credit-balance cases;
 6. preserve correlation between original filing, revision, assessment, receipt, and correction; and
 7. reconcile the resulting receivable and cash positions through Fineract.
+
+The true-up slice should add a dedicated contributor-credit liability rather than hiding an overpayment as a negative receivable. That will let the same replay distinguish amounts still collectible from amounts owed back or available to offset a later assessment.
 
 After that, the same event grammar can be replayed across multiple program years with a deterministic business-date clock.
