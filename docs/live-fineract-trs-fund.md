@@ -26,11 +26,13 @@ The qualification target is Apache Fineract 1.15.0:
 ```text
 release tag:       1.15.0
 release commit:    d5636847ac556c30b437254c353f05526d172b97
-container source:  apache/fineract:<full release commit SHA>
+container source:  built locally from the verified release checkout
 database family:   PostgreSQL
 ```
 
-The CI lane checks out the Apache source at `1.15.0`, verifies that the checkout resolves to the pinned release commit, pulls the Apache-published container for that exact commit, and runs it with the release's own Docker configuration.
+The CI lane checks out the Apache source at `1.15.0`, verifies that the checkout resolves to the pinned release commit, and builds the Fineract image from that exact source using the same `:fineract-provider:jibDockerBuild` task used by Apache's Docker CI.
+
+The first two qualification attempts also established a useful negative fact: neither the release commit SHA nor `apache/fineract:1.15.0` was resolvable from Docker Hub at test time. Baudot therefore does **not** fall back to `latest`; it removes registry tag publication from the trust chain and builds the observed runtime from verified release source.
 
 This prevents `latest`, a moving branch, or an unrelated image build from silently changing the evidence target.
 
@@ -120,6 +122,10 @@ A live run preserves only synthetic, non-secret evidence:
 
 ```text
 target/evidence-external/LIVE-FINERACT-TRS/v1/
+  source-pin.json
+  image-build.json
+  image-git-properties.txt
+  actuator-info.json
   platform-pin.json
   gl-accounts.json
   seed-request.json
@@ -150,18 +156,19 @@ No Basic Auth header, password, database credential, container environment, or p
 A run qualifies only when all of these independent facts hold:
 
 1. source checkout is the pinned Fineract 1.15.0 release commit;
-2. the exact commit-tagged Apache container starts successfully;
-3. synthetic GL accounts are created and read from Fineract;
-4. claim accrual returns a transaction ID and readback exactly matches `Dr 5100 / Cr 2100` semantics;
-5. disbursement returns a different transaction ID and readback exactly matches `Dr 2100 / Cr 1100` semantics;
-6. the adapter rejects duplicate business-event replay before a second mutation;
-7. the Fineract reversal command succeeds and external readback exposes the reversed transaction state;
-8. a real Fineract accounting closure rejects a journal dated before the closure; and
-9. Baudot's independent reducer produces the final `qualified=true` result.
+2. the runtime image is built from that exact verified checkout and contains generated `git.properties`;
+3. the running actuator exposes Git build information;
+4. synthetic GL accounts are created and read from Fineract;
+5. claim accrual returns a transaction ID and readback exactly matches `Dr 5100 / Cr 2100` semantics;
+6. disbursement returns a different transaction ID and readback exactly matches `Dr 2100 / Cr 1100` semantics;
+7. the adapter rejects duplicate business-event replay before a second mutation;
+8. the Fineract reversal command succeeds and external readback exposes the reversed transaction state;
+9. a real Fineract accounting closure rejects a journal dated before the closure; and
+10. Baudot's independent reducer produces the final `qualified=true` result.
 
 ## Claim boundary
 
-A green live lane establishes only that the pinned Fineract release behaved consistently with this narrow synthetic accounting contract in the observed CI run.
+A green live lane establishes only that the source-built, pinned Fineract 1.15.0 release behaved consistently with this narrow synthetic accounting contract in the observed CI run.
 
 It does **not** establish:
 
