@@ -78,7 +78,11 @@ jobs:
             -DUSE_SCTP=0 \
             -DUSE_SYSTEM_PUGIXML=ON
           cmake --build /tmp/sipp-build --parallel 2
+          set +e
           /tmp/sipp-build/sipp -v | tee evidence/sipp-hostile/sipp-version.txt
+          SIPP_VERSION_STATUS=${PIPESTATUS[0]}
+          set -e
+          test "$SIPP_VERSION_STATUS" -eq 99
           sha256sum /tmp/sipp-build/sipp | tee evidence/sipp-hostile/sipp-executable.sha256
 
       - name: Execute live re-INVITE glare pressure
