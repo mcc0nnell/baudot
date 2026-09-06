@@ -38,6 +38,8 @@ baudot-testkit
 
 The first cross-project research integration is with ACE Omni: Omni can execute controlled communications experiments while Baudot owns the portable accessibility behavior and test vocabulary.
 
+Tilden is a separate upstream federation project for identity resolution, capability-aware route selection, and explainable routing evidence. Baudot consumes only the selected runtime route and correlation fields it needs. Tilden answers **why this endpoint was selected**; Baudot answers **whether the selected systems actually established a usable accessible session**. See [`docs/tilden-selection-handoff.md`](docs/tilden-selection-handoff.md).
+
 ## Current proving ground
 
 Baudot currently uses JAIN SIP as a glass-box signaling instrument and Sandia Wiretap as an external controlled-network substrate.
@@ -49,6 +51,8 @@ The executable proving ground now includes:
 - RFC 2198 redundancy parsing and deterministic T.140 recovery;
 - independently routed signaling and text-media paths through Wiretap;
 - fail-fast topology preflight with evidence-bound reserved-prefix, route, namespace, host-link, and reverse-path assertions;
+- `TILDEN-HANDOFF-001`, which validates a Tilden selection, preserves `selectionId`, and establishes the selected SIP/UDP route;
+- `TILDEN-HANDOFF-002`, which carries a Tilden-selected route through the existing RFC 4103/RED/T.140 evidence path and emits `selected-route-rtt-ready` only after independent Python-reference validation;
 - `BAUDOT-INTEROP-003`, a runnable re-INVITE / SDP-freshness / RTT-readiness evidence chain;
 - `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain;
 - a bidirectional JAIN SIP ↔ Elixip `BAUDOT-INTEROP-004` matrix with controlled negative and positive readiness arms, preserved wire evidence, and independent terminal reduction;
@@ -68,6 +72,8 @@ old leg preserved
 ```
 
 from a usable replacement leg where independently validated T.140 is observed before teardown.
+
+The Tilden RTT handoff uses the same distinction. A route-selection success or SIP 200 response does not produce an RTT-ready claim. `TILDEN-HANDOFF-002` requires preserved SDP and wire datagrams to pass Baudot's independent RFC 4103/RFC 2198/T.140 reference reducer before the route is classified as `selected-route-rtt-ready`.
 
 The Elixip matrix executes that decision in both implementation directions:
 
@@ -102,7 +108,7 @@ Java does not parse the implementation-generated RTP and does not compare it to 
 
 [ADR-0002](docs/adr/0002-pjsip-native-rtt-media-oracle.md) admits PJSIP/PJPROJECT 2.17 as an external native RTT media oracle at exact commit `5a457451fa2712ba18e12b01738e8ff3af2b26fd`. The accepted profile remains external and ephemeral; the linked qualification executable is not distributed as a Baudot artifact.
 
-See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model.
+See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model and [`interop/tilden/`](interop/tilden/) for the federation handoff fixtures and executable profiles.
 
 ## Interoperability ensemble
 
@@ -115,6 +121,8 @@ See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed 
 - **ACE Direct** — historical production donor corpus; and
 - **Wiretap** — external network/evidence substrate, never verdict authority.
 
+Tilden is intentionally not part of that implementation ensemble. It is an external federation and routing contract consumed before Baudot begins runtime interoperability evaluation.
+
 Baudot reducers and reference code retain terminal verdict authority within explicit claim boundaries. Implementation agreement is evidence, not correctness by majority vote.
 
 The Elixip external-oracle lane is documented in [`interop/elixip/`](interop/elixip/). It admits one exact clean upstream Elixip checkout and hash-binds Baudot-owned FSL inputs before execution without vendoring or linking Elixip into Baudot. `BAUDOT-INTEROP-004` exercises that boundary in both directions while keeping REFER acceptance, NOTIFY progression, replacement-dialog establishment, RTT negotiation, T.140 observation, old-leg teardown, and terminal readiness as separate evidence facts.
@@ -125,7 +133,7 @@ The PJSIP native-media lane is documented in [`interop/pjsip/`](interop/pjsip/).
 
 Baudot is in active proving-ground development. Several scenarios are **runnable**, but runnable is not the same as proven or conformant.
 
-The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, or other implementation conformance. The native PJSIP handoff arm is evidence that the pinned implementation participated in one controlled replacement-leg flow whose live media was independently reduced before old-leg release; it is not a general conformance finding. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
+The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, Tilden federation deployment, or other implementation conformance. `TILDEN-HANDOFF-002` is evidence that one canonical Tilden-selected SIP/UDP route was exercised through Baudot's existing RTT proof path and independently reduced to the expected presentation; it is not a general Tilden, provider, or protocol conformance finding. The native PJSIP handoff arm likewise demonstrates one controlled replacement-leg flow whose live media was independently reduced before old-leg release, not general conformance. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
 
 ## Project name
 
