@@ -108,7 +108,7 @@ jobs:
             jq -e '.accepted | length == 2' target/nifi-live/evidence.json >/dev/null
             jq -e '.quarantined | length == 2' target/nifi-live/evidence.json >/dev/null
             jq -e '.stagedFiles | all(.bytesPreserved == true)' target/nifi-live/evidence.json >/dev/null
-            jq -e '.authority | all(. == false)' target/nifi-live/evidence.json >/dev/null
+            jq -e '.authority | [ .[] ] | all(. == false)' target/nifi-live/evidence.json >/dev/null
             grep -q 'BAUDOT_NIFI_PROVIDER_EVIDENCE' target/nifi-live/nifi-container.log
             grep -q 'BAUDOT_NIFI_CDR_EVIDENCE' target/nifi-live/nifi-container.log
             for key in sourceSystem sourceObjectId receivedAt contentSha256 flowId correlationId; do
