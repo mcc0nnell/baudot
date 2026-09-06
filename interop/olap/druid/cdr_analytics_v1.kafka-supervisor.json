@@ -1,0 +1,49 @@
+{
+  "type": "kafka",
+  "spec": {
+    "dataSchema": {
+      "dataSource": "cdr_analytics_v1",
+      "timestampSpec": {
+        "column": "eventTime",
+        "format": "millis"
+      },
+      "dimensionsSpec": {
+        "dimensions": [
+          "eventId",
+          "callId",
+          "providerId",
+          "serviceType",
+          "direction",
+          "outcome"
+        ]
+      },
+      "metricsSpec": [
+        {"type": "longSum", "name": "durationSeconds", "fieldName": "durationSeconds"},
+        {"type": "longSum", "name": "sourceObservationCount", "fieldName": "sourceObservationCount"}
+      ],
+      "granularitySpec": {
+        "type": "uniform",
+        "segmentGranularity": "HOUR",
+        "queryGranularity": "NONE",
+        "rollup": false
+      }
+    },
+    "ioConfig": {
+      "topic": "baudot.olap.cdr.v1",
+      "inputFormat": {"type": "json"},
+      "consumerProperties": {
+        "bootstrap.servers": "kafka:9092"
+      },
+      "taskCount": 1,
+      "replicas": 1,
+      "taskDuration": "PT1H",
+      "useEarliestOffset": true,
+      "completionTimeout": "PT20M"
+    },
+    "tuningConfig": {
+      "type": "kafka",
+      "maxRowsPerSegment": 500000,
+      "resetOffsetAutomatically": false
+    }
+  }
+}
