@@ -1,0 +1,33 @@
+name: part64-fund-claim-handoff
+
+on:
+  push:
+    paths:
+      - "docs/part64-fund-claim-handoff.md"
+      - "testkit/fund/part64-vrs-claim-handoff-v1.json"
+      - "testkit/part64/fixtures/vrs-rate-cases.json"
+      - "interop/fineract/journal-contract-v1.json"
+      - "scripts/validate_part64_fund_claim_handoff.py"
+      - ".github/workflows/part64-fund-claim-handoff.yml"
+  pull_request:
+    paths:
+      - "docs/part64-fund-claim-handoff.md"
+      - "testkit/fund/part64-vrs-claim-handoff-v1.json"
+      - "testkit/part64/fixtures/vrs-rate-cases.json"
+      - "interop/fineract/journal-contract-v1.json"
+      - "scripts/validate_part64_fund_claim_handoff.py"
+      - ".github/workflows/part64-fund-claim-handoff.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Part 64 to Fund/Fineract handoff
+        run: python scripts/validate_part64_fund_claim_handoff.py

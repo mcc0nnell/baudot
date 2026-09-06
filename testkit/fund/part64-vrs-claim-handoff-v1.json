@@ -1,0 +1,136 @@
+{
+  "schema": "baudot.part64-vrs-claim-handoff@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "authorityBoundary": {
+    "regulatoryCompensabilityAuthority": "upstream-part64-external-determination-input",
+    "rateAuthority": "upstream-64.643-rate-engine",
+    "claimApprovalAuthority": "baudot-synthetic-fund-claim-decision",
+    "accountingAuthority": "fineract-synthetic-accounting-adapter-only",
+    "paymentAuthorizationAuthority": "separate-synthetic-payment-authorization"
+  },
+  "cases": [
+    {
+      "scenario": "FUND-HANDOFF-APPROVED-001",
+      "syntheticBusinessTransactionId": "claim-vrs-2026-08-example-001",
+      "regulatoryDecision": "externally-established-compensable",
+      "rateEngineScenario": "VRS-RATE-VIDEO-TEXT-1000",
+      "rateCalculatedAmountUsd": "8830.00",
+      "claimDecision": "approved",
+      "approvedClaimAmountUsd": "8830.00",
+      "paymentAuthorization": "not-determined",
+      "expected": {
+        "journalEvent": "providerClaimApproved",
+        "postingAllowed": true,
+        "debitAccount": "5100",
+        "creditAccount": "2100",
+        "journalAmountUsd": "8830.00",
+        "providerPayableCreated": true,
+        "fundCashChanged": false,
+        "disbursementAllowed": false
+      }
+    },
+    {
+      "scenario": "FUND-HANDOFF-COMP-PENDING-001",
+      "syntheticBusinessTransactionId": "claim-vrs-2026-08-example-002",
+      "regulatoryDecision": "pending",
+      "rateEngineScenario": null,
+      "rateCalculatedAmountUsd": null,
+      "claimDecision": "not-evaluated",
+      "approvedClaimAmountUsd": null,
+      "expected": {
+        "postingAllowed": false,
+        "providerPayableCreated": false,
+        "reason": "regulatory-compensability-not-terminal"
+      }
+    },
+    {
+      "scenario": "FUND-HANDOFF-COMP-DENIED-001",
+      "syntheticBusinessTransactionId": "claim-vrs-2026-08-example-003",
+      "regulatoryDecision": "denied",
+      "rateEngineScenario": null,
+      "rateCalculatedAmountUsd": null,
+      "claimDecision": "denied",
+      "approvedClaimAmountUsd": null,
+      "expected": {
+        "postingAllowed": false,
+        "providerPayableCreated": false,
+        "reason": "regulatory-compensability-denied"
+      }
+    },
+    {
+      "scenario": "FUND-HANDOFF-COMP-SUSPENDED-001",
+      "syntheticBusinessTransactionId": "claim-vrs-2026-08-example-004",
+      "regulatoryDecision": "suspended",
+      "rateEngineScenario": null,
+      "rateCalculatedAmountUsd": null,
+      "claimDecision": "held",
+      "approvedClaimAmountUsd": null,
+      "expected": {
+        "postingAllowed": false,
+        "providerPayableCreated": false,
+        "reason": "regulatory-payment-suspension"
+      }
+    },
+    {
+      "scenario": "FUND-HANDOFF-CLAIM-PENDING-001",
+      "syntheticBusinessTransactionId": "claim-vrs-2026-08-example-005",
+      "regulatoryDecision": "externally-established-compensable",
+      "rateEngineScenario": "VRS-RATE-VIDEO-TEXT-1000",
+      "rateCalculatedAmountUsd": "8830.00",
+      "claimDecision": "pending",
+      "approvedClaimAmountUsd": null,
+      "expected": {
+        "postingAllowed": false,
+        "providerPayableCreated": false,
+        "reason": "synthetic-claim-not-approved"
+      }
+    },
+    {
+      "scenario": "FUND-HANDOFF-AMOUNT-MISMATCH-001",
+      "syntheticBusinessTransactionId": "claim-vrs-2026-08-example-006",
+      "regulatoryDecision": "externally-established-compensable",
+      "rateEngineScenario": "VRS-RATE-VIDEO-TEXT-1000",
+      "rateCalculatedAmountUsd": "8830.00",
+      "claimDecision": "approved",
+      "approvedClaimAmountUsd": "8829.99",
+      "expected": {
+        "postingAllowed": false,
+        "providerPayableCreated": false,
+        "reason": "approved-claim-amount-does-not-match-rate-result"
+      }
+    },
+    {
+      "scenario": "FUND-HANDOFF-DUPLICATE-REPLAY-001",
+      "syntheticBusinessTransactionId": "claim-vrs-2026-08-example-001",
+      "replayOfScenario": "FUND-HANDOFF-APPROVED-001",
+      "regulatoryDecision": "externally-established-compensable",
+      "rateEngineScenario": "VRS-RATE-VIDEO-TEXT-1000",
+      "rateCalculatedAmountUsd": "8830.00",
+      "claimDecision": "approved",
+      "approvedClaimAmountUsd": "8830.00",
+      "priorPostingObservedForBusinessTransactionId": true,
+      "expected": {
+        "postingAllowed": false,
+        "additionalFinancialEffectUsd": "0.00",
+        "providerPayableCreatedAgain": false,
+        "reason": "idempotent-replay"
+      }
+    },
+    {
+      "scenario": "FUND-HANDOFF-DISBURSEMENT-BLOCKED-001",
+      "syntheticBusinessTransactionId": "payment-vrs-2026-08-example-001",
+      "approvedClaimBusinessTransactionId": "claim-vrs-2026-08-example-001",
+      "providerPayableExists": true,
+      "paymentAuthorization": "not-determined",
+      "requestedDisbursementAmountUsd": "8830.00",
+      "expected": {
+        "journalEvent": "providerDisbursement",
+        "postingAllowed": false,
+        "fundCashChanged": false,
+        "reason": "payment-authorization-not-established"
+      }
+    }
+  ],
+  "productionFundClaim": false,
+  "productionPayment": false
+}
