@@ -1,0 +1,65 @@
+name: ace-kamailio-donor
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/ace-kamailio-donor.yml'
+      - 'interop/ace-kamailio/**'
+      - 'docs/ace-direct-interop-corpus.md'
+      - 'README.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ace-kamailio-donor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-donor-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate Python syntax
+        run: python -m py_compile interop/ace-kamailio/validate_media_relay_donor.py
+
+      - name: Validate media-relay donor vectors
+        run: python interop/ace-kamailio/validate_media_relay_donor.py
+
+      - name: Enforce no external runtime dependency in donor model
+        shell: bash
+        run: |
+          set -euo pipefail
+          validator=interop/ace-kamailio/validate_media_relay_donor.py
+          ! grep -Eq 'socket\.|requests\.|urllib\.request|subprocess\.|os\.system|docker|kamailio|rtpengine_manage' "$validator"
+          grep -q 'independentT140Text' "$validator"
+          grep -q 'rttReady' "$validator"
+
+      - name: Seal static donor evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=target/evidence-external/ACE-KAMAILIO-DONOR/static
+          mkdir -p "$out"
+          cp interop/ace-kamailio/media-relay-vectors.json "$out/"
+          cp interop/ace-kamailio/validate_media_relay_donor.py "$out/"
+          (
+            cd "$out"
+            sha256sum media-relay-vectors.json validate_media_relay_donor.py > bundle.manifest.sha256
+            sha256sum -c bundle.manifest.sha256
+          )
+
+      - name: Preserve donor evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-ace-kamailio-donor
+          path: target/evidence-external/ACE-KAMAILIO-DONOR/static
+          if-no-files-found: warn
