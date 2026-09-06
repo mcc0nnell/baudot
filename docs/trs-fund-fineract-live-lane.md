@@ -19,7 +19,7 @@ Fineract's Docker artifacts are treated only as development/test infrastructure.
 The pin matters: an evidence bundle must identify which ledger implementation accepted a transaction.
 A moving `latest` image would make a replay ambiguous.
 
-## Scenario
+## Base scenario
 
 `testkit/fund/fineract-live-smoke-v1.json` declares the first complete accounting loop:
 
@@ -58,6 +58,40 @@ TRS Provider Compensation Expense    6,000 debit
 ```
 
 The reversal is intentional. A happy-path posting alone does not prove that corrections preserve history.
+
+## Accounting-closure probe
+
+The same disposable Fineract instance then exercises a negative control:
+
+```text
+close accounting through 2026-09-05
+        |
+        +--> attempt $125 correction dated 2026-09-05
+        |        expected: REJECT
+        |        expected code:
+        |        error.msg.glJournalEntry.invalid.accounting.closed
+        |
+        +--> post the same synthetic correction on 2026-09-06
+                 expected: ACCEPT
+                 |
+                 v
+              explicit reversal on open date
+```
+
+The correction uses the program-administration expense/payable mapping only as a synthetic accounting probe. It is not a real Fund administrative charge.
+
+The open-date correction is reversed after verification so the base scenario's expected economic end state remains unchanged at $4,000 Fund cash.
+
+`FUND-CLS-001` is **evidence-gated**. The static scenario intentionally does not list it in `requiredInvariants` before a live run. `scripts/run_fineract_fund_closure_probe.py` adds it to the evidence manifest only after all of the following are observed:
+
+- the accounting closure exists for the declared office/date;
+- the closed-date journal fails;
+- the failure contains Fineract's specific accounting-closed error code;
+- no successful transaction is accepted for that attempt;
+- the same correction posts on the declared open date; and
+- the open-date correction's original journal rows are marked reversed after cleanup.
+
+This keeps a declared capability behind executable evidence rather than documentation.
 
 ## Authority boundary
 
@@ -134,12 +168,15 @@ The manifest records:
 - account-ID mappings;
 - policy/source provenance;
 - independently calculated ending balances;
+- closure creation evidence;
+- the rejected closed-date attempt and expected error code;
+- the accepted open-date correction and cleanup reversal;
 - invariant results; and
 - a canonical SHA-256 over the manifest.
 
-CI also retains the Fineract Docker Compose state and logs.
+Before the closure probe rewrites the manifest hash, it preserves the pre-closure canonical hash inside the `closureProbe` evidence block. CI also retains the Fineract Docker Compose state and logs.
 
-## First executable invariants
+## Executable invariants
 
 The lane reports these independently:
 
@@ -149,13 +186,12 @@ FUND-REC-001  contributor receivable returns to zero after receipt
 FUND-CLM-001  an approved synthetic claim creates the declared accounting event
 FUND-DIS-001  payable returns to zero after the effective disbursement
 FUND-ADJ-001  reversal is explicit and followed by a distinct repost transaction
+FUND-CLS-001  closed-date correction is rejected for ACCOUNTING_CLOSED and open-date correction succeeds
 FUND-AUD-001  every effective event retains Fineract transaction/journal identifiers
 FUND-AUT-001  Fineract acceptance never substitutes for program authorization
 ```
 
-`EXPECTED-BALANCES` is also checked against the scenario fixture.
-
-`FUND-CLS-001` is deliberately not claimed by this first lane. Accounting closure is the next proving step.
+`EXPECTED-BALANCES` is also checked against the base scenario fixture.
 
 ## Reversal compatibility
 
@@ -178,19 +214,30 @@ FINERACT_USERNAME=mifos \
 FINERACT_PASSWORD=password \
 FINERACT_TENANT=default \
 FINERACT_INSECURE_TLS=1 \
+TRS_FUND_EVIDENCE_DIR=artifacts/trs-fund-fineract \
 python scripts/run_fineract_fund_lane.py
+
+FINERACT_BASE_URL=https://localhost:8443/fineract-provider/api/v1 \
+FINERACT_USERNAME=mifos \
+FINERACT_PASSWORD=password \
+FINERACT_TENANT=default \
+FINERACT_INSECURE_TLS=1 \
+TRS_FUND_EVIDENCE_DIR=artifacts/trs-fund-fineract \
+python scripts/run_fineract_fund_closure_probe.py
 ```
 
-Never point this script at a production Fineract tenant. It creates synthetic GL accounts and posts synthetic journals.
+Never point these scripts at a production Fineract tenant. They create synthetic GL accounts, post synthetic journals, and create an accounting closure.
 
 ## Next threshold
 
-After this lane is green, the next increment is not "more transactions." It is **time and correction semantics**:
+Once the live base lane and closure probe are green, the next increment is a **revised Form 499-A true-up without history rewriting**:
 
-1. create an accounting closure;
-2. prove that an attempted back-post into the closed period is rejected or explicitly redirected to an authorized open date;
-3. preserve the failed request and response as evidence;
-4. add a revised Form 499-A true-up without rewriting the original assessment;
-5. replay the same scenario across multiple program years.
+1. issue the original synthetic contributor assessment;
+2. receive at least a partial payment;
+3. introduce a revised filing with a changed revenue base;
+4. calculate the delta as a new evidence-bearing adjustment rather than editing the original assessment;
+5. exercise underpayment and overpayment/credit-balance cases;
+6. preserve correlation between original filing, revision, assessment, receipt, and correction; and
+7. reconcile the resulting receivable and cash positions through Fineract.
 
-That moves the proving ground from "Fineract can accept our synthetic Fund journal" to "the synthetic Fund can survive corrections, period boundaries, and replay without losing history."
+After that, the same event grammar can be replayed across multiple program years with a deterministic business-date clock.
