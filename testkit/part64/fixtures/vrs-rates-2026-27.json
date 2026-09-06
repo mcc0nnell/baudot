@@ -1,0 +1,33 @@
+{
+  "schema": "baudot.vrs-public-rate-input@1",
+  "fundYear": "2026-27",
+  "periodStart": "2026-07-01",
+  "periodEnd": "2027-06-30",
+  "provenance": "public-source-calibrated-synthetic-rate-input",
+  "normativeBoundaryAuthority": "47 CFR 64.643",
+  "publishedRateSource": {
+    "title": "Rolka Loube TRS Providers",
+    "url": "https://rolkaloube.com/programs/federal-itrs/trs-providers",
+    "accessed": "2026-09-06",
+    "authority": "published-operational-rate-input-not-tier-semantics-authority"
+  },
+  "ratesUsdPerConversationMinute": {
+    "smallProvider": "8.61",
+    "largeProviderTier1": "6.96",
+    "largeProviderTier2": "4.35",
+    "videoTextAdditive": "0.22"
+  },
+  "cfrTierBoundary": {
+    "smallProviderMaximumMonthlyConversationMinutes": 1000000,
+    "largeProviderThreshold": "more-than-1000000",
+    "largeProviderTier1MaximumMinutes": 1000000
+  },
+  "sourceBoundaryNote": "The CFR controls the one-million-minute classification. Any shorthand label on an administrator/public rate page is not used to alter the regulatory boundary.",
+  "exogenousAdjustment": {
+    "approvedByCommissionOnOrBeforeJune30": false,
+    "approvedClaimUsd": "0.00",
+    "projectedFundYearMinutes": 0,
+    "perMinuteAdjustmentUsd": "0.00"
+  },
+  "actualPaymentInstruction": false
+}
