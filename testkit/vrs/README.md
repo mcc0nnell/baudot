@@ -8,9 +8,15 @@ It is intentionally **not** a provider simulator, a copy of a production VRS con
 
 - `public-interoperability-matrix-v1.json` — public requirements mapped to planned/partial Baudot evidence lanes.
 - `fixtures/provider-list-v1.json` — synthetic RFC 9248-shaped provider-selection input using reserved example domains.
+- `fixtures/provider-config-provider-b-v1.json` — synthetic ProviderConfig input keeping one-stage and two-stage dial-around configuration explicit.
 - `fixtures/rue-one-stage-dial-around-invite.txt` — synthetic SIP request binding one-stage dial-around route-selection facts without claiming media readiness.
+- `fixtures/rue-two-stage-front-door-invite.txt` — synthetic two-stage front-door request that deliberately omits the final called number from the initial INVITE.
+- `fixtures/rue-rtt-negotiation-arms-v1.json` — controlled RTT session arms separating local policy, remote T.140 offer, negotiation, first text observation, and terminal readiness.
+- `executions/RUE-DIAL-001-jain.json` — bounded live JAIN SIP dial-around execution contract.
+- `executions/RUE-RTT-001-negotiation-python.json` — bounded executable RTT negotiation/readiness reduction contract.
+- `research/public-implementation-donors-v1.json` — revision-pinned historical implementation donors that may motivate scenarios but never supply normative or terminal verdict authority.
 
-The research and authority map lives in [`../../docs/vrs-public-interoperability-osint.md`](../../docs/vrs-public-interoperability-osint.md).
+The research and authority map lives in [`../../docs/vrs-public-interoperability-osint.md`](../../docs/vrs-public-interoperability-osint.md). Historical implementation archaeology lives in [`../../docs/vrs-public-implementation-archaeology.md`](../../docs/vrs-public-implementation-archaeology.md).
 
 ## Authority boundary
 
@@ -43,9 +49,9 @@ Operational event reports and MITRE National Test Lab descriptions show that rep
 7. No emergency scenario may originate a real emergency call from the public test harness.
 8. No production infrastructure is probed merely because an endpoint or domain can be discovered through OSINT.
 
-## Intended progression
+## Dial-around progression
 
-The first executable progression is deliberately narrow:
+The first executable routing progression is deliberately narrow:
 
 ```text
 synthetic provider selection
@@ -55,6 +61,42 @@ synthetic provider selection
     -> dialog evidence
     -> separate media/RTT/security lanes
 ```
+
+Two-stage dial-around remains a separate fixture shape: the initial SIP target is the provider-configured front door, while the final destination belongs to a later interaction phase. Baudot does not collapse those semantics into the one-stage route test.
+
+## RTT negotiation is not RTT readiness
+
+`RUE-RTT-001` now has three controlled executable negotiation arms:
+
+```text
+local RTT enabled + remote has no T.140
+    -> rttNegotiated=false
+    -> rttReady=false
+
+remote offers T.140 + manipulated local policy disables RTT
+    -> rttNegotiated=false
+    -> rttReady=false
+
+local RTT enabled + remote offers T.140 + answer accepts T.140
+    -> rttNegotiated=true
+    -> firstT140CharacterObserved=false
+    -> rttReady=false
+```
+
+The third arm is intentionally a positive **negotiation** control and a negative **readiness** control. It prevents SDP success from being promoted into accessibility readiness.
+
+Run it with:
+
+```bash
+python -m unittest tests.test_rue_rtt_negotiation
+python -m scripts.validate_rue_rtt_negotiation
+```
+
+The reducer writes bounded evidence to `target/evidence/RUE-RTT-NEGOTIATION/`. A future live arm can replace the synthetic `firstT140CharacterObserved` input with the existing independent live T.140 observation gate; the readiness rule does not change.
+
+The local-disabled arm is deliberately a test-policy manipulation. It is not a claim that RFC 9248 permits an implementation to omit mandatory RTT capability. Likewise, a synthetic remote offer without T.140 is a session-state negative control, not by itself a provider-conformance finding.
+
+## Implementation ensemble
 
 This composes naturally with the existing Baudot implementation ensemble. JAIN SIP can remain the glass-box signaling instrument; Elixip/PJSIP/Linphone-class implementations can supply independent implementation behavior; Wiretap can remain network/evidence substrate; and Baudot reducers retain terminal verdict authority.
 
