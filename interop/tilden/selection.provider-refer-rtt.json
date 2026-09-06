@@ -1,0 +1,19 @@
+{
+  "version": "0.1",
+  "selectionId": "sel-provider-refer-rtt-0001",
+  "target": "tel:+12025550125",
+  "resolutionDigest": "sha256:resolution-provider-refer-rtt-0001",
+  "requestDigest": "sha256:request-provider-refer-rtt-0001",
+  "evaluatedAt": "2026-09-06T00:12:00Z",
+  "candidates": [
+    {
+      "uri": "sip:provider-a@127.0.0.1:5310",
+      "priority": 1,
+      "preferenceScore": 0,
+      "outcome": "selected",
+      "matchedPreferred": ["rtt", "transfer"]
+    }
+  ],
+  "terminal": "selected",
+  "selectedEndpoint": "sip:provider-a@127.0.0.1:5310"
+}
