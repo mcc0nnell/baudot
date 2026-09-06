@@ -5,7 +5,10 @@
   "authority": "RFC 9248 section 5.2.2",
   "entrypoint": "org.mcc0nnell.baudot.harness.RueOneStageDialAroundProbe",
   "runner": "scripts/run-rue-one-stage-dial-around.sh",
+  "selectionEvidence": "target/evidence/RUE-PROV-001/provider-b-selection.json",
+  "selectionRule": "The current pinned Provider-B live arm executes only when preserved RUE-PROV-001 evidence selects providerEntryPoint=provider-b.example; any other or missing selection fails before SIP begins.",
   "topology": [
+    "synthetic RFC 9248 ProviderList selection produces the providerEntryPoint used to authorize this pinned Provider-B arm",
     "synthetic RUE physically sends to synthetic default provider A",
     "Request-URI and To URI contain the called number at selected provider B domain",
     "From URI remains the synthetic subscriber identity at default provider A domain",
@@ -13,6 +16,9 @@
     "a harness-only loose Route delivers the re-originated INVITE to loopback provider B without rewriting the Request-URI"
   ],
   "requiredFacts": [
+    "selection.schema=baudot.rue-provider-selection@1",
+    "selection.selectedProvider=Provider B",
+    "selection.providerEntryPoint=provider-b.example",
     "rue.inboundTargetPreserved=true",
     "rue.inboundToPreserved=true",
     "rue.inboundSourcePreserved=true",
@@ -33,6 +39,7 @@
   ],
   "claimBoundary": {
     "provesOnly": [
+      "a preserved synthetic provider selection can fail-closed authorize the corresponding pinned one-stage dial-around live arm",
       "the RFC 9248 one-stage dial-around URI relationship can be exercised on a controlled live SIP path",
       "the selected dial-around provider domain survives into the actual INVITE observed by the synthetic provider-B peer",
       "the called number and To URI remain correlated to the selected provider",
@@ -40,6 +47,7 @@
       "signaling establishment is not promoted into media or accessibility readiness"
     ],
     "doesNotEstablish": [
+      "a fully parameterized arbitrary-provider route matrix",
       "RFC 9248 conformance",
       "SIP proxy or B2BUA conformance",
       "DNS routing behavior",
