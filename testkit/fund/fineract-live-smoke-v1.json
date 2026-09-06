@@ -41,6 +41,19 @@
     "memo": "Reverse synthetic provider disbursement to prove explicit reversal",
     "repostAs": "EVT-DISBURSE-0001-R1"
   },
+  "closureProbe": {
+    "closingDate": "2026-09-05",
+    "rejectedPostingDate": "2026-09-05",
+    "authorizedOpenDate": "2026-09-06",
+    "rejectedEventId": "EVT-CLOSED-CORRECTION-0001",
+    "authorizedEventId": "EVT-OPEN-CORRECTION-0001",
+    "event": {
+      "type": "programAdministrationAccrued",
+      "amount": "125.00",
+      "memo": "Synthetic accounting correction used only to prove period-closure behavior"
+    },
+    "expectedFineractErrorCode": "error.msg.glJournalEntry.invalid.accounting.closed"
+  },
   "expectedFinalBalances": {
     "1100": "4000.00",
     "1200": "0.00",
@@ -54,6 +67,7 @@
     "FUND-CLM-001",
     "FUND-DIS-001",
     "FUND-ADJ-001",
+    "FUND-CLS-001",
     "FUND-AUD-001",
     "FUND-AUT-001"
   ],
