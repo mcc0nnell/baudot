@@ -2,18 +2,17 @@
 
 Baudot's iTRS work is an evidence ladder, not a single mock service. Each layer adds a stronger execution boundary while preserving the distinction between public routing semantics, historical implementation behavior, transport, and terminal verdicts.
 
-## Current verification status
+## Verification discipline
 
-Status snapshot: **2026-09-05 21:12 America/New_York**.
+Runtime status is determined by the GitHub Actions results and preserved evidence for the **exact commit under review**. This document deliberately does not carry a timestamped queue/green snapshot because that state becomes stale immediately.
 
-The implementation is ahead of the hosted CI evidence right now.
+The implementation ladder contains:
 
-- PR #59 implements the clean-room iTRS Customer Test Environment (CTE), provider-session boundary, AllCallQuery, reverse query, provisioning/replication/porting behavior, and the ACE `/vrsverify/` compatibility adapter.
-- PR #69 implements two pinned, unmodified ACE Connect Lite application instances driven through their real historical `outbound-call` path.
-- PR #70 implements two controlled Asterisk instances and a JAIN-SIP signaling evidence peer.
-- The GitHub Actions jobs for the new dual-ACE and dual-ACE/Asterisk slices are currently **queued**. They have not acquired a runner, executed steps, produced logs, or uploaded artifacts.
+- a clean-room iTRS Customer Test Environment (CTE), provider-session boundary, AllCallQuery, reverse query, provisioning/replication/porting behavior, and the ACE `/vrsverify/` compatibility adapter;
+- two pinned, unmodified ACE Connect Lite application instances driven through their real historical `outbound-call` path; and
+- two controlled Asterisk instances plus a JAIN-SIP signaling evidence peer.
 
-Therefore the correct claim today is **implemented and runnable, awaiting hosted runtime verification**. Do not describe PR #69 or PR #70 as CI-proven or green until the corresponding workflow completes successfully and its evidence artifacts exist.
+A runtime claim may be described as verified only when the relevant workflow for the same commit has completed successfully and its required evidence exists. A queued workflow, expected terminal string, syntax check, or local compilation is not a substitute.
 
 ## Evidence ladder
 
@@ -29,6 +28,8 @@ synthetic TN
 ```
 
 This layer is useful for deterministic regression coverage. It is not a model of the production TRS Numbering Directory schema.
+
+Revision-pinned public historical ACE material may corroborate the shape of selected vectors, but donor code never becomes normative or terminal authority.
 
 ### Layer 2: public-evidence CTE model
 
@@ -97,18 +98,24 @@ adapter A                     adapter B
 
 Each instance has a separate application port, login identity, adapter, provider identity, and AMI peer.
 
-The intended evidence is not merely that ACE boots. The assertion is that the real historical handler consumes the CTE-backed classification and submits the expected AMI `Originate` context:
+The relevant assertion is not merely that ACE boots. The real historical handler must consume the CTE-backed classification and submit the expected AMI `Originate` context:
 
 ```text
 routable VRS -> outbound-CA
 failed lookup -> from-phones
 ```
 
-Until its Actions job runs successfully, this remains an implemented runtime proof awaiting hosted verification.
+The target terminal verdict is:
+
+```text
+Dual ACE Connect Lite runtime lab: 5/5 PASS
+```
+
+That string is evidence only when actually emitted by the completed workflow for the commit being evaluated.
 
 ### Layer 5: real Asterisk and JAIN-SIP signaling
 
-PR #70 replaces the deterministic AMI peers with two controlled Asterisk instances.
+The next slice replaces deterministic AMI peers with two controlled Asterisk instances.
 
 ```text
 ACE A / ACE B
@@ -159,7 +166,7 @@ The target assertion is:
 Dual ACE -> Asterisk -> JAIN-SIP lab: 8/8 PASS
 ```
 
-That string is a **target verdict**, not a current result, until CI actually produces it.
+Again, the string is a target verdict until the workflow for the exact commit produces it and the evidence bundle satisfies the promotion rule.
 
 ## Promotion rule
 
@@ -167,7 +174,7 @@ Baudot should promote a runtime claim only when all of the following exist for t
 
 1. the relevant workflow completed with `success`;
 2. the assertion layer reached its terminal PASS verdict;
-3. generated evidence artifacts were uploaded;
+3. generated evidence artifacts were uploaded when the workflow contract requires them;
 4. the observed route identity matches the CTE decision;
 5. the transport destination remains independently observable; and
 6. negative controls demonstrate the expected fail-closed boundary.
@@ -190,4 +197,4 @@ It does not establish:
 - RFC 4103 / T.140 media interoperability; or
 - end-to-end production security properties.
 
-The next evidence layer after the signaling path is green is the RTT/media plane: negotiate and observe T.140/RFC 4103 independently while retaining the same route, signaling, and claim-separation discipline.
+The next evidence layer after the signaling path is independently verified is the RTT/media plane: negotiate and observe T.140/RFC 4103 while retaining the same route, signaling, and claim-separation discipline.
