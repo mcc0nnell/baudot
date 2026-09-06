@@ -1,0 +1,19 @@
+{
+  "schema": "baudot.synthetic-trs-numbering-directory@1",
+  "scenario": "ITRS-NUM-001",
+  "entries": [
+    {
+      "nanpNumber": "+12025550101",
+      "uri": "sip:+12025550101@provider-a.example",
+      "routeOwner": "provider-a.example",
+      "status": "active"
+    },
+    {
+      "nanpNumber": "+12025550102",
+      "uri": "sip:+12025550102@provider-b.example",
+      "routeOwner": "provider-b.example",
+      "status": "active"
+    }
+  ],
+  "provenance": "baudot-authored-synthetic-fixture"
+}
