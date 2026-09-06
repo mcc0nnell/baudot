@@ -89,6 +89,7 @@ class FundRuntimeTests(unittest.TestCase):
         self.assertIn("claim-1", state.transaction_effects)
         self.assertIn("reversal-1", state.transaction_effects)
         self.assertIn("claim-1", state.reversed_transactions)
+        self.assertEqual(state.transaction_dates["reversal-1"], state.transaction_dates["claim-1"])
 
     def test_same_transaction_cannot_be_reversed_twice(self):
         events = configured() + [
@@ -99,13 +100,20 @@ class FundRuntimeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already reversed"):
             append_event(events, event(4, "TRANSACTION_REVERSED", "reversal-2", target_transaction_id="claim-1"))
 
-    def test_closed_period_reversal_requires_open_effective_date(self):
+    def test_closed_period_transaction_cannot_use_fineract_reversal(self):
         events = configured() + [
-            event(2, "PROVIDER_CLAIM_APPROVED", "claim-1", entity_id="provider-a", amount=Decimal("600")),
+            event(
+                2,
+                "PROVIDER_CLAIM_APPROVED",
+                "claim-1",
+                entity_id="provider-a",
+                amount=Decimal("600"),
+                effective_date="2026-07-15",
+            ),
             event(3, "ACCOUNTING_PERIOD_CLOSED", "close-2026-07", entity_id="2026-07-31", effective_date="2026-08-01"),
         ]
 
-        with self.assertRaisesRegex(ValueError, "authorized open date"):
+        with self.assertRaisesRegex(ValueError, "compensating adjustment"):
             append_event(
                 events,
                 event(
@@ -113,7 +121,31 @@ class FundRuntimeTests(unittest.TestCase):
                     "TRANSACTION_REVERSED",
                     "reversal-1",
                     target_transaction_id="claim-1",
-                    effective_date="2026-07-31",
+                    effective_date="2026-08-01",
+                ),
+            )
+
+    def test_reversal_effective_date_must_match_original_journal_date(self):
+        events = configured() + [
+            event(
+                2,
+                "PROVIDER_CLAIM_APPROVED",
+                "claim-1",
+                entity_id="provider-a",
+                amount=Decimal("600"),
+                effective_date="2026-07-15",
+            ),
+        ]
+
+        with self.assertRaisesRegex(ValueError, "must equal target transaction date"):
+            append_event(
+                events,
+                event(
+                    3,
+                    "TRANSACTION_REVERSED",
+                    "reversal-1",
+                    target_transaction_id="claim-1",
+                    effective_date="2026-07-20",
                 ),
             )
 
