@@ -7,6 +7,7 @@ on:
       - "interop/fineract/**"
       - "scripts/validate_trs_fund_public_model.py"
       - "scripts/validate_trs_fund_runtime_contract.py"
+      - "scripts/validate_trs_fund_fineract_profile.py"
       - "scripts/run_trs_fund_scenario.py"
       - "scripts/run_trs_fund_fineract_live.py"
       - "testkit/fund/trs-fund-runtime-contract-v1.json"
@@ -19,6 +20,7 @@ on:
       - "interop/fineract/**"
       - "scripts/validate_trs_fund_public_model.py"
       - "scripts/validate_trs_fund_runtime_contract.py"
+      - "scripts/validate_trs_fund_fineract_profile.py"
       - "scripts/run_trs_fund_scenario.py"
       - "scripts/run_trs_fund_fineract_live.py"
       - "testkit/fund/trs-fund-runtime-contract-v1.json"
@@ -47,11 +49,14 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Validate canonical Fund parents
+      - name: Validate canonical Fund parents and live profile
         run: |
           python scripts/validate_trs_fund_public_model.py
           python scripts/validate_trs_fund_runtime_contract.py
-          python -m py_compile scripts/run_trs_fund_fineract_live.py
+          python scripts/validate_trs_fund_fineract_profile.py
+          python -m py_compile \
+            scripts/validate_trs_fund_fineract_profile.py \
+            scripts/run_trs_fund_fineract_live.py
 
       - name: Produce canonical journal intents
         run: |
