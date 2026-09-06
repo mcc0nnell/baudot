@@ -71,11 +71,12 @@ jobs:
             -p 127.0.0.1:8443:8443 \
             -e SINGLE_USER_CREDENTIALS_USERNAME="$NIFI_USER" \
             -e SINGLE_USER_CREDENTIALS_PASSWORD="$NIFI_PASSWORD" \
+            -e NIFI_WEB_PROXY_HOST='127.0.0.1:8443' \
             -v "$PWD/target/nifi-live:/data" \
             "apache/nifi:${NIFI_VERSION}"
           ready=0
-          for attempt in $(seq 1 150); do
-            if curl -kfsS https://127.0.0.1:8443/nifi-api/access/config >/dev/null; then
+          for attempt in $(seq 1 90); do
+            if curl -kfsS https://127.0.0.1:8443/nifi-api/authentication/configuration >/dev/null; then
               ready=1
               break
             fi
@@ -108,15 +109,15 @@ jobs:
             jq -e '.quarantined | length == 2' target/nifi-live/evidence.json >/dev/null
             jq -e '.stagedFiles | all(.bytesPreserved == true)' target/nifi-live/evidence.json >/dev/null
             jq -e '.authority | all(. == false)' target/nifi-live/evidence.json >/dev/null
+            grep -q 'BAUDOT_NIFI_PROVIDER_EVIDENCE' target/nifi-live/nifi-container.log
+            grep -q 'BAUDOT_NIFI_CDR_EVIDENCE' target/nifi-live/nifi-container.log
+            for key in sourceSystem sourceObjectId receivedAt contentSha256 flowId correlationId; do
+              grep -q "Key: '$key'" target/nifi-live/nifi-container.log
+            done
+            ! grep -q 'provider-a,VRS,active' target/nifi-live/nifi-container.log
+            ! grep -q '"cdrId":"cdr-001"' target/nifi-live/nifi-container.log
+            ! grep -Eq 'subscriberEligible|providerCertified|itrsAuthorized|compensable|claimApproved|paymentAuthorized|fundPeriodClosed|sourceAuthoritative|accessibilityReady' target/nifi-live/nifi-container.log
           fi
-          grep -q 'BAUDOT_NIFI_PROVIDER_EVIDENCE' target/nifi-live/nifi-container.log
-          grep -q 'BAUDOT_NIFI_CDR_EVIDENCE' target/nifi-live/nifi-container.log
-          for key in sourceSystem sourceObjectId receivedAt contentSha256 flowId correlationId; do
-            grep -q "Key: '$key'" target/nifi-live/nifi-container.log
-          done
-          ! grep -q 'provider-a,VRS,active' target/nifi-live/nifi-container.log
-          ! grep -q '"cdrId":"cdr-001"' target/nifi-live/nifi-container.log
-          ! grep -Eq 'subscriberEligible|providerCertified|itrsAuthorized|compensable|claimApproved|paymentAuthorized|fundPeriodClosed|sourceAuthoritative|accessibilityReady' target/nifi-live/nifi-container.log
 
       - name: Preserve bounded NiFi evidence
         if: always()
