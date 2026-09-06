@@ -71,7 +71,7 @@
     ]]>
   </send>
 
-  <recv response="100" optional="true" response_txn="reinvite2"/>
+  <recv response="100" response_txn="reinvite2"/>
   <pause milliseconds="100"/>
 
   <send retrans="1000" start_txn="reinvite3">
