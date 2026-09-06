@@ -1,0 +1,104 @@
+{
+  "schema": "baudot.part64-default-provider-change@1",
+  "authority": {
+    "source": "47 CFR Part 64 Subpart F",
+    "sections": ["64.630", "64.631", "64.632", "64.633", "64.634", "64.635", "64.636"],
+    "status": "regulatory-test-design-authority"
+  },
+  "safety": {
+    "liveTrsUserRegistrationDatabase": false,
+    "liveTrsNumberingDirectory": false,
+    "realSubscriberData": false,
+    "realAuthorizationRecordings": false,
+    "providerCredentials": false,
+    "productionCallRecords": false,
+    "productionComplaintRecords": false,
+    "productionFundClaims": false
+  },
+  "requirements": [
+    {
+      "id": "PART64-630-APPLICABILITY",
+      "section": "64.630",
+      "scenario": "ITRS-CHANGE-LOA-001",
+      "requires": ["fund-eligible-provider-classification", "covered-nanp-numbered-itrs-user"],
+      "doesNotProve": ["provider-certification", "fund-eligibility-in-production"]
+    },
+    {
+      "id": "PART64-631-AUTH-VERIFY",
+      "section": "64.631(a)",
+      "scenario": "ITRS-CHANGE-LOA-001",
+      "requires": ["authorization-before-change", "verification-before-change", "verification-retention-years>=5", "verification-immutable"],
+      "doesNotProve": ["implementation", "routing", "compensability"]
+    },
+    {
+      "id": "PART64-631-MULTI-SERVICE",
+      "section": "64.631(b)",
+      "scenario": "ITRS-CHANGE-MULTI-001",
+      "requires": ["service-specific-authorization", "service-specific-verification"],
+      "doesNotProve": ["authorization-for-other-trs-types"]
+    },
+    {
+      "id": "PART64-631-TPV",
+      "section": "64.631(c)(2)",
+      "scenario": "ITRS-CHANGE-TPV-001",
+      "requires": ["independent-third-party", "non-misleading-verification", "same-language-and-format", "complete-recording", "urd-registration-data-checked"],
+      "doesNotProve": ["provider-independence-outside-fixture", "regulatory-compliance"]
+    },
+    {
+      "id": "PART64-631-IMPLEMENT-60",
+      "section": "64.631(d)",
+      "scenario": "ITRS-CHANGE-VOID-060",
+      "requires": ["implement-within-60-days-or-void"],
+      "doesNotProve": ["route-ready", "media-ready"]
+    },
+    {
+      "id": "PART64-631-CONTINUITY",
+      "section": "64.631(e)",
+      "scenario": "ITRS-CHANGE-CONTINUITY-001",
+      "requires": ["no-service-quality-reduction", "no-vrs-access-technology-functionality-reduction"],
+      "doesNotProve": ["successful-provider-change"]
+    },
+    {
+      "id": "PART64-631-TRANSFER",
+      "section": "64.631(f)",
+      "scenario": "ITRS-TRANSFER-001",
+      "requires": ["advance-notice-days>=30", "vrs-notice-format-asl-video", "transfer-date", "right-to-select-alternative", "complaint-responsibility-disclosure", "customer-service-number"],
+      "doesNotProve": ["actual-user-notice", "production-transfer-authority"]
+    },
+    {
+      "id": "PART64-632-LOA",
+      "section": "64.632",
+      "scenario": "ITRS-CHANGE-LOA-001",
+      "requires": ["separate-document-or-screen", "prescribed-title", "signed-and-dated", "registered-identity-and-number", "old-to-new-provider-decision", "agency-designation", "one-default-provider-acknowledgment", "language-consistency"],
+      "doesNotProve": ["identity-authenticity", "implementation"]
+    },
+    {
+      "id": "PART64-633-COMPLAINT",
+      "section": "64.633",
+      "scenario": "ITRS-DISPUTE-PREPAY-001",
+      "requires": ["complaint-notifications", "affected-minutes-identified", "reimbursement-withheld-pending-determination", "verification-proof-within-30-days"],
+      "doesNotProve": ["unauthorized-change-before-determination"]
+    },
+    {
+      "id": "PART64-634-PREPAY",
+      "section": "64.634",
+      "scenario": "ITRS-DISPUTE-PREPAY-001",
+      "requires": ["unauthorized-determination", "no-reimbursement-for-affected-minutes-either-provider"],
+      "doesNotProve": ["other-remedies-exhausted"]
+    },
+    {
+      "id": "PART64-635-PAID",
+      "section": "64.635",
+      "scenario": "ITRS-DISPUTE-PAID-001",
+      "requires": ["unauthorized-determination", "clawback-percent=100"],
+      "doesNotProve": ["actual-fund-remittance"]
+    },
+    {
+      "id": "PART64-636-NO-FREEZE",
+      "section": "64.636",
+      "scenario": "ITRS-FREEZE-001",
+      "requires": ["default-provider-freeze-prohibited"],
+      "doesNotProve": ["other-account-security-controls-prohibited"]
+    }
+  ]
+}

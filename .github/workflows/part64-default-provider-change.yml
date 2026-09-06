@@ -1,0 +1,31 @@
+name: part64-default-provider-change
+
+on:
+  push:
+    paths:
+      - "docs/part64-default-provider-change.md"
+      - "testkit/part64/default-provider-change-requirements-v1.json"
+      - "testkit/part64/fixtures/default-provider-*.json"
+      - "scripts/validate_part64_default_provider_change.py"
+      - ".github/workflows/part64-default-provider-change.yml"
+  pull_request:
+    paths:
+      - "docs/part64-default-provider-change.md"
+      - "testkit/part64/default-provider-change-requirements-v1.json"
+      - "testkit/part64/fixtures/default-provider-*.json"
+      - "scripts/validate_part64_default_provider_change.py"
+      - ".github/workflows/part64-default-provider-change.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Part 64 default-provider change contract
+        run: python scripts/validate_part64_default_provider_change.py
