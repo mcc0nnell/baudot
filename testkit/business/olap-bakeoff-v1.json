@@ -104,8 +104,10 @@
     "sameKafkaCorpus": true,
     "sameProjection": true,
     "sameQueries": true,
+    "windowAnchor": "2026-08-31T00:00:00Z",
+    "optInWorkflow": ".github/workflows/olap-live-bakeoff.yml",
     "measure": [
-      "ingestionLagMs",
+      "catchupMs",
       "queryP50Ms",
       "queryP95Ms",
       "replayCorrectness",
