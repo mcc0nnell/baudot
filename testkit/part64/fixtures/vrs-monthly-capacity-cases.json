@@ -1,0 +1,89 @@
+{
+  "schema": "baudot.part64-vrs-monthly-capacity-cases@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "cases": [
+    {
+      "scenario": "VRS-MONTHLY-THIRD-PARTY-PASS-001",
+      "totalCompensatedMinutes": 10000,
+      "averageProjectedMonthlyConversationMinutes": 12000,
+      "thirdPartyInterpretationMinutes": 3500,
+      "expected": {
+        "monthlyCapMinutes": 3600,
+        "withinCap": true
+      }
+    },
+    {
+      "scenario": "VRS-MONTHLY-THIRD-PARTY-FAIL-001",
+      "totalCompensatedMinutes": 10000,
+      "averageProjectedMonthlyConversationMinutes": 12000,
+      "thirdPartyInterpretationMinutes": 3601,
+      "expected": {
+        "monthlyCapMinutes": 3600,
+        "withinCap": false
+      }
+    },
+    {
+      "scenario": "VRS-MONTHLY-ATHOME-PASS-001",
+      "commissionAuthorizedAtHomeProgram": true,
+      "totalCompensatedMinutes": 10000,
+      "averageProjectedMonthlyConversationMinutes": 12000,
+      "atHomeMinutes": 9500,
+      "expected": {
+        "monthlyCapMinutes": 9600,
+        "withinCap": true
+      }
+    },
+    {
+      "scenario": "VRS-MONTHLY-ATHOME-FAIL-001",
+      "commissionAuthorizedAtHomeProgram": true,
+      "totalCompensatedMinutes": 10000,
+      "averageProjectedMonthlyConversationMinutes": 12000,
+      "atHomeMinutes": 9601,
+      "expected": {
+        "monthlyCapMinutes": 9600,
+        "withinCap": false
+      }
+    },
+    {
+      "scenario": "VRS-MONTHLY-ATHOME-UNAUTHORIZED-001",
+      "commissionAuthorizedAtHomeProgram": false,
+      "totalCompensatedMinutes": 10000,
+      "averageProjectedMonthlyConversationMinutes": 12000,
+      "atHomeMinutes": 1,
+      "expected": {
+        "atHomeHandlingAllowedByThisModel": false,
+        "withinCap": false
+      }
+    },
+    {
+      "scenario": "VRS-MARKETING-NONCOMP-001",
+      "authorizedThirdPartyFunction": "marketing-outreach",
+      "vrsMinutesUsed": 42,
+      "expected": {
+        "perMinuteCompensable": false,
+        "minutesEligibleForPayableJournal": 0
+      }
+    },
+    {
+      "scenario": "VRS-CA-MINUTE-INCENTIVE-001",
+      "beneficiary": "synthetic-ca",
+      "benefitBasis": "conversation-minutes-relayed",
+      "expected": {
+        "permitted": false,
+        "policyResult": "reject"
+      }
+    },
+    {
+      "scenario": "VRS-HOME-OVERSIGHT-001",
+      "homeWorkstations": 40,
+      "randomUnannouncedInspections": 2,
+      "recordsRetentionYears": 5,
+      "conversationContentRetained": false,
+      "expected": {
+        "minimumInspections": 2,
+        "inspectionThresholdMet": true,
+        "retentionThresholdMet": true
+      }
+    }
+  ]
+}

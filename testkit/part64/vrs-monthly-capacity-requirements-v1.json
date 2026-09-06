@@ -1,0 +1,48 @@
+{
+  "schema": "baudot.part64-vrs-monthly-capacity-requirements@1",
+  "authority": {
+    "citation": "47 CFR 64.604(d)",
+    "source": "https://www.ecfr.gov/current/title-47/chapter-I/subchapter-B/part-64/subpart-F/section-64.604",
+    "accessed": "2026-09-06"
+  },
+  "safety": {
+    "productionProviderMinutes": false,
+    "realCaIdentityData": false,
+    "realHomeAddresses": false,
+    "productionWorkstationRecords": false,
+    "realCompensationRecords": false,
+    "productionContracts": false
+  },
+  "requirements": [
+    {
+      "id": "PART64-604-D1-THIRD-PARTY-30",
+      "citation": "64.604(d)(1)(iii)(B)",
+      "requirement": "Third-party interpretation-service minutes are capped at the greater of 30 percent of the provider's total compensated minutes for the month or 30 percent of average projected monthly conversation minutes for the calendar year."
+    },
+    {
+      "id": "PART64-604-D1-MARKETING-NONCOMP",
+      "citation": "64.604(d)(1)(iv)",
+      "requirement": "VRS minutes used by an authorized third party for marketing or outreach are not compensable on a per-minute basis."
+    },
+    {
+      "id": "PART64-604-D3-CA-NO-MINUTE-INCENTIVE",
+      "citation": "64.604(d)(3)",
+      "requirement": "A provider may not compensate or otherwise benefit a CA or interpretation contractor based on VRS session minutes, conversation minutes, or calls relayed."
+    },
+    {
+      "id": "PART64-604-D7-ATHOME-80",
+      "citation": "64.604(d)(7)(i)",
+      "requirement": "For a Commission-authorized at-home VRS program, compensated home-workstation minutes are capped at the greater of 80 percent of total compensated minutes for the month or 80 percent of average projected monthly conversation minutes for the calendar year."
+    },
+    {
+      "id": "PART64-604-D7-HOME-RECORDS",
+      "citation": "64.604(d)(7)(iv)(D)-(E)",
+      "requirement": "Home-workstation records, excluding interpreted-conversation content, are retained for at least five years and at least five percent of home workstations are randomly and unannouncedly inspected in each 12-month period."
+    },
+    {
+      "id": "PART64-604-D7-HOME-REPORT",
+      "citation": "64.604(d)(7)(vi)",
+      "requirement": "Monthly compensation requests for providers using at-home CAs include per-workstation identification/address, CA identifiers, and supervising call-center identification/address/supervisor information."
+    }
+  ]
+}

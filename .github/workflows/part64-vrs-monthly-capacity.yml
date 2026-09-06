@@ -1,0 +1,33 @@
+name: part64-vrs-monthly-capacity
+
+on:
+  push:
+    paths:
+      - "docs/part64-vrs-monthly-capacity.md"
+      - "testkit/part64/vrs-monthly-capacity-requirements-v1.json"
+      - "testkit/part64/fixtures/vrs-monthly-capacity-cases.json"
+      - "testkit/part64/fixtures/vrs-home-workstation-monthly-report.json"
+      - "scripts/validate_part64_vrs_monthly_capacity.py"
+      - ".github/workflows/part64-vrs-monthly-capacity.yml"
+  pull_request:
+    paths:
+      - "docs/part64-vrs-monthly-capacity.md"
+      - "testkit/part64/vrs-monthly-capacity-requirements-v1.json"
+      - "testkit/part64/fixtures/vrs-monthly-capacity-cases.json"
+      - "testkit/part64/fixtures/vrs-home-workstation-monthly-report.json"
+      - "scripts/validate_part64_vrs_monthly_capacity.py"
+      - ".github/workflows/part64-vrs-monthly-capacity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Part 64 VRS monthly capacity controls
+        run: python scripts/validate_part64_vrs_monthly_capacity.py
