@@ -6,6 +6,9 @@ on:
       - "docs/causal-proof-model.md"
       - "testkit/meta/causal-proof-contract-v1.json"
       - "scripts/validate_causal_proof_contract.py"
+      - "scripts/validate_causal_proof_manifest.py"
+      - "scripts/validate_refer_rtt_handoff.py"
+      - "scripts/run-live-refer-rtt-handoff.sh"
       - ".github/workflows/causal-proof-contract.yml"
   push:
     branches:
@@ -14,6 +17,9 @@ on:
       - "docs/causal-proof-model.md"
       - "testkit/meta/causal-proof-contract-v1.json"
       - "scripts/validate_causal_proof_contract.py"
+      - "scripts/validate_causal_proof_manifest.py"
+      - "scripts/validate_refer_rtt_handoff.py"
+      - "scripts/run-live-refer-rtt-handoff.sh"
       - ".github/workflows/causal-proof-contract.yml"
 
 permissions:
@@ -29,3 +35,5 @@ jobs:
           python-version: "3.13"
       - name: Validate causal proof contract
         run: python scripts/validate_causal_proof_contract.py
+      - name: Self-test portable causal proof verifier
+        run: python scripts/validate_causal_proof_manifest.py --self-test
