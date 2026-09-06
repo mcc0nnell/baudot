@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REQ = ROOT / "testkit/part64/requirements-v1.json"
 REG = ROOT / "testkit/part64/fixtures/registration-valid.json"
+REG_EVIDENCE = ROOT / "testkit/part64/fixtures/registration-evidence.json"
 NUM = ROOT / "testkit/part64/fixtures/numbering-directory.json"
 VAL = ROOT / "testkit/part64/fixtures/validation-cases.json"
 
@@ -26,6 +27,7 @@ def require(condition: bool, message: str) -> None:
 def main() -> None:
     requirements = load(REQ)
     registration = load(REG)
+    registration_evidence = load(REG_EVIDENCE)
     numbering = load(NUM)
     validation = load(VAL)
 
@@ -59,6 +61,21 @@ def main() -> None:
     require(registration["defaultProvider"].endswith(".example"), "provider domain must be reserved example domain")
     require(registration["registeredLocation"]["synthetic"] is True, "Registered Location must remain synthetic")
     require(registration["provenance"] == "baudot-authored-synthetic-fixture", "registration provenance missing")
+
+    # § 64.611 evidence is represented as presence/consent state without storing real identity values.
+    require(registration_evidence["scenario"] == "ITRS-REG-001", "registration evidence scenario mismatch")
+    require(registration_evidence["eligibilityCertificationPresent"] is True,
+            "eligibility certification evidence missing")
+    require(registration_evidence["registrationDatabaseConsentAcknowledged"] is True,
+            "registration-database consent evidence missing")
+    require(registration_evidence["identityAttributes"]["present"] is True,
+            "required identity-attribute presence not represented")
+    require(registration_evidence["identityAttributes"]["valuesStoredInPublicFixture"] is False,
+            "public fixture must not store real identity values")
+    require(registration_evidence["registeredLocationPresent"] is True,
+            "Registered Location evidence missing")
+    require(registration_evidence["confidentialityBoundary"] == "no-real-registration-or-certification-data",
+            "registration confidentiality boundary missing")
 
     # Numbering fixture preserves mapping/routing as a separate fact.
     entries = {item["nanpNumber"]: item for item in numbering["entries"]}
