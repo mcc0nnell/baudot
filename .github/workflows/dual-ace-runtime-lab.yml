@@ -1,0 +1,47 @@
+name: dual-ace-runtime-lab
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  dual-ace-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Baudot
+        uses: actions/checkout@v4
+
+      - name: Check out pinned ACE Connect Lite
+        uses: actions/checkout@v4
+        with:
+          repository: mitrefccace/aceconnectlite
+          ref: da74e6450193be1456ce2cdf65dd5ffdf0e92f1e
+          path: .lab/aceconnectlite
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "16"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Syntax-check lab support
+        run: |
+          python -m py_compile scripts/ace_runtime_support.py scripts/generate_ace_runtime_config.py scripts/assert_dual_ace_runtime.py
+          node --check scripts/ace_runtime_drive.js
+          bash -n scripts/run-dual-ace-runtime-lab.sh
+
+      - name: Run two real ACE Connect Lite application instances
+        run: bash scripts/run-dual-ace-runtime-lab.sh .lab/aceconnectlite
