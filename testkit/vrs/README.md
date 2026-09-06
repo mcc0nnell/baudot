@@ -1,0 +1,70 @@
+# VRS public-interoperability test inputs
+
+This directory translates publicly documented VRS and Relay User Equipment (RUE) interoperability behavior into clean-room Baudot test inputs.
+
+It is intentionally **not** a provider simulator, a copy of a production VRS configuration, a TRS Numbering Directory client, or a conformance suite.
+
+## Contents
+
+- `public-interoperability-matrix-v1.json` — public requirements mapped to planned/partial Baudot evidence lanes.
+- `fixtures/provider-list-v1.json` — synthetic RFC 9248-shaped provider-selection input using reserved example domains.
+- `fixtures/rue-one-stage-dial-around-invite.txt` — synthetic SIP request binding one-stage dial-around route-selection facts without claiming media readiness.
+
+The research and authority map lives in [`../../docs/vrs-public-interoperability-osint.md`](../../docs/vrs-public-interoperability-osint.md).
+
+## Authority boundary
+
+Keep these sources distinct:
+
+```text
+47 CFR § 64.621
+  -> U.S. regulatory VRS interoperability obligation
+  -> incorporates SIP Forum TWG-6-1.0
+
+SIP Forum TWG-6-2.0
+  -> newer ratified industry provider profile
+  -> not silently substituted for the incorporated 1.0 text
+
+RFC 9248
+  -> public RUE <-> provider / RUE <-> RUE interoperability profile
+  -> source for the RUE test rows in this directory
+```
+
+Operational event reports and MITRE National Test Lab descriptions show that repeatable multi-provider interoperability testing exists at significant scale. They are context, not normative authorities and not substitutes for actual test specifications.
+
+## Clean-room rules
+
+1. Use only synthetic telephone numbers, identities, contact records, credentials, locations, and domains in committed fixtures.
+2. Do not commit live TRS Numbering Directory responses or subscriber records.
+3. Do not copy production provider SIP traces into the repository.
+4. Provider names in executable fixtures are `provider-a`, `provider-b`, etc.; a real provider name may appear only when accurately citing public historical material.
+5. Route success, signaling success, transport readiness, video readiness, RTT readiness, and security claims remain separate observations.
+6. A public standard identifies what to test; only preserved execution evidence can establish what an implementation did.
+7. No emergency scenario may originate a real emergency call from the public test harness.
+8. No production infrastructure is probed merely because an endpoint or domain can be discovered through OSINT.
+
+## Intended progression
+
+The first executable progression is deliberately narrow:
+
+```text
+synthetic provider selection
+    -> selected provider entry point
+    -> synthetic one-stage dial-around Request-URI
+    -> controlled SIP peer
+    -> dialog evidence
+    -> separate media/RTT/security lanes
+```
+
+This composes naturally with the existing Baudot implementation ensemble. JAIN SIP can remain the glass-box signaling instrument; Elixip/PJSIP/Linphone-class implementations can supply independent implementation behavior; Wiretap can remain network/evidence substrate; and Baudot reducers retain terminal verdict authority.
+
+## Claim boundary
+
+Nothing in this directory proves:
+
+- current behavior of any VRS provider;
+- access to or correctness of the live TRS Numbering Directory;
+- VRS Provider Interoperability Profile compliance;
+- RFC 9248, SIP, SRTP, ICE, H.264, RFC 4103, RFC 2198, RFC 8865, or T.140 conformance;
+- production readiness; or
+- regulatory certification.
