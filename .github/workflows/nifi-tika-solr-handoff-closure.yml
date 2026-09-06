@@ -1,0 +1,63 @@
+name: nifi-tika-solr-handoff-closure
+
+on:
+  pull_request:
+    paths:
+      - 'testkit/business/nifi-tika-solr-handoff-v1.json'
+      - 'scripts/validate_nifi_tika_solr_handoff.py'
+      - 'scripts/validate_nifi_tika_solr_handoff_negative.py'
+      - 'scripts/run_nifi_tika_solr_handoff.py'
+      - 'docs/nifi-tika-solr-handoff.md'
+      - '.github/workflows/nifi-tika-solr-handoff-closure.yml'
+  push:
+    paths:
+      - 'testkit/business/nifi-tika-solr-handoff-v1.json'
+      - 'scripts/validate_nifi_tika_solr_handoff.py'
+      - 'scripts/validate_nifi_tika_solr_handoff_negative.py'
+      - 'scripts/run_nifi_tika_solr_handoff.py'
+      - 'docs/nifi-tika-solr-handoff.md'
+      - '.github/workflows/nifi-tika-solr-handoff-closure.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  closure:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Validate closure contract
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/validate_nifi_tika_solr_handoff.py \
+            scripts/validate_nifi_tika_solr_handoff_negative.py \
+            scripts/run_nifi_tika_solr_handoff.py
+          python scripts/validate_nifi_tika_solr_handoff.py
+          python scripts/validate_nifi_tika_solr_handoff_negative.py
+      - name: Reject stale sibling qualification pins
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          profile=testkit/business/nifi-tika-solr-handoff-v1.json
+          nifi_pr=$(jq -r '.composition.nifiPr' "$profile")
+          nifi_pin=$(jq -r '.composition.nifiHead' "$profile")
+          doc_pr=$(jq -r '.composition.documentPr' "$profile")
+          doc_pin=$(jq -r '.composition.documentHead' "$profile")
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls"
+          auth=(-H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json')
+          nifi_live=$(curl -fsSL "${auth[@]}" "$api/$nifi_pr" | jq -r '.head.sha')
+          doc_live=$(curl -fsSL "${auth[@]}" "$api/$doc_pr" | jq -r '.head.sha')
+          test "$nifi_live" = "$nifi_pin" || {
+            echo "NiFi sibling pin stale: profile=$nifi_pin current=$nifi_live" >&2
+            exit 1
+          }
+          test "$doc_live" = "$doc_pin" || {
+            echo "Tika/Solr sibling pin stale: profile=$doc_pin current=$doc_live" >&2
+            exit 1
+          }
+          echo "Sibling qualification pins are current."
