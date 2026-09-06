@@ -1,0 +1,32 @@
+{
+  "schema": "baudot.part64-vrs-home-workstation-report@1",
+  "scenario": "VRS-HOME-REPORT-001",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "productionReport": false,
+  "workstations": [
+    {
+      "workstationId": "HOME-EXAMPLE-001",
+      "streetAddress": "101 Example Avenue, Baltimore, MD 21201",
+      "syntheticAddress": true,
+      "caIds": ["CA-EXAMPLE-101", "CA-EXAMPLE-102"],
+      "supervisingCallCenter": {
+        "callCenterId": "CENTER-EXAMPLE-001",
+        "streetAddress": "201 Example Avenue, Baltimore, MD 21201",
+        "syntheticAddress": true,
+        "supervisorName": "Example Supervisor"
+      }
+    },
+    {
+      "workstationId": "HOME-EXAMPLE-002",
+      "streetAddress": "102 Example Avenue, Baltimore, MD 21201",
+      "syntheticAddress": true,
+      "caIds": ["CA-EXAMPLE-103"],
+      "supervisingCallCenter": {
+        "callCenterId": "CENTER-EXAMPLE-001",
+        "streetAddress": "201 Example Avenue, Baltimore, MD 21201",
+        "syntheticAddress": true,
+        "supervisorName": "Example Supervisor"
+      }
+    }
+  ]
+}
