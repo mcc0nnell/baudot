@@ -1,0 +1,136 @@
+name: live-fineract-trs-fund
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "docs/live-fineract-trs-fund.md"
+      - "interop/fineract/journal-contract-v1.json"
+      - "scripts/run_live_fineract_trs_fund.py"
+      - "scripts/validate_part64_fund_payment_settlement.py"
+      - ".github/workflows/live-fineract-trs-fund.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/live-fineract-trs-fund.md"
+      - "interop/fineract/journal-contract-v1.json"
+      - "scripts/run_live_fineract_trs_fund.py"
+      - "scripts/validate_part64_fund_payment_settlement.py"
+      - ".github/workflows/live-fineract-trs-fund.yml"
+
+permissions:
+  contents: read
+
+env:
+  FINERACT_VERSION: "1.15.0"
+  FINERACT_COMMIT: "d5636847ac556c30b437254c353f05526d172b97"
+  FINERACT_IMAGE: "apache/fineract:d5636847ac556c30b437254c353f05526d172b97"
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out Baudot
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Syntax-check live harness
+        run: python -m py_compile scripts/run_live_fineract_trs_fund.py scripts/validate_part64_fund_payment_settlement.py
+
+      - name: Revalidate static payment contract
+        run: python scripts/validate_part64_fund_payment_settlement.py
+
+      - name: Check out Apache Fineract 1.15.0
+        uses: actions/checkout@v4
+        with:
+          repository: apache/fineract
+          ref: "1.15.0"
+          path: target/fineract-1.15.0
+          persist-credentials: false
+
+      - name: Verify Fineract release lineage
+        working-directory: target/fineract-1.15.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          observed="$(git rev-parse HEAD)"
+          test "$observed" = "$FINERACT_COMMIT"
+          printf '{"version":"%s","expectedCommit":"%s","observedCommit":"%s","match":true}\n' \
+            "$FINERACT_VERSION" "$FINERACT_COMMIT" "$observed" \
+            > ../fineract-source-pin.json
+
+      - name: Pull exact Apache Fineract image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "$FINERACT_IMAGE"
+          docker tag "$FINERACT_IMAGE" fineract:latest
+          docker image inspect "$FINERACT_IMAGE" --format '{{json .RepoDigests}}' > target/fineract-image-digests.json
+
+      - name: Start pinned Fineract and PostgreSQL
+        working-directory: target/fineract-1.15.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/fineract/logs
+          docker compose up -d db fineract
+          docker compose ps
+
+      - name: Run live TRS Fund qualification
+        env:
+          FINERACT_BASE_URL: https://localhost:8443/fineract-provider/api/v1
+          FINERACT_USERNAME: mifos
+          FINERACT_PASSWORD: password
+          FINERACT_TENANT: default
+          FINERACT_PINNED_VERSION: ${{ env.FINERACT_VERSION }}
+          FINERACT_PINNED_COMMIT: ${{ env.FINERACT_COMMIT }}
+          FINERACT_PINNED_IMAGE: ${{ env.FINERACT_IMAGE }}
+        run: python scripts/run_live_fineract_trs_fund.py
+
+      - name: Add platform provenance to evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=target/evidence-external/LIVE-FINERACT-TRS/v1
+          cp target/fineract-source-pin.json "$out/source-pin.json"
+          cp target/fineract-image-digests.json "$out/image-digests.json"
+
+      - name: Seal live evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=target/evidence-external/LIVE-FINERACT-TRS/v1
+          (
+            cd "$out"
+            find . -maxdepth 1 -type f ! -name bundle.manifest.sha256 -printf '%f\n' | LC_ALL=C sort \
+              | xargs sha256sum > bundle.manifest.sha256
+            sha256sum -c bundle.manifest.sha256
+          )
+
+      - name: Preserve live evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-live-fineract-trs-fund
+          path: target/evidence-external/LIVE-FINERACT-TRS/v1
+          if-no-files-found: warn
+
+      - name: Diagnose Fineract on failure
+        if: failure()
+        working-directory: target/fineract-1.15.0
+        shell: bash
+        run: |
+          docker compose ps || true
+          docker compose logs --tail=200 fineract db || true
+
+      - name: Tear down Fineract
+        if: always()
+        working-directory: target/fineract-1.15.0
+        shell: bash
+        run: docker compose down -v --remove-orphans || true
