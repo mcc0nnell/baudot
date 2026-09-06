@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXECUTION = ROOT / "testkit" / "vrs" / "executions" / "RUE-DIAL-001-jain.json"
+SELECTION = ROOT / "target" / "evidence" / "RUE-PROV-001" / "provider-b-selection.json"
 RESULT = (
     ROOT
     / "target"
@@ -24,6 +25,8 @@ EXPECTED_SELECTED = "provider-b.example"
 
 
 def load_json(path: Path) -> dict:
+    if not path.is_file():
+        raise ValueError(f"missing JSON evidence: {path}")
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError(f"{path}: root must be an object")
@@ -60,6 +63,17 @@ def main() -> int:
     if execution.get("runner") != "scripts/run-rue-one-stage-dial-around.sh":
         raise ValueError("execution runner drift")
 
+    selection = load_json(SELECTION)
+    if selection.get("schema") != "baudot.rue-provider-selection@1":
+        raise ValueError("provider-selection schema drift")
+    if selection.get("claim") != "synthetic-provider-selection-only":
+        raise ValueError("provider-selection claim boundary drift")
+    if selection.get("selectedProvider") != "Provider B":
+        raise ValueError("RUE-DIAL-001 requires the preserved Provider B selection arm")
+    selected_entry_point = selection.get("providerEntryPoint")
+    if selected_entry_point != EXPECTED_SELECTED:
+        raise ValueError("selected providerEntryPoint does not match the pinned live route arm")
+
     result = load_properties(RESULT)
     expected_true = {
         "rue.inboundTargetPreserved",
@@ -93,8 +107,8 @@ def main() -> int:
         raise ValueError("selected-provider Request-URI drift")
     if result.get("default.provider.domain") != EXPECTED_DEFAULT:
         raise ValueError("default-provider domain drift")
-    if result.get("selected.provider.domain") != EXPECTED_SELECTED:
-        raise ValueError("selected-provider domain drift")
+    if result.get("selected.provider.domain") != selected_entry_point:
+        raise ValueError("live selected-provider domain does not match provider-selection evidence")
     if result.get("transport.claim") != "loopback-udp-harness-only":
         raise ValueError("harness transport must remain explicitly non-production")
     if result.get("claim") != "rfc9248-one-stage-dial-around-route-semantics-only":
@@ -102,8 +116,8 @@ def main() -> int:
     if result.get("scenario.result") != "PASS":
         raise ValueError("RUE-DIAL-001 live execution did not pass")
 
-    print("✓ RUE-DIAL-001 live route semantics independently reduced: PASS")
-    print("  selected provider: provider-b.example")
+    print("✓ RUE-PROV-001 -> RUE-DIAL-001 evidence chain independently reduced: PASS")
+    print(f"  selected providerEntryPoint: {selected_entry_point}")
     print("  media/RTT/video readiness: deliberately unproven")
     return 0
 
