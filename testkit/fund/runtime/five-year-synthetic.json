@@ -1,0 +1,70 @@
+{
+  "schema": "baudot.synthetic-fund-event-scenario@1",
+  "scenarioId": "five-year-baseline-v1",
+  "title": "Five-year synthetic Fund replay",
+  "claimBoundary": {
+    "allEntityLevelTransactionsSynthetic": true,
+    "productionRolkaLoubeDataUsed": false,
+    "productionProviderDataUsed": false,
+    "productionContributorDataUsed": false,
+    "productionCompatibilityClaimed": false
+  },
+  "policyFixtures": [
+    {"programYear": "2026-27", "policyHash": "sha256:b53a6f8a8997dcf971ae1fea9522dd9f956e7a458538f381675f8a4624ce22ee"},
+    {"programYear": "2027-28", "policyHash": "sha256:1afd614015f5268c8e8912bdd3f6858556bac877869e0f3028f6158968efa844"},
+    {"programYear": "2028-29", "policyHash": "sha256:bb530b75e43f6256a0213fdc091ea11936e101ff0b4ce6f3ff00b9ffb2a407a9"},
+    {"programYear": "2029-30", "policyHash": "sha256:e89c75bfc79198e48cb3e7cc9ad699da43ed58e980caccf7063de91a46e0f2bd"},
+    {"programYear": "2030-31", "policyHash": "sha256:f2d704c3176653fc8dbb2691c4ecff4544c2df783e1ad912fc632982e15eceeb"}
+  ],
+  "events": [
+    {"seq": 1, "eventType": "RUN_CONFIGURED", "transactionId": "run-2026-27", "effectiveDate": "2026-07-01", "entityId": "2026-27", "policyHash": "sha256:b53a6f8a8997dcf971ae1fea9522dd9f956e7a458538f381675f8a4624ce22ee"},
+    {"seq": 2, "eventType": "CONTRIBUTOR_ASSESSED", "transactionId": "assessment-y1", "effectiveDate": "2026-07-01", "entityId": "synthetic-contributor", "amount": "300000.00"},
+    {"seq": 3, "eventType": "CONTRIBUTOR_RECEIPT_RECORDED", "transactionId": "receipt-y1", "effectiveDate": "2026-07-15", "entityId": "synthetic-contributor", "amount": "300000.00"},
+    {"seq": 4, "eventType": "PROVIDER_CLAIM_APPROVED", "transactionId": "claim-y1", "effectiveDate": "2027-01-15", "entityId": "synthetic-provider", "amount": "210000.00"},
+    {"seq": 5, "eventType": "PROVIDER_DISBURSEMENT_POSTED", "transactionId": "payment-y1", "effectiveDate": "2027-01-31", "entityId": "synthetic-provider", "amount": "210000.00"},
+    {"seq": 6, "eventType": "ACCOUNTING_PERIOD_CLOSED", "transactionId": "close-y1", "effectiveDate": "2027-07-01", "entityId": "2027-06-30"},
+    {"seq": 7, "eventType": "PROGRAM_YEAR_ADVANCED", "transactionId": "advance-y2", "effectiveDate": "2027-07-01", "entityId": "2027-28", "policyHash": "sha256:1afd614015f5268c8e8912bdd3f6858556bac877869e0f3028f6158968efa844"},
+
+    {"seq": 8, "eventType": "CONTRIBUTOR_ASSESSED", "transactionId": "assessment-y2", "effectiveDate": "2027-07-01", "entityId": "synthetic-contributor", "amount": "315000.00"},
+    {"seq": 9, "eventType": "CONTRIBUTOR_RECEIPT_RECORDED", "transactionId": "receipt-y2", "effectiveDate": "2027-07-15", "entityId": "synthetic-contributor", "amount": "315000.00"},
+    {"seq": 10, "eventType": "PROVIDER_CLAIM_APPROVED", "transactionId": "claim-y2", "effectiveDate": "2028-01-15", "entityId": "synthetic-provider", "amount": "225000.00"},
+    {"seq": 11, "eventType": "PROVIDER_DISBURSEMENT_POSTED", "transactionId": "payment-y2", "effectiveDate": "2028-01-31", "entityId": "synthetic-provider", "amount": "225000.00"},
+    {"seq": 12, "eventType": "ACCOUNTING_PERIOD_CLOSED", "transactionId": "close-y2", "effectiveDate": "2028-07-01", "entityId": "2028-06-30"},
+    {"seq": 13, "eventType": "PROGRAM_YEAR_ADVANCED", "transactionId": "advance-y3", "effectiveDate": "2028-07-01", "entityId": "2028-29", "policyHash": "sha256:bb530b75e43f6256a0213fdc091ea11936e101ff0b4ce6f3ff00b9ffb2a407a9"},
+
+    {"seq": 14, "eventType": "CONTRIBUTOR_ASSESSED", "transactionId": "assessment-y3", "effectiveDate": "2028-07-01", "entityId": "synthetic-contributor", "amount": "330000.00", "note": "Delinquency scenario: only 280000 is received during this program year."},
+    {"seq": 15, "eventType": "CONTRIBUTOR_RECEIPT_RECORDED", "transactionId": "receipt-y3-partial", "effectiveDate": "2028-07-15", "entityId": "synthetic-contributor", "amount": "280000.00"},
+    {"seq": 16, "eventType": "PROVIDER_CLAIM_APPROVED", "transactionId": "claim-y3", "effectiveDate": "2029-01-15", "entityId": "synthetic-provider", "amount": "250000.00", "note": "Synthetic anomaly corrected by an explicit downward adjustment."},
+    {"seq": 17, "eventType": "PROVIDER_CLAIM_ADJUSTED", "transactionId": "claim-y3-adjustment", "effectiveDate": "2029-01-20", "entityId": "synthetic-provider", "targetTransactionId": "claim-y3", "adjustmentDirection": "decrease", "amount": "30000.00"},
+    {"seq": 18, "eventType": "PROVIDER_DISBURSEMENT_POSTED", "transactionId": "payment-y3", "effectiveDate": "2029-01-31", "entityId": "synthetic-provider", "amount": "220000.00"},
+    {"seq": 19, "eventType": "ACCOUNTING_PERIOD_CLOSED", "transactionId": "close-y3", "effectiveDate": "2029-07-01", "entityId": "2029-06-30"},
+    {"seq": 20, "eventType": "PROGRAM_YEAR_ADVANCED", "transactionId": "advance-y4", "effectiveDate": "2029-07-01", "entityId": "2029-30", "policyHash": "sha256:e89c75bfc79198e48cb3e7cc9ad699da43ed58e980caccf7063de91a46e0f2bd"},
+
+    {"seq": 21, "eventType": "CONTRIBUTOR_ASSESSED", "transactionId": "assessment-y4", "effectiveDate": "2029-07-01", "entityId": "synthetic-contributor", "amount": "345000.00"},
+    {"seq": 22, "eventType": "CONTRIBUTOR_ASSESSMENT_ADJUSTED", "transactionId": "assessment-y4-revision", "effectiveDate": "2029-08-01", "entityId": "synthetic-contributor", "targetTransactionId": "assessment-y4", "adjustmentDirection": "increase", "amount": "25000.00", "note": "Synthetic revised filing."},
+    {"seq": 23, "eventType": "CONTRIBUTOR_RECEIPT_RECORDED", "transactionId": "receipt-y4", "effectiveDate": "2029-08-15", "entityId": "synthetic-contributor", "amount": "370000.00"},
+    {"seq": 24, "eventType": "PROVIDER_CLAIM_APPROVED", "transactionId": "claim-y4", "effectiveDate": "2030-01-15", "entityId": "synthetic-provider", "amount": "235000.00"},
+    {"seq": 25, "eventType": "PROVIDER_DISBURSEMENT_POSTED", "transactionId": "payment-y4", "effectiveDate": "2030-01-31", "entityId": "synthetic-provider", "amount": "235000.00"},
+    {"seq": 26, "eventType": "ACCOUNTING_PERIOD_CLOSED", "transactionId": "close-y4", "effectiveDate": "2030-07-01", "entityId": "2030-06-30"},
+    {"seq": 27, "eventType": "PROGRAM_YEAR_ADVANCED", "transactionId": "advance-y5", "effectiveDate": "2030-07-01", "entityId": "2030-31", "policyHash": "sha256:f2d704c3176653fc8dbb2691c4ecff4544c2df783e1ad912fc632982e15eceeb"},
+
+    {"seq": 28, "eventType": "CONTRIBUTOR_ASSESSED", "transactionId": "assessment-y5", "effectiveDate": "2030-07-01", "entityId": "synthetic-contributor", "amount": "360000.00"},
+    {"seq": 29, "eventType": "CONTRIBUTOR_RECEIPT_RECORDED", "transactionId": "receipt-y5", "effectiveDate": "2030-07-15", "entityId": "synthetic-contributor", "amount": "360000.00"},
+    {"seq": 30, "eventType": "PROVIDER_CLAIM_APPROVED", "transactionId": "claim-y5", "effectiveDate": "2031-01-15", "entityId": "synthetic-provider", "amount": "245000.00"},
+    {"seq": 31, "eventType": "PROVIDER_DISBURSEMENT_POSTED", "transactionId": "payment-y5", "effectiveDate": "2031-01-31", "entityId": "synthetic-provider", "amount": "245000.00"},
+    {"seq": 32, "eventType": "CONTRIBUTOR_RECEIPT_RECORDED", "transactionId": "receipt-y3-recovery", "effectiveDate": "2031-02-15", "entityId": "synthetic-contributor", "amount": "50000.00", "note": "Recovery of the synthetic year-three delinquency."},
+    {"seq": 33, "eventType": "PROVIDER_CLAIM_ADJUSTED", "transactionId": "claim-y4-retroactive-adjustment", "effectiveDate": "2031-03-01", "entityId": "synthetic-provider", "targetTransactionId": "claim-y4", "adjustmentDirection": "increase", "amount": "10000.00", "note": "Retroactive prior-year adjustment posted in an open period; history is not rewritten."},
+    {"seq": 34, "eventType": "PROVIDER_DISBURSEMENT_POSTED", "transactionId": "payment-y4-retroactive", "effectiveDate": "2031-03-15", "entityId": "synthetic-provider", "amount": "10000.00"},
+    {"seq": 35, "eventType": "ACCOUNTING_PERIOD_CLOSED", "transactionId": "close-y5", "effectiveDate": "2031-07-01", "entityId": "2031-06-30"}
+  ],
+  "expectedFinalState": {
+    "programYear": "2030-31",
+    "cash": "530000.00",
+    "contributorReceivable": "0.00",
+    "providerPayable": "0.00",
+    "contributionRevenue": "1675000.00",
+    "providerCompensationExpense": "1145000.00",
+    "closedThrough": "2031-06-30",
+    "lastSeq": 35
+  }
+}
