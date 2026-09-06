@@ -1,0 +1,59 @@
+{
+  "schema": "baudot.part64-vrs-speed-of-answer@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "capture": {
+    "automatedElectronic": true,
+    "standardizedFormat": "json",
+    "humanInterventionDuringCallTiming": false
+  },
+  "months": [
+    {
+      "scenario": "VRS-SOA-PASS-001",
+      "month": "2026-08",
+      "thresholdPercent": 80,
+      "thresholdSeconds": 120,
+      "attempts": [
+        {"id": "SOA-P-01", "elapsedToCaAnswerSeconds": 12, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-P-02", "elapsedToCaAnswerSeconds": 24, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-P-03", "elapsedToCaAnswerSeconds": 45, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-P-04", "elapsedToCaAnswerSeconds": 60, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-P-05", "elapsedToCaAnswerSeconds": 75, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-P-06", "elapsedToCaAnswerSeconds": 90, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-P-07", "elapsedToCaAnswerSeconds": 110, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-P-08", "elapsedToCaAnswerSeconds": 120, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-P-09", "elapsedToCaAnswerSeconds": 121, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-P-10", "elapsedToCaAnswerSeconds": null, "abandoned": true, "eligibleForSoaCorpus": true}
+      ],
+      "expected": {
+        "denominator": 10,
+        "timelyCaAnswers": 8,
+        "percent": 80.0,
+        "compliant": true
+      }
+    },
+    {
+      "scenario": "VRS-SOA-FAIL-001",
+      "month": "2026-07",
+      "thresholdPercent": 80,
+      "thresholdSeconds": 120,
+      "attempts": [
+        {"id": "SOA-F-01", "elapsedToCaAnswerSeconds": 15, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-F-02", "elapsedToCaAnswerSeconds": 30, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-F-03", "elapsedToCaAnswerSeconds": 44, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-F-04", "elapsedToCaAnswerSeconds": 58, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-F-05", "elapsedToCaAnswerSeconds": 79, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-F-06", "elapsedToCaAnswerSeconds": 100, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-F-07", "elapsedToCaAnswerSeconds": 119, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-F-08", "elapsedToCaAnswerSeconds": 125, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-F-09", "elapsedToCaAnswerSeconds": 180, "abandoned": false, "eligibleForSoaCorpus": true},
+        {"id": "SOA-F-10", "elapsedToCaAnswerSeconds": null, "abandoned": true, "eligibleForSoaCorpus": true}
+      ],
+      "expected": {
+        "denominator": 10,
+        "timelyCaAnswers": 7,
+        "percent": 70.0,
+        "compliant": false
+      }
+    }
+  ]
+}
