@@ -1,9 +1,19 @@
 {
   "schema": "baudot.fineract-trs-journal-contract@1",
   "authority": "synthetic-accounting-adapter-only",
+  "targetFineract": {
+    "release": "1.15.0",
+    "idempotencyHeader": "Idempotency-Key",
+    "notes": [
+      "request idempotency is supplied by the Baudot synthetic business transaction id",
+      "manual journal reversal uses POST journalentries/{transactionId}?command=reverse",
+      "accounting closure blocks posting or reversal on or before the close date"
+    ]
+  },
   "fineractApiSurface": {
+    "glAccounts": "/api/v1/glaccounts",
     "journalEntries": "/api/v1/journalentries",
-    "reversal": "/api/v1/journalentries/{transactionId}/reversal",
+    "reversal": "/api/v1/journalentries/{transactionId}?command=reverse",
     "accountingClosures": "/api/v1/glclosures"
   },
   "accounts": {
@@ -57,14 +67,17 @@
     "fineractTransactionId",
     "fineractJournalEntryIds",
     "balanced",
-    "reconciled"
+    "reconciled",
+    "servedFromCache"
   ],
   "invariants": [
     "debits-equal-credits",
     "business-transaction-id-is-idempotency-key-in-baudot-adapter",
+    "business-transaction-id-is-forwarded-as-fineract-idempotency-key",
     "fineract-ledger-success-does-not-imply-program-eligibility",
     "reversal-is-explicit-and-evidence-preserving",
-    "posting-after-accounting-closure-must-fail-or-use-an-authorized-open-date"
+    "posting-after-accounting-closure-must-fail-or-use-an-authorized-open-date",
+    "fineract-postings-must-reconcile-to-independent-baudot-fund-state"
   ],
   "claimExclusions": [
     "fcc-approval",
