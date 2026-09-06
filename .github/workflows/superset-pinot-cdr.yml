@@ -1,0 +1,44 @@
+name: superset-pinot-cdr
+
+on:
+  pull_request:
+    paths:
+      - 'testkit/business/superset-pinot-cdr-v1.json'
+      - 'testkit/business/olap-bakeoff-v1.json'
+      - 'interop/olap/pinot/cdr_analytics_v1.schema.json'
+      - 'interop/superset/pinot/**'
+      - 'scripts/validate_superset_pinot_cdr.py'
+      - 'scripts/run_superset_pinot_admission.py'
+      - 'docs/superset-pinot-cdr.md'
+      - '.github/workflows/superset-pinot-cdr.yml'
+      - '.github/workflows/superset-pinot-live-admission.yml'
+  push:
+    paths:
+      - 'testkit/business/superset-pinot-cdr-v1.json'
+      - 'testkit/business/olap-bakeoff-v1.json'
+      - 'interop/olap/pinot/cdr_analytics_v1.schema.json'
+      - 'interop/superset/pinot/**'
+      - 'scripts/validate_superset_pinot_cdr.py'
+      - 'scripts/run_superset_pinot_admission.py'
+      - 'docs/superset-pinot-cdr.md'
+      - '.github/workflows/superset-pinot-cdr.yml'
+      - '.github/workflows/superset-pinot-live-admission.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Compile Superset Pinot harness
+        run: |
+          python -m py_compile \
+            scripts/validate_superset_pinot_cdr.py \
+            scripts/run_superset_pinot_admission.py
+      - name: Validate Superset to Pinot CDR boundary
+        run: python scripts/validate_superset_pinot_cdr.py
