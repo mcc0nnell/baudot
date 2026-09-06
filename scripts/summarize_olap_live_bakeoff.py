@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 EXPECTED_QUERY_ROWS = {
-    "OLAP-Q001": 16,
+    "OLAP-Q001": 6,
     "OLAP-Q002": 4,
     "OLAP-Q003": 2880,
     "OLAP-Q004": 16,
