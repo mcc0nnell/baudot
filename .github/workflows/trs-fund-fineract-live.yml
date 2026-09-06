@@ -1,0 +1,146 @@
+name: trs-fund-fineract-live
+
+on:
+  pull_request:
+    paths:
+      - "docs/trs-fund-fineract-live.md"
+      - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_trs_fund_runtime_contract.py"
+      - "scripts/run_trs_fund_scenario.py"
+      - "scripts/run_trs_fund_fineract_live.py"
+      - "testkit/fund/trs-fund-runtime-contract-v1.json"
+      - "testkit/fund/scenarios/**"
+      - ".github/workflows/trs-fund-fineract-live.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/trs-fund-fineract-live.md"
+      - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_trs_fund_runtime_contract.py"
+      - "scripts/run_trs_fund_scenario.py"
+      - "scripts/run_trs_fund_fineract_live.py"
+      - "testkit/fund/trs-fund-runtime-contract-v1.json"
+      - "testkit/fund/scenarios/**"
+      - ".github/workflows/trs-fund-fineract-live.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  live-fineract-fund-loop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      FINERACT_COMMIT: d5636847ac556c30b437254c353f05526d172b97
+      FINERACT_RELEASE: "1.15.0"
+      FINERACT_TEST_USERNAME: mifos
+      FINERACT_TEST_PASSWORD: password
+
+    steps:
+      - name: Check out Baudot
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Validate canonical Fund parents
+        run: |
+          python scripts/validate_trs_fund_public_model.py
+          python scripts/validate_trs_fund_runtime_contract.py
+          python -m py_compile scripts/run_trs_fund_fineract_live.py
+
+      - name: Produce canonical journal intents
+        run: |
+          mkdir -p build/evidence
+          python scripts/run_trs_fund_scenario.py \
+            testkit/fund/scenarios/year-1-smoke.json \
+            --evidence build/evidence/fund-year-1-smoke.json
+
+      - name: Check out exact Apache Fineract source
+        uses: actions/checkout@v5
+        with:
+          repository: apache/fineract
+          ref: d5636847ac556c30b437254c353f05526d172b97
+          path: .lab/fineract
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify Fineract source identity
+        working-directory: .lab/fineract
+        run: |
+          test "$(git rev-parse HEAD)" = "$FINERACT_COMMIT"
+          printf '%s\n' "$FINERACT_COMMIT" > ../../build/evidence/fineract-source-commit.txt
+          printf '%s\n' "$FINERACT_RELEASE" > ../../build/evidence/fineract-release.txt
+
+      - name: Build exact Fineract workspace
+        uses: ./.lab/fineract/.github/actions/setup-and-build-fineract
+        with:
+          working-directory: .lab/fineract
+          cache-read-only: true
+
+      - name: Build local Fineract image from exact source
+        working-directory: .lab/fineract
+        run: >-
+          ./gradlew --no-daemon --console=plain
+          :fineract-provider:jibDockerBuild
+          -Djib.to.image=fineract
+          -x test -x cucumber -x buildJavaSdk
+
+      - name: Start Fineract PostgreSQL test stack
+        working-directory: .lab/fineract
+        run: |
+          docker compose -f docker-compose.yml up -d db
+          docker compose -f docker-compose.yml up -d fineract
+          docker compose -f docker-compose.yml ps
+
+      - name: Wait for Fineract
+        run: >-
+          curl -f -k --retry 60 --retry-all-errors
+          --connect-timeout 10 --retry-delay 5
+          https://localhost:8443/fineract-provider/actuator/health
+
+      - name: Execute live synthetic Fund loop
+        run: |
+          python scripts/run_trs_fund_fineract_live.py \
+            --scenario-evidence build/evidence/fund-year-1-smoke.json \
+            --evidence build/evidence/trs-fund-fineract-live.json
+
+      - name: Seal live evidence
+        if: success()
+        run: |
+          sha256sum \
+            build/evidence/fund-year-1-smoke.json \
+            build/evidence/trs-fund-fineract-live.json \
+            interop/fineract/journal-contract-v1.json \
+            interop/fineract/fineract-live-profile-v1.json \
+            > build/evidence/trs-fund-fineract-live.sha256
+
+      - name: Collect Fineract runtime evidence
+        if: always()
+        working-directory: .lab/fineract
+        run: |
+          mkdir -p ../../build/evidence/fineract-runtime
+          docker compose -f docker-compose.yml ps --all \
+            > ../../build/evidence/fineract-runtime/docker-compose-ps.txt 2>&1 || true
+          docker compose -f docker-compose.yml logs --no-color --timestamps \
+            > ../../build/evidence/fineract-runtime/docker-compose.log 2>&1 || true
+          docker image inspect fineract:latest \
+            > ../../build/evidence/fineract-runtime/fineract-image-inspect.json 2>&1 || true
+
+      - name: Preserve live Fineract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trs-fund-fineract-live-evidence
+          path: build/evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Tear down Fineract
+        if: always()
+        working-directory: .lab/fineract
+        run: docker compose -f docker-compose.yml down -v
