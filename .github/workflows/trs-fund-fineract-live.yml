@@ -1,0 +1,131 @@
+name: trs-fund-fineract-live
+
+on:
+  pull_request:
+    paths:
+      - "testkit/fund/**"
+      - "interop/fineract/**"
+      - "scripts/run_fineract_fund_lane.py"
+      - "scripts/run_fineract_fund_closure_probe.py"
+      - ".github/workflows/trs-fund-fineract-live.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-ledger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      FINERACT_RELEASE: "1.15.0"
+      FINERACT_RELEASE_COMMIT: "d5636847ac556c30b437254c353f05526d172b97"
+      FINERACT_IMAGE: "fineract:baudot-1.15.0"
+
+    steps:
+      - name: Check out Baudot
+        uses: actions/checkout@v5
+
+      - name: Check out pinned Apache Fineract release source
+        uses: actions/checkout@v5
+        with:
+          repository: apache/fineract
+          ref: ${{ env.FINERACT_RELEASE }}
+          path: .fineract-upstream
+
+      - name: Verify pinned Fineract source
+        working-directory: .fineract-upstream
+        run: test "$(git rev-parse HEAD)" = "${FINERACT_RELEASE_COMMIT}"
+
+      - name: Set up Fineract build JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "21"
+
+      - name: Build pinned Fineract container from source and capture provenance
+        working-directory: .fineract-upstream
+        run: |
+          mkdir -p ../artifacts/trs-fund-fineract
+          ./gradlew --no-daemon --console=plain :fineract-provider:jibDockerBuild \
+            -Djib.to.image="${FINERACT_IMAGE}" \
+            -x test -x cucumber
+          docker tag "${FINERACT_IMAGE}" fineract:latest
+          IMAGE_ID="$(docker image inspect "${FINERACT_IMAGE}" --format '{{.Id}}')"
+          REPO_TAGS="$(docker image inspect "${FINERACT_IMAGE}" --format '{{json .RepoTags}}')"
+          SOURCE_TREE="$(git rev-parse HEAD^{tree})"
+          JAVA_VERSION="$(java -version 2>&1 | head -n 1 | sed 's/"/\\"/g')"
+          GRADLE_VERSION="$(./gradlew --version | awk '/^Gradle / {print $2; exit}')"
+          cat > ../artifacts/trs-fund-fineract/fineract-implementation.json <<EOF
+          {
+            "release": "${FINERACT_RELEASE}",
+            "sourceCommit": "${FINERACT_RELEASE_COMMIT}",
+            "sourceTree": "${SOURCE_TREE}",
+            "provenanceMode": "source-built",
+            "buildTask": ":fineract-provider:jibDockerBuild",
+            "image": "${FINERACT_IMAGE}",
+            "composeImage": "fineract:latest",
+            "imageId": "${IMAGE_ID}",
+            "repoTags": ${REPO_TAGS},
+            "java": "${JAVA_VERSION}",
+            "gradle": "${GRADLE_VERSION}"
+          }
+          EOF
+
+      - name: Start Fineract test stack
+        working-directory: .fineract-upstream
+        run: |
+          mkdir -p build/fineract/logs
+          export FINERACT_USER="$(id -u)"
+          export FINERACT_GROUP="$(id -g)"
+          docker compose up -d
+          docker compose ps
+
+      - name: Execute synthetic Fund ledger lane
+        env:
+          FINERACT_BASE_URL: https://localhost:8443/fineract-provider/api/v1
+          FINERACT_USERNAME: mifos
+          FINERACT_PASSWORD: password
+          FINERACT_TENANT: default
+          FINERACT_INSECURE_TLS: "1"
+          FINERACT_WAIT_SECONDS: "300"
+          TRS_FUND_EVIDENCE_DIR: artifacts/trs-fund-fineract
+        run: python scripts/run_fineract_fund_lane.py
+
+      - name: Prove accounting closure behavior
+        env:
+          FINERACT_BASE_URL: https://localhost:8443/fineract-provider/api/v1
+          FINERACT_USERNAME: mifos
+          FINERACT_PASSWORD: password
+          FINERACT_TENANT: default
+          FINERACT_INSECURE_TLS: "1"
+          FINERACT_WAIT_SECONDS: "60"
+          TRS_FUND_EVIDENCE_DIR: artifacts/trs-fund-fineract
+        run: python scripts/run_fineract_fund_closure_probe.py
+
+      - name: Capture Fineract logs
+        if: always()
+        working-directory: .fineract-upstream
+        run: |
+          mkdir -p ../artifacts/trs-fund-fineract
+          export FINERACT_USER="$(id -u)"
+          export FINERACT_GROUP="$(id -g)"
+          docker compose ps > ../artifacts/trs-fund-fineract/docker-compose-ps.txt || true
+          docker compose logs --no-color > ../artifacts/trs-fund-fineract/docker-compose.log || true
+
+      - name: Upload Fund evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trs-fund-fineract-live-${{ github.run_id }}
+          path: artifacts/trs-fund-fineract
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop Fineract test stack
+        if: always()
+        working-directory: .fineract-upstream
+        run: |
+          export FINERACT_USER="$(id -u)"
+          export FINERACT_GROUP="$(id -g)"
+          docker compose down -v --remove-orphans

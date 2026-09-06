@@ -1,22 +1,60 @@
 ---
 title: Why Baudot
-description: The problem Baudot is designed to make observable.
+description: Why an evidence-first proving ground spans both accessible communications and synthetic regulated-system workflows.
 ---
 
-Accessible communications failures often hide behind a successful protocol state.
+Baudot started from a practical problem in accessible telecommunications: the important behavior often lives between standards, signaling stacks, media implementations, gateways, packet captures, and institutional memory.
 
-A SIP transaction can succeed while the replacement leg has no usable real-time text. A media description can negotiate successfully while the wrong SDP is active. A transfer can complete while the original accessible leg was torn down too early. A historical workaround can tell us where to look without proving that a modern implementation has the same defect.
+The project turns those boundaries into executable scenarios with preserved evidence and explicit claim limits.
 
-Baudot exists to keep those facts separate.
+That method turned out to be useful beyond communications.
 
-## Working principles
+## The common problem
 
-1. **Behavior before stack choice.** Portable behavior should be expressible before it is tied to a specific SIP, WebRTC, VRS, or application implementation.
-2. **Connected is not usable.** Signaling, transport, presentation, and modality readiness are independent observations.
-3. **Evidence before conformance claims.** A fixture or adapter is not conformant because its documentation says so.
-4. **Transport does not redefine text semantics.** T.140 behavior belongs to the semantic core; transports carry it.
-5. **Interop failures become tests.** Historical production behavior can motivate a scenario without becoming normative.
+In both accessible calling and synthetic Fund workflows, one successful subsystem can easily be mistaken for proof of the whole system.
 
-## What Baudot is not
+```text
+SIP dialog established
+    != RTT usable
 
-Baudot is not a replacement SIP stack, a VRS provider, a standards body, or a shortcut to certification. It is a proving ground: scenarios, evidence requirements, implementation oracles, and reducers that make interoperability claims reviewable.
+journal balanced
+    != program authorized
+```
+
+Baudot keeps those claims separate.
+
+The communications lane asks whether the observed signaling, negotiation, transport, media, and presentation evidence is sufficient for the declared accessibility behavior.
+
+The Fund lane asks whether public-rule-calibrated synthetic events produced the expected accounting behavior against an external ledger implementation without letting that ledger become the authority for eligibility, contribution policy, claim approval, or payment authorization.
+
+## Why preserve the evidence
+
+A useful test result should survive longer than the terminal window that produced it. Baudot therefore treats implementation identity, source/build provenance, messages or API exchanges, runtime identifiers, timestamps, scenario manifests, independent reducer output, and the claim boundary itself as part of the result.
+
+This lets a later reviewer answer:
+
+1. what behavior or policy was declared;
+2. what implementation actually ran;
+3. what was observed;
+4. how the verdict was reduced; and
+5. what the run did not prove.
+
+## Why external implementations matter
+
+A proving ground becomes more interesting when it crosses into real independent implementations.
+
+JAIN SIP, Elixip, PJSIP, Sandia Wiretap, and Apache Fineract each contribute different kinds of evidence. They are not correct by definition. Their output is preserved and evaluated against the declared scenario boundary.
+
+That makes the same scenario portable enough to be replayed against another SIP stack, gateway, network substrate, media endpoint, or accounting engine later.
+
+## Why the synthetic Fund belongs here
+
+The Synthetic TRS Fund Lab is not a departure from Baudot's method. It applies the same discipline to a different system boundary:
+
+```text
+public rules -> synthetic event -> external implementation -> evidence -> independent reduction
+```
+
+The useful artifact is not merely a ledger or a dashboard. It is a replayable explanation of how a declared event became an observed state and which authority was responsible for each decision along the way.
+
+That is the through-line: **systems should prove what they claim, and no component should be allowed to claim more than its evidence supports.**

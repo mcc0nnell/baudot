@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate public TRS Fund calibration and synthetic contributor assessments."""
+"""Validate public TRS Fund calibration and synthetic Fund scenarios."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "testkit" / "fund" / "rolka-loube-2025-26.json"
 CONTRIBUTORS = ROOT / "testkit" / "fund" / "contributor-assessments-2026-27.json"
 JOURNAL = ROOT / "interop" / "fineract" / "journal-contract-v1.json"
+LIVE_SCENARIO = ROOT / "testkit" / "fund" / "fineract-live-smoke-v1.json"
 
 
 def money(value: Decimal) -> int:
@@ -187,14 +188,92 @@ def validate_journal_contract(journal: dict) -> None:
         print(f"PASS {event_name}: Dr {debit} / Cr {credit}")
 
 
+def apply_synthetic_event(
+    balances: dict[str, Decimal], journal: dict, event: dict, reverse: bool = False
+) -> None:
+    event_type = event["type"]
+    if event_type not in journal["events"]:
+        raise AssertionError(f"{event['id']}: unknown journal event type {event_type!r}")
+    amount = d(event["amount"])
+    if amount <= 0:
+        raise AssertionError(f"{event['id']}: amount must be positive")
+    mapping = journal["events"][event_type]
+    sign = Decimal("-1") if reverse else Decimal("1")
+    balances[mapping["debit"]] += amount * sign
+    balances[mapping["credit"]] -= amount * sign
+
+
+def validate_live_scenario_oracle(scenario: dict, journal: dict) -> None:
+    require("live scenario schema", scenario["schema"], "baudot.trs-fund-fineract-live-scenario@1")
+    require("live scenario is synthetic", scenario["claimBoundary"]["syntheticOnly"], True)
+    require(
+        "Fineract acceptance is not program authorization",
+        scenario["claimBoundary"]["fineractAcceptanceIsProgramAuthorization"],
+        False,
+    )
+    require(
+        "live scenario uses no production payment network",
+        scenario["claimBoundary"]["productionPaymentNetworkUsed"],
+        False,
+    )
+
+    events = scenario["events"]
+    ids = [row["id"] for row in events]
+    require("live scenario event IDs unique", len(set(ids)), len(ids))
+
+    balances = {code: Decimal("0.00") for code in journal["accounts"]}
+    event_index = {row["id"]: row for row in events}
+    for event in events:
+        apply_synthetic_event(balances, journal, event)
+
+    probe = scenario["reversalProbe"]
+    if probe["eventId"] not in event_index:
+        raise AssertionError(f"reversal target does not exist: {probe['eventId']}")
+    if probe["repostAs"] in event_index:
+        raise AssertionError(f"repost ID collides with original scenario event: {probe['repostAs']}")
+
+    reversed_event = event_index[probe["eventId"]]
+    apply_synthetic_event(balances, journal, reversed_event, reverse=True)
+    repost = dict(reversed_event)
+    repost["id"] = probe["repostAs"]
+    apply_synthetic_event(balances, journal, repost)
+
+    expected = {code: d(value) for code, value in scenario["expectedFinalBalances"].items()}
+    actual = {code: balances[code] for code in expected}
+    require("live scenario ledger-independent ending balances", actual, expected)
+    require("live scenario contributor receivable reconciles", balances["1200"], Decimal("0.00"))
+    require("live scenario provider payable reconciles", balances["2100"], Decimal("0.00"))
+    require("live scenario ending Fund cash", balances["1100"], Decimal("4000.00"))
+
+    known_invariants = {
+        "FUND-ACC-001",
+        "FUND-REC-001",
+        "FUND-CLM-001",
+        "FUND-DIS-001",
+        "FUND-ADJ-001",
+        "FUND-CLS-001",
+        "FUND-AUD-001",
+        "FUND-AUT-001",
+    }
+    unknown = set(scenario["requiredInvariants"]) - known_invariants
+    require("live scenario invariant vocabulary", unknown, set())
+    require(
+        "live scenario does not overclaim closure",
+        "FUND-CLS-001" in scenario["requiredInvariants"],
+        False,
+    )
+
+
 def main() -> None:
     fixture = json.loads(FIXTURE.read_text())
     contributors = json.loads(CONTRIBUTORS.read_text())
     journal = json.loads(JOURNAL.read_text())
+    live_scenario = json.loads(LIVE_SCENARIO.read_text())
 
     validate_public_fund_model(fixture)
     validate_contributor_assessments(contributors)
     validate_journal_contract(journal)
+    validate_live_scenario_oracle(live_scenario, journal)
 
     boundary = fixture["claimBoundary"]
     require("public aggregates only", boundary["publicAggregatesOnly"], True)
@@ -202,7 +281,7 @@ def main() -> None:
     require("no production Rolka Loube compatibility claim", boundary["productionRolkaLoubeCompatibilityClaimed"], False)
     require("no provider eligibility claim", boundary["providerEligibilityClaimed"], False)
 
-    print("TRS Fund public calibration and contributor assessment model: PASS")
+    print("TRS Fund public calibration, contributor model, and live-scenario oracle: PASS")
 
 
 if __name__ == "__main__":
