@@ -1,0 +1,61 @@
+name: sipp-hostile-admission
+
+on:
+  push:
+    paths:
+      - "interop/sipp/**"
+      - ".github/workflows/sipp-hostile-admission.yml"
+  pull_request:
+    paths:
+      - "interop/sipp/**"
+      - ".github/workflows/sipp-hostile-admission.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  admit-sipp-stimulus:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Baudot
+        uses: actions/checkout@v4
+
+      - name: Fetch exact SIPp candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/SIPp/sipp.git /tmp/sipp
+          git -C /tmp/sipp fetch --depth=1 origin c496186356b9089fc70b311607be4d2853809625
+          git -C /tmp/sipp checkout --detach c496186356b9089fc70b311607be4d2853809625
+          test -z "$(git -C /tmp/sipp status --porcelain)"
+
+      - name: Admit exact scenario primitive surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/sipp-hostile
+          python interop/sipp/sipp_candidate_admission.py /tmp/sipp \
+            | tee evidence/sipp-hostile/source-admission.json
+
+      - name: Validate hostile scenario contract
+        run: python interop/sipp/validate_scenario_catalog.py
+
+      - name: Seal static evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum \
+            interop/sipp/README.md \
+            interop/sipp/scenario-catalog.json \
+            interop/sipp/sipp_candidate_admission.py \
+            interop/sipp/validate_scenario_catalog.py \
+            evidence/sipp-hostile/source-admission.json \
+            > evidence/sipp-hostile/SHA256SUMS
+          cat evidence/sipp-hostile/SHA256SUMS
+
+      - name: Upload source-admission evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sipp-hostile-source-admission
+          path: evidence/sipp-hostile/
+          if-no-files-found: error
