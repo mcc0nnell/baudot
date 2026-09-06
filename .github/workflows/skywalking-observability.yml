@@ -1,0 +1,29 @@
+name: skywalking-observability
+
+on:
+  pull_request:
+    paths:
+      - "docs/skywalking-observability.md"
+      - "testkit/business/skywalking-observability-v1.json"
+      - "scripts/validate_skywalking_observability.py"
+      - ".github/workflows/skywalking-observability.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/skywalking-observability.md"
+      - "testkit/business/skywalking-observability-v1.json"
+      - "scripts/validate_skywalking_observability.py"
+      - ".github/workflows/skywalking-observability.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  observability-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python scripts/validate_skywalking_observability.py
