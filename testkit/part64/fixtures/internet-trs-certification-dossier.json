@@ -1,0 +1,67 @@
+{
+  "schema": "baudot.internet-trs-certification-dossier@1",
+  "scenario": "ITRS-CERT-DOSSIER-001",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "caption": "Internet-based TRS Certification Application",
+  "services": ["VRS"],
+  "mandatoryMinimumStandardsEvidence": {
+    "allApplicableNonWaivedStandardsMapped": true,
+    "evidenceIndex": [
+      "docs/part64-registration-numbering-validation.md",
+      "docs/part64-default-provider-change.md",
+      "docs/part64-vrs-call-evidence.md",
+      "docs/part64-vrs-compensability.md",
+      "docs/part64-vrs-monthly-capacity.md"
+    ],
+    "actualComplianceEstablished": false
+  },
+  "vrsFacilities": {
+    "usCallCenters": 2,
+    "foreignCallCenters": 0,
+    "deedOrLeaseEvidencePresentForEachApplicableCenter": true,
+    "callCenterEmployeesCommunicationsAssistants": true,
+    "technologyDescriptionPresent": true,
+    "coreFunctionsCovered": ["automatic-call-distribution", "routing", "call-setup", "mapping", "call-features", "billing", "registration"],
+    "technologyOwnership": "owned",
+    "proofOfPurchaseEvidencePresent": true,
+    "acdLeaseOrLicenseUsed": false
+  },
+  "organization": {
+    "tenPercentOwnershipOrControlListProvided": true,
+    "organizationalStructureProvided": true,
+    "executiveOfficerBoardRoleListProvided": true,
+    "realNamesStored": false
+  },
+  "trsEmployees": {
+    "countsProvidedByRole": true,
+    "roles": {
+      "executivesAndOfficers": 3,
+      "videoPhoneInstallers": 2,
+      "communicationsAssistants": 24,
+      "marketingAndSponsorship": 1
+    },
+    "realEmployeeNamesStored": false,
+    "employmentAgreementsRetainedYears": 5,
+    "employmentAgreementsStoredInPublicFixture": false
+  },
+  "sponsorships": {
+    "listProvided": true,
+    "arrangements": [],
+    "agreementsRetentionYearsWhenApplicable": 3
+  },
+  "complaintProceduresDescriptionPresent": true,
+  "annualComplianceReportCommitment": true,
+  "executiveCertification": {
+    "role": "other-senior-executive",
+    "firstHandKnowledge": true,
+    "underPenaltyOfPerjury": true,
+    "allRequiredInformationProvided": true,
+    "factsAndDocumentationTrueAccurateCompleteAsserted": true,
+    "realIdentityStored": false
+  },
+  "consentsToCommissionOnSiteVisits": true,
+  "requestsAtHomeVrsAtInitialCertification": true,
+  "atHomeCompliancePlanPresent": true,
+  "commissionDecision": "not-determined",
+  "claimsActualFccCertification": false
+}
