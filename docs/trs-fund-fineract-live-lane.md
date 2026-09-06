@@ -7,17 +7,21 @@ It remains a **test bench**, not a production Fund implementation.
 
 ## Pinned implementation under test
 
-The GitHub Actions lane pins Apache Fineract **1.15.0**, release commit:
+The GitHub Actions lane pins Apache Fineract **1.15.0** in two independent ways:
 
 ```text
-d5636847ac556c30b437254c353f05526d172b97
+release tag:     1.15.0
+source commit:   d5636847ac556c30b437254c353f05526d172b97
+container image: apache/fineract:1.15.0
 ```
 
-The workflow pulls the Apache-published Docker image tagged from that exact commit and uses the release's own Docker Compose configuration.
+The workflow verifies that the checked-out source commit is pointed to by the `1.15.0` tag, then pulls the Apache-published `1.15.0` Docker image and records its image ID and repository digest in the CI evidence bundle.
+
+Fineract's upstream publish workflow emits the release-number tag for release builds; commit-hash Docker tags are used for `develop`, not for the 1.15.0 release. The source commit therefore pins the code lineage while the captured image digest pins the actual container bytes executed by the test.
+
 Fineract's Docker artifacts are treated only as development/test infrastructure.
 
-The pin matters: an evidence bundle must identify which ledger implementation accepted a transaction.
-A moving `latest` image would make a replay ambiguous.
+The pin matters: an evidence bundle must identify which ledger implementation accepted a transaction. A moving `latest` image would make a replay ambiguous.
 
 ## Base scenario
 
@@ -148,17 +152,21 @@ The source account numbers remain Baudot's stable synthetic vocabulary. Fineract
 A run writes:
 
 ```text
-artifacts/trs-fund-fineract/<scenario-id>/
-  http/
-    001-....json
-    002-....json
-    ...
-  manifest.json
-  summary.txt
+artifacts/trs-fund-fineract/
+  fineract-implementation.json
+  <scenario-id>/
+    http/
+      001-....json
+      002-....json
+      ...
+    manifest.json
+    summary.txt
 ```
 
-The manifest records:
+The evidence records:
 
+- Fineract release tag and source commit;
+- pulled container image ID and repository digest;
 - synthetic business transaction IDs;
 - event types and amounts;
 - expected debit/credit accounts;
@@ -172,9 +180,9 @@ The manifest records:
 - the rejected closed-date attempt and expected error code;
 - the accepted open-date correction and cleanup reversal;
 - invariant results; and
-- a canonical SHA-256 over the manifest.
+- a canonical SHA-256 over the scenario manifest.
 
-Before the closure probe rewrites the manifest hash, it preserves the pre-closure canonical hash inside the `closureProbe` evidence block. CI also retains the Fineract Docker Compose state and logs.
+Before the closure probe rewrites the scenario-manifest hash, it preserves the pre-closure canonical hash inside the `closureProbe` evidence block. CI also retains the Fineract Docker Compose state and logs.
 
 ## Executable invariants
 
