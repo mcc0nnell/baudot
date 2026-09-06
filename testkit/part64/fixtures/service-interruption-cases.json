@@ -1,0 +1,119 @@
+{
+  "schema": "baudot.part64-service-interruption-cases@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "cases": [
+    {
+      "scenario": "VRS-OUTAGE-PLANNED-030-PASS",
+      "interruptionType": "voluntary-planned",
+      "durationMinutes": 30,
+      "authorizationRequestDaysBefore": 60,
+      "requestContains": {
+        "justification": true,
+        "customerNoticePlan": true,
+        "serviceResumptionPlan": true
+      },
+      "commissionDecision": "authorized",
+      "decisionDaysBeforeInterruption": 35,
+      "expected": {
+        "priorAuthorizationRequired": true,
+        "requestTimely": true,
+        "decisionTimingConforming": true,
+        "interruptionAuthorizedByModeledInput": true
+      }
+    },
+    {
+      "scenario": "VRS-OUTAGE-PLANNED-060DAY-FAIL",
+      "interruptionType": "voluntary-planned",
+      "durationMinutes": 45,
+      "authorizationRequestDaysBefore": 59,
+      "requestContains": {
+        "justification": true,
+        "customerNoticePlan": true,
+        "serviceResumptionPlan": true
+      },
+      "commissionDecision": "not-determined",
+      "expected": {
+        "priorAuthorizationRequired": true,
+        "requestTimely": false,
+        "interruptionAuthorizedByModeledInput": false,
+        "possibleEnforcementExposure": true,
+        "actualEnforcementOutcome": "not-determined"
+      }
+    },
+    {
+      "scenario": "VRS-OUTAGE-PLANNED-029-001",
+      "interruptionType": "voluntary-planned",
+      "durationMinutes": 29,
+      "priorAuthorizationRequested": false,
+      "writtenNotificationBusinessDaysAfterCommencement": 2,
+      "accessibleStatusWebsiteNotice": true,
+      "statusNoticeUpdatedTimely": true,
+      "serviceRestoredAtFirstReport": true,
+      "expected": {
+        "priorAuthorizationRequired": false,
+        "postCommencementNoticeTimely": true
+      }
+    },
+    {
+      "scenario": "VRS-OUTAGE-UNFORESEEN-002DAY-PASS",
+      "interruptionType": "unforeseen-beyond-provider-control",
+      "durationMinutes": 180,
+      "writtenNotificationBusinessDaysAfterCommencement": 2,
+      "accessibleStatusWebsiteNotice": true,
+      "statusNoticeUpdatedTimely": true,
+      "serviceRestoredAtFirstReport": false,
+      "secondReportBusinessDaysAfterRestoration": 2,
+      "restorationExplanationPresent": true,
+      "expected": {
+        "priorAuthorizationRequired": false,
+        "initialNoticeTimely": true,
+        "secondReportTimely": true
+      }
+    },
+    {
+      "scenario": "VRS-OUTAGE-UNFORESEEN-003DAY-FAIL",
+      "interruptionType": "unforeseen-beyond-provider-control",
+      "durationMinutes": 180,
+      "writtenNotificationBusinessDaysAfterCommencement": 3,
+      "accessibleStatusWebsiteNotice": true,
+      "statusNoticeUpdatedTimely": true,
+      "serviceRestoredAtFirstReport": true,
+      "expected": {
+        "initialNoticeTimely": false,
+        "possibleEnforcementExposure": true,
+        "actualEnforcementOutcome": "not-determined"
+      }
+    },
+    {
+      "scenario": "VRS-OUTAGE-RESTORE-003DAY-FAIL",
+      "interruptionType": "unforeseen-beyond-provider-control",
+      "durationMinutes": 240,
+      "writtenNotificationBusinessDaysAfterCommencement": 1,
+      "accessibleStatusWebsiteNotice": true,
+      "statusNoticeUpdatedTimely": true,
+      "serviceRestoredAtFirstReport": false,
+      "secondReportBusinessDaysAfterRestoration": 3,
+      "restorationExplanationPresent": true,
+      "expected": {
+        "initialNoticeTimely": true,
+        "secondReportTimely": false,
+        "possibleEnforcementExposure": true,
+        "actualEnforcementOutcome": "not-determined"
+      }
+    },
+    {
+      "scenario": "VRS-OUTAGE-WEBSITE-NOTICE-FAIL",
+      "interruptionType": "voluntary-short",
+      "durationMinutes": 10,
+      "writtenNotificationBusinessDaysAfterCommencement": 1,
+      "accessibleStatusWebsiteNotice": false,
+      "statusNoticeUpdatedTimely": false,
+      "serviceRestoredAtFirstReport": true,
+      "expected": {
+        "notificationPackageComplete": false,
+        "possibleEnforcementExposure": true,
+        "actualEnforcementOutcome": "not-determined"
+      }
+    }
+  ]
+}

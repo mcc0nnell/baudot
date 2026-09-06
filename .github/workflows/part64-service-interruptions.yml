@@ -1,0 +1,31 @@
+name: part64-service-interruptions
+
+on:
+  push:
+    paths:
+      - "docs/part64-service-interruptions.md"
+      - "testkit/part64/service-interruption-requirements-v1.json"
+      - "testkit/part64/fixtures/service-interruption-cases.json"
+      - "scripts/validate_part64_service_interruptions.py"
+      - ".github/workflows/part64-service-interruptions.yml"
+  pull_request:
+    paths:
+      - "docs/part64-service-interruptions.md"
+      - "testkit/part64/service-interruption-requirements-v1.json"
+      - "testkit/part64/fixtures/service-interruption-cases.json"
+      - "scripts/validate_part64_service_interruptions.py"
+      - ".github/workflows/part64-service-interruptions.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Part 64 VRS service interruptions
+        run: python scripts/validate_part64_service_interruptions.py
