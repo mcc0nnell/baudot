@@ -1,5 +1,7 @@
 #include <pjsua2.hpp>
 
+#include "native_t140_answer_profile.h"
+
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -103,13 +105,19 @@ public:
         }
         std::cout << "PJSIP_NATIVE_T140_UAS_INCOMING callId=" << iprm.callId << std::endl;
 
+        constexpr auto answerProfile = baudot::pjsipinterop::nativeT140AnswerProfile();
+        static_assert(answerProfile.statusCode == PJSIP_SC_OK);
+
         CallOpParam answer(true);
-        answer.statusCode = PJSIP_SC_OK;
-        answer.opt.audioCount = 0;
-        answer.opt.videoCount = 0;
-        answer.opt.textCount = 1;
+        answer.statusCode = answerProfile.statusCode;
+        answer.opt.audioCount = answerProfile.audioCount;
+        answer.opt.videoCount = answerProfile.videoCount;
+        answer.opt.textCount = answerProfile.textCount;
         call->answer(answer);
-        std::cout << "PJSIP_NATIVE_T140_UAS_ANSWER_REQUESTED textCount=1" << std::endl;
+        std::cout << "PJSIP_NATIVE_T140_UAS_ANSWER_REQUESTED textCount=" << answerProfile.textCount
+                  << " statusCode=" << answerProfile.statusCode
+                  << " audioCount=" << answerProfile.audioCount
+                  << " videoCount=" << answerProfile.videoCount << std::endl;
         state_cv.notify_all();
     }
 
