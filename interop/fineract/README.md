@@ -19,13 +19,15 @@ POST /api/v1/glaccounts        # only when explicit bootstrap is enabled
 
 Every Fineract write receives the Baudot synthetic business transaction ID as the `Idempotency-Key` header. The same ID is also recorded as the manual journal `referenceNumber` when a journal entry is created.
 
+A Fineract manual-journal reversal is not a generic later-period correction. Fineract creates the reversal on the original journal date and rejects it if that original date is already covered by an accounting closure. Baudot therefore permits `TRANSACTION_REVERSED` only when the target transaction date is still open and requires the reversal event to use that same accounting effective date. A correction to a closed-period transaction must be an explicit compensating adjustment posted in an open period.
+
 ## Executor
 
 `fineract_executor.py` provides:
 
 - contract-driven GL account resolution and optional synthetic account bootstrap;
 - journal planning for assessments, receipts, claims, disbursements, and directional adjustments;
-- explicit Fineract journal reversal using the transaction ID returned by Fineract;
+- explicit Fineract journal reversal using the transaction ID returned by Fineract, with original-date enforcement;
 - accounting closure execution;
 - transaction-level verification by reading the created debit/credit journal rows back from Fineract;
 - final Fund reconciliation by independently comparing the natural balances of the dedicated synthetic GL accounts with Baudot's deterministic Fund reducer;
@@ -61,7 +63,7 @@ The live runner first folds and validates the complete Baudot scenario. Only aft
 ## Security and scope
 
 - The repository contains no Fineract credentials.
-- TLS verification is not disabled by the executor.
+- TLS verification is not disabled by the executor; a local HTTPS test instance must use a certificate trusted by the runner environment.
 - The runner is for an isolated synthetic test instance, not a production financial system.
 - The chart of accounts must be dedicated to the synthetic proving ground for final account-balance reconciliation to be meaningful.
 - Fineract acceptance does not establish provider eligibility, contributor liability, payment authorization, FCC approval, production Rolka Loube compatibility, or financial-statement compliance.
