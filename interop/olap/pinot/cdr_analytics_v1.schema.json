@@ -1,0 +1,23 @@
+{
+  "schemaName": "cdr_analytics_v1",
+  "dimensionFieldSpecs": [
+    {"name": "eventId", "dataType": "STRING"},
+    {"name": "callId", "dataType": "STRING"},
+    {"name": "providerId", "dataType": "STRING"},
+    {"name": "serviceType", "dataType": "STRING"},
+    {"name": "direction", "dataType": "STRING"},
+    {"name": "outcome", "dataType": "STRING"}
+  ],
+  "metricFieldSpecs": [
+    {"name": "durationSeconds", "dataType": "LONG"},
+    {"name": "sourceObservationCount", "dataType": "LONG"}
+  ],
+  "dateTimeFieldSpecs": [
+    {
+      "name": "eventTime",
+      "dataType": "LONG",
+      "format": "1:MILLISECONDS:EPOCH",
+      "granularity": "1:MILLISECONDS"
+    }
+  ]
+}
