@@ -60,7 +60,13 @@ timestamp = yes
 
     write(etc / "modules.conf", """[modules]
 autoload=yes
+noload => chan_iax2.so
+noload => chan_mgcp.so
+noload => chan_skinny.so
+noload => chan_unistim.so
+noload => chan_sip.so
 """)
+
     write(etc / "logger.conf", """[general]
 dateformat=%F %T
 
@@ -68,6 +74,7 @@ dateformat=%F %T
 console => notice,warning,error,verbose
 messages => notice,warning,error,verbose
 """)
+
     write(etc / "manager.conf", f"""[general]
 enabled = yes
 webenabled = no
@@ -80,11 +87,13 @@ secret = synthetic
 read = all
 write = all
 """)
+
     write(etc / "rtp.conf", f"""[general]
 rtpstart={args.rtp_start}
 rtpend={args.rtp_end}
 icesupport=no
 """)
+
     write(etc / "queues.conf", """[general]
 autofill=yes
 
@@ -93,6 +102,7 @@ strategy=ringall
 timeout=10
 retry=1
 """)
+
     write(etc / "pjsip.conf", f"""[global]
 type=global
 user_agent=Baudot-{args.name}
@@ -113,6 +123,7 @@ force_rport=yes
 rewrite_contact=no
 outbound_proxy=sip:127.0.0.1:{args.peer_port}\\;lr
 """)
+
     write(etc / "extensions.conf", f"""[general]
 static=yes
 writeprotect=yes

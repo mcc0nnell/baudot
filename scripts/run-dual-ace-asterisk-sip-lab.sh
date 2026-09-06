@@ -76,6 +76,17 @@ wait_http() {
   return 1
 }
 
+wait_log() {
+  local log="$1" pattern="$2" pid="$3"
+  for _ in $(seq 1 100); do
+    if [[ -f "${log}" ]] && grep -F "${pattern}" "${log}" >/dev/null; then return 0; fi
+    if [[ -n "${pid}" ]] && ! kill -0 "${pid}" 2>/dev/null; then cat "${log}" >&2 || true; return 1; fi
+    sleep 0.2
+  done
+  cat "${log}" >&2 || true
+  return 1
+}
+
 wait_tcp() {
   local port="$1" pid="$2" log="$3"
   for _ in $(seq 1 100); do
@@ -179,7 +190,7 @@ run_peer_and_call() {
     -Dexec.mainClass=org.mcc0nnell.baudot.itrs.AsteriskSipEvidencePeer \
     -Dexec.args="${peer_port} ${expected_uri} ${evidence}" >"${log}" 2>&1 &
   PEER_PID=$!
-  wait_tcp "${peer_port}" "${PEER_PID}" "${log}"
+  wait_log "${log}" "Asterisk JAIN-SIP evidence peer listening" "${PEER_PID}"
   NODE_PATH="${ACE_SOURCE}/node_modules" node scripts/ace_runtime_drive.js \
     "${ace_port}" "${token}" "${username}" "${number}"
   if ! wait "${PEER_PID}"; then
