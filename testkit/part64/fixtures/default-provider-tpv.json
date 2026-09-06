@@ -14,6 +14,7 @@
   },
   "providerDroppedAfterThreeWayConnection": true,
   "nonMisleading": true,
+  "verificationDate": "2026-09-06",
   "newProviderIdentifiedAtStart": true,
   "changeMeaningConfirmed": true,
   "userIdentityConfirmed": true,
