@@ -1,0 +1,10 @@
+{
+  "database_name": "Baudot Pinot CDR Analytics",
+  "sqlalchemy_uri": "pinot://pinot-broker:8099/query?server=http://pinot-controller:9000/",
+  "allow_dml": false,
+  "allow_ctas": false,
+  "allow_cvas": false,
+  "allow_file_upload": false,
+  "expose_in_sqllab": true,
+  "extra": "{\"metadata_cache_timeout\":{\"schema_cache_timeout\":60,\"table_cache_timeout\":60}}"
+}
