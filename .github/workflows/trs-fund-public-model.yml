@@ -34,3 +34,5 @@ jobs:
         run: python scripts/validate_trs_fund_public_model.py
       - name: Test synthetic Fund event runtime
         run: python -m unittest discover -s testkit/fund/runtime -p "test_*.py" -v
+      - name: Test Fineract executor and independent reconciliation
+        run: python -m unittest discover -s interop/fineract -p "test_*.py" -v
