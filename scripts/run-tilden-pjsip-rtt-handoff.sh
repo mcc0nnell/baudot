@@ -174,7 +174,7 @@ BAUDOT_RTT_READY_FILE="$READY_FILE" \
 BAUDOT_EVIDENCE_DIR="$EVIDENCE_ROOT" \
   timeout --signal=TERM --kill-after=5s 25s \
   mvn -B -ntp -q \
-  -Dexec.mainClass=org.mcc0nnell.baudot.harness.TildenPjsipRttCallMain \
+  -Dexec.mainClass=org.mcc0nnell.baudot.harness.TildenPjsipRttProcessMain \
   -Dexec.args="$SELECTION" \
   exec:java \
   >"$OUT/jain.stdout.log" 2>"$OUT/jain.stderr.log"
