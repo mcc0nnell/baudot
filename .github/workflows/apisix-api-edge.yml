@@ -1,0 +1,29 @@
+name: apisix-api-edge
+
+on:
+  push:
+    paths:
+      - 'testkit/business/apisix-api-edge-v1.json'
+      - 'scripts/validate_apisix_api_edge.py'
+      - 'docs/apisix-api-edge.md'
+      - '.github/workflows/apisix-api-edge.yml'
+  pull_request:
+    paths:
+      - 'testkit/business/apisix-api-edge-v1.json'
+      - 'scripts/validate_apisix_api_edge.py'
+      - 'docs/apisix-api-edge.md'
+      - '.github/workflows/apisix-api-edge.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate APISIX API-edge contract
+        run: python3 scripts/validate_apisix_api_edge.py
