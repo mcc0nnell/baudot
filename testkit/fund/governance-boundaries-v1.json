@@ -1,0 +1,154 @@
+{
+  "schema": "baudot.trs-fund-governance-boundaries@1",
+  "scope": "synthetic-public-proving-ground-only",
+  "principle": "Accounting execution is evidence of a ledger action, never authority for TRS program eligibility or payment.",
+  "decisionStages": [
+    {
+      "id": "FUND-GOV-001",
+      "fact": "eventAuthentic",
+      "decision": "event authenticity",
+      "owner": "source-and-ingest-boundary",
+      "gateForLedger": true,
+      "requiredEvidence": ["sourceObjectId", "sourceHash", "receivedAt", "correlationId"],
+      "cannotBeSatisfiedBy": ["ledgerAccepted", "journalBalanced"]
+    },
+    {
+      "id": "FUND-GOV-002",
+      "fact": "serviceValid",
+      "decision": "service validity",
+      "owner": "trs-service-validation-boundary",
+      "gateForLedger": true,
+      "requiredEvidence": ["serviceEventId", "serviceType", "serviceEvidence"],
+      "cannotBeSatisfiedBy": ["ledgerAccepted", "providerAuthorized"]
+    },
+    {
+      "id": "FUND-GOV-003",
+      "fact": "providerAuthorized",
+      "decision": "provider authority",
+      "owner": "provider-authorization-boundary",
+      "gateForLedger": true,
+      "requiredEvidence": ["providerId", "authorizationState", "authorizationRuleVersion"],
+      "cannotBeSatisfiedBy": ["ledgerAccepted", "serviceValid"]
+    },
+    {
+      "id": "FUND-GOV-004",
+      "fact": "programEligible",
+      "decision": "program compensability",
+      "owner": "trs-program-policy-boundary",
+      "gateForLedger": true,
+      "requiredEvidence": ["policyVersion", "rateVersion", "eligibleUnits", "calculationEvidence"],
+      "cannotBeSatisfiedBy": ["ledgerAccepted", "providerAuthorized"]
+    },
+    {
+      "id": "FUND-GOV-005",
+      "fact": "paymentAuthorized",
+      "decision": "payment authorization",
+      "owner": "fund-business-authority-boundary",
+      "gateForLedger": true,
+      "requiredEvidence": ["authorizationId", "authorizedAmount", "authorizedAt"],
+      "cannotBeSatisfiedBy": ["ledgerAccepted", "programEligible"]
+    },
+    {
+      "id": "FUND-GOV-006",
+      "fact": "ledgerAccepted",
+      "decision": "accounting execution",
+      "owner": "apache-fineract-external-kernel",
+      "gateForLedger": false,
+      "requiredEvidence": ["journalEntryId", "transactionIds", "postingDate"],
+      "cannotBeSatisfiedBy": ["paymentAuthorized"]
+    },
+    {
+      "id": "FUND-GOV-007",
+      "fact": "reconciled",
+      "decision": "independent reconciliation",
+      "owner": "baudot-reconciliation-boundary",
+      "gateForLedger": false,
+      "requiredEvidence": ["expectedBalances", "observedBalances", "ledgerIds"],
+      "cannotBeSatisfiedBy": ["ledgerAccepted"]
+    }
+  ],
+  "historyPolicy": {
+    "originalEventsImmutable": true,
+    "correctionsAreNewEvents": true,
+    "reversalsPreserveOriginalLedgerIds": true,
+    "policyVersionBoundAtDecisionTime": true
+  },
+  "publicSourceBoundary": {
+    "allowed": [
+      "public FCC orders and rules",
+      "public Rolka Loube reports and rate tables",
+      "Baudot-owned synthetic provider, contributor, claim, payment, and adjustment records",
+      "open-source implementation and CI provenance"
+    ],
+    "excluded": [
+      "nonpublic provider submissions",
+      "confidential provider cost or demand data",
+      "production Fund administrator credentials, schemas, banking details, or workflows",
+      "live contributor filings, invoices, or account data",
+      "subscriber records",
+      "production iTRS Numbering Directory data"
+    ]
+  },
+  "negativeControls": [
+    {
+      "id": "FUND-GOV-NC-001",
+      "description": "A balanced accepted journal cannot create missing payment authority.",
+      "facts": {
+        "eventAuthentic": true,
+        "serviceValid": true,
+        "providerAuthorized": true,
+        "programEligible": true,
+        "paymentAuthorized": false,
+        "ledgerAccepted": true,
+        "journalBalanced": true,
+        "reconciled": false
+      },
+      "expectedAuthorizationVerdict": "NOT_AUTHORIZED_FOR_LEDGER"
+    },
+    {
+      "id": "FUND-GOV-NC-002",
+      "description": "Provider authority cannot substitute for service validity.",
+      "facts": {
+        "eventAuthentic": true,
+        "serviceValid": false,
+        "providerAuthorized": true,
+        "programEligible": true,
+        "paymentAuthorized": true,
+        "ledgerAccepted": false,
+        "journalBalanced": false,
+        "reconciled": false
+      },
+      "expectedAuthorizationVerdict": "NOT_AUTHORIZED_FOR_LEDGER"
+    },
+    {
+      "id": "FUND-GOV-NC-003",
+      "description": "Program and payment authority can exist even when the external ledger rejects execution.",
+      "facts": {
+        "eventAuthentic": true,
+        "serviceValid": true,
+        "providerAuthorized": true,
+        "programEligible": true,
+        "paymentAuthorized": true,
+        "ledgerAccepted": false,
+        "journalBalanced": false,
+        "reconciled": false
+      },
+      "expectedAuthorizationVerdict": "AUTHORIZED_FOR_LEDGER"
+    },
+    {
+      "id": "FUND-GOV-NC-004",
+      "description": "The clean control requires all program gates before accounting execution and reconciliation.",
+      "facts": {
+        "eventAuthentic": true,
+        "serviceValid": true,
+        "providerAuthorized": true,
+        "programEligible": true,
+        "paymentAuthorized": true,
+        "ledgerAccepted": true,
+        "journalBalanced": true,
+        "reconciled": true
+      },
+      "expectedAuthorizationVerdict": "AUTHORIZED_FOR_LEDGER"
+    }
+  ]
+}
