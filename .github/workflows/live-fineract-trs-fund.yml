@@ -30,7 +30,7 @@ env:
 jobs:
   qualify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out Baudot
         uses: actions/checkout@v4
@@ -39,12 +39,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          java-version: "21"
-          distribution: "zulu"
 
       - name: Syntax-check live harness
         run: python -m py_compile scripts/run_live_fineract_trs_fund.py scripts/validate_part64_fund_payment_settlement.py
@@ -59,6 +53,7 @@ jobs:
           ref: "1.15.0"
           path: target/fineract-1.15.0
           persist-credentials: false
+          fetch-depth: 1
 
       - name: Verify Fineract release lineage
         working-directory: target/fineract-1.15.0
@@ -70,6 +65,12 @@ jobs:
           printf '{"version":"%s","expectedCommit":"%s","observedCommit":"%s","match":true}\n' \
             "$FINERACT_VERSION" "$FINERACT_COMMIT" "$observed" \
             > ../fineract-source-pin.json
+
+      - name: Prepare Fineract workspace exactly as Apache build-core
+        uses: ./target/fineract-1.15.0/.github/actions/setup-and-build-fineract
+        with:
+          cache-read-only: "false"
+          working-directory: target/fineract-1.15.0
 
       - name: Build exact Fineract image from verified release source
         working-directory: target/fineract-1.15.0
