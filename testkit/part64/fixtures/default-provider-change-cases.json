@@ -1,0 +1,120 @@
+{
+  "schema": "baudot.part64-default-provider-change-cases@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "cases": [
+    {
+      "scenario": "ITRS-CHANGE-LOA-001",
+      "authorizationMethod": "loa",
+      "authorizationObtained": true,
+      "authorizationVerified": true,
+      "verificationRetentionYears": 5,
+      "verificationImmutable": true,
+      "implementedDay": 12,
+      "routeChangedTo": "provider-b.example",
+      "expected": {
+        "orderValid": true,
+        "changeMayProceed": true,
+        "compensability": "not-determined"
+      }
+    },
+    {
+      "scenario": "ITRS-CHANGE-VOID-060",
+      "authorizationMethod": "loa",
+      "authorizationObtained": true,
+      "authorizationVerified": true,
+      "implementedDay": 61,
+      "expected": {
+        "orderValid": false,
+        "voidReason": "implementation-after-60-days",
+        "routeChangeAuthorizedByThisOrder": false
+      }
+    },
+    {
+      "scenario": "ITRS-CHANGE-MULTI-001",
+      "services": {
+        "VRS": {
+          "authorized": true,
+          "verified": true,
+          "changeMayProceed": true
+        },
+        "IP_RELAY": {
+          "authorized": true,
+          "verified": false,
+          "changeMayProceed": false
+        }
+      },
+      "expected": {
+        "crossServiceAuthorizationPromotion": false
+      }
+    },
+    {
+      "scenario": "ITRS-CHANGE-CONTINUITY-001",
+      "changePending": true,
+      "originalProvider": "provider-a.example",
+      "serviceQualityBefore": "baseline",
+      "serviceQualityDuring": "baseline",
+      "vrsAccessTechnologyFunctionalityBefore": "baseline",
+      "vrsAccessTechnologyFunctionalityDuring": "baseline",
+      "expected": {
+        "impermissibleDegradationObserved": false,
+        "changeCompletion": "not-determined"
+      }
+    },
+    {
+      "scenario": "ITRS-TRANSFER-001",
+      "trsType": "VRS",
+      "advanceNoticeDays": 31,
+      "noticeFormat": "prerecorded-asl-video",
+      "noticeContains": {
+        "transferDate": true,
+        "rightToSelectAlternativeProvider": true,
+        "complaintResponsibilityDisclosure": true,
+        "tollFreeCustomerServiceNumber": true
+      },
+      "realSubscriberNoticeSent": false,
+      "expected": {
+        "syntheticNoticeStructureValid": true,
+        "productionTransferAuthorized": "not-determined"
+      }
+    },
+    {
+      "scenario": "ITRS-DISPUTE-PREPAY-001",
+      "allegedUnauthorizedChange": true,
+      "fundAlreadyReimbursed": false,
+      "notifications": {
+        "allegedUnauthorizedProvider": true,
+        "commissionConsumerAndGovernmentalAffairsBureau": true,
+        "fundAdministrator": true,
+        "userInformedOfComplaintRight": true
+      },
+      "affectedMinutesIdentified": true,
+      "reimbursementWithheldPendingDetermination": true,
+      "proofOfVerificationSubmittedDay": 24,
+      "commissionDetermination": "unauthorized",
+      "expected": {
+        "newProviderReimbursementForAffectedMinutes": false,
+        "originalProviderReimbursementForAffectedMinutes": false
+      }
+    },
+    {
+      "scenario": "ITRS-DISPUTE-PAID-001",
+      "allegedUnauthorizedChange": true,
+      "fundAlreadyReimbursed": true,
+      "commissionDetermination": "unauthorized",
+      "syntheticAffectedPayments": 1234.56,
+      "clawbackPercent": 100,
+      "expected": {
+        "syntheticRemittanceDue": 1234.56,
+        "actualFundRemittance": false
+      }
+    },
+    {
+      "scenario": "ITRS-FREEZE-001",
+      "defaultProviderFreezeRequested": true,
+      "expected": {
+        "permitted": false,
+        "policyResult": "reject"
+      }
+    }
+  ]
+}
