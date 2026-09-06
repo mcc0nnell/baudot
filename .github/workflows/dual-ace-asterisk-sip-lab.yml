@@ -1,0 +1,71 @@
+name: dual-ace-asterisk-sip-lab
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  dual-ace-asterisk-sip:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Baudot
+        uses: actions/checkout@v4
+
+      - name: Check out pinned ACE Connect Lite
+        uses: actions/checkout@v4
+        with:
+          repository: mitrefccace/aceconnectlite
+          ref: da74e6450193be1456ce2cdf65dd5ffdf0e92f1e
+          path: .lab/aceconnectlite
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "16"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install controlled Asterisk runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y asterisk
+          sudo systemctl stop asterisk || true
+          sudo pkill -x asterisk || true
+          asterisk -V
+
+      - name: Syntax-check Asterisk lab support
+        run: |
+          python -m py_compile \
+            scripts/ace_asterisk_agent_stub.py \
+            scripts/itrs_route_agi.py \
+            scripts/generate_asterisk_fixture.py \
+            scripts/assert_dual_ace_asterisk_sip.py
+          node --check scripts/ace_runtime_drive.js
+          bash -n scripts/run-dual-ace-asterisk-sip-lab.sh
+
+      - name: Run ACE -> Asterisk -> JAIN-SIP evidence path
+        run: bash scripts/run-dual-ace-asterisk-sip-lab.sh .lab/aceconnectlite
+
+      - name: Upload signaling evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dual-ace-asterisk-sip-evidence
+          if-no-files-found: warn
+          path: |
+            /tmp/baudot-dual-ace-asterisk/traces
+            /tmp/baudot-dual-ace-asterisk/logs
+            /tmp/baudot-dual-ace-asterisk/asterisk-a/etc
+            /tmp/baudot-dual-ace-asterisk/asterisk-b/etc
