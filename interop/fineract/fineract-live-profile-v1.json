@@ -1,0 +1,47 @@
+{
+  "schema": "baudot.fineract-live-profile@1",
+  "status": "experimental",
+  "source": {
+    "repository": "apache/fineract",
+    "releaseTag": "1.15.0",
+    "annotatedTagObject": "9e76f088db71a4458b68f7855b03b21d23b86f1c",
+    "commit": "d5636847ac556c30b437254c353f05526d172b97",
+    "annotatedTagVerified": true
+  },
+  "baseUrl": "https://localhost:8443/fineract-provider/api/v1",
+  "tenant": "default",
+  "officeId": 1,
+  "currencyCode": "USD",
+  "authentication": {
+    "mode": "basic",
+    "credentials": "upstream-default-test-only",
+    "usernameEnvironment": "FINERACT_TEST_USERNAME",
+    "passwordEnvironment": "FINERACT_TEST_PASSWORD"
+  },
+  "imageBuild": {
+    "method": "source-built-jib",
+    "localImage": "fineract:latest",
+    "command": "./gradlew --no-daemon --console=plain :fineract-provider:jibDockerBuild -Djib.to.image=fineract -x test -x cucumber -x buildJavaSdk",
+    "registryImageAuthority": false
+  },
+  "apiSurface": {
+    "glAccounts": "/api/v1/glaccounts",
+    "journalEntries": "/api/v1/journalentries",
+    "journalReversal": "/api/v1/journalentries/{transactionId}?command=reverse",
+    "accountingClosures": "/api/v1/glclosures"
+  },
+  "expected": {
+    "scenarioId": "fund-year-1-smoke",
+    "canonicalAccountCount": 7,
+    "journalIntentCount": 4,
+    "closureDate": "2026-08-05"
+  },
+  "claimBoundary": {
+    "testContainerOnly": true,
+    "productionDeploymentProfile": false,
+    "productionCredentials": false,
+    "productionFundData": false,
+    "programAuthorizationOwnedByFineract": false,
+    "fineractConformanceClaimed": false
+  }
+}
