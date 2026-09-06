@@ -1,10 +1,10 @@
 # iTRS database-shaped mock evidence boundary
 
-This testkit models only relationships supported by public FCC material. It does not reproduce or infer a proprietary Neustar/iconectiv production schema or the nonpublic iTRS Provisioning/Query Guides.
+This branch models only relationships supported by public FCC material and existing Baudot testkit behavior. It does not reproduce or infer a proprietary production schema.
 
 ## Publicly supported relationships
 
-The FCC's 2024 iTRS Statement of Work describes the TRS Numbering Directory as a central database used to associate an iTRS user's telephone number with one or more endpoint URIs. Publicly described data/behavior includes:
+Public evidence establishes these logical fields and relationships for the TRS Numbering Directory:
 
 - NANP telephone number;
 - endpoint URI;
@@ -13,40 +13,29 @@ The FCC's 2024 iTRS Statement of Work describes the TRS Numbering Directory as a
 - default-provider responsibility represented by provider XSPID;
 - URD-valid state;
 - NPAC porting observations including SPID, AltSPID and/or LastAltSPID;
-- calling TN, called TN, service, and direction for AllCallQuery;
-- a unique transaction ID for each query;
-- provisioning-to-query replication as a distinct operational boundary; and
-- a Customer Test Environment separate from production but using the same code/facilities.
+- call query context: calling TN, called TN, service, and direction;
+- a unique transaction ID per query;
+- reverse validation by IP address, userid, or screen name; and
+- provisioning-to-query replication as a distinct operational boundary.
 
-The SOW also describes desired provisioning, query, porting, and URD interfaces as REST/JSON-oriented. Baudot therefore uses a REST/JSON-shaped local test surface, but does not copy or claim the production endpoint contract.
+The public FCC 2024 iTRS Statement of Work also states that the desired provisioning, query, reverse-query, and porting interfaces are REST/JSON-oriented and optimized for SIP proxy/gateway addressing. The referenced iTRS Provisioning Guide V4.0 and Query Guide V4.1 are not treated as public source material here.
 
-## Default-provider and porting invariant
+## Baudot-owned test policies
 
-Public FCC requirements state that only the default provider may create/update the directory record for an assigned TN.
+The following behaviors are intentionally **ours**, not inferred production behavior:
 
-For a port, the directory monitors NPAC SPID, AltSPID and/or LastAltSPID. When the gaining provider's XSPID appears in the relevant NPAC observations, the directory allows that provider to provision the number. As soon as the gaining provider first provisions it, the losing provider loses access.
+- local bearer tokens representing provider A, provider B, and the URD authority;
+- deriving synthetic XSPID identity from that local session token;
+- exact `/itrs/v2/...` endpoint names and parameter shapes;
+- ordered multi-URI selection using the first service-supported URI;
+- the concrete reverse-query fixture bindings;
+- HTTP status-code choices; and
+- the compatibility `/itrs/v1/query` bridge into the existing JAIN-SIP probe.
 
-`ItrsDirectoryRepository` models exactly that ownership transition with synthetic XSPIDs.
+These policies exist to make the proving ground deterministic.
 
-## URD invariant
+## ACE Connect Lite boundary
 
-The public SOW describes a real-time per-TN URD-valid operation carrying:
+PR #41 identifies ACE Connect Lite as an external historical VRS implementation fixture and `/vrsverify/` as a useful adapter seam. This branch may bind its synthetic provider identities to that fixture vocabulary, but ACE behavior does not define the directory model, URD semantics, NPAC semantics, or terminal Baudot verdicts.
 
-- TN;
-- provider XSPID;
-- service type; and
-- URD-valid Boolean.
-
-If the TN does not exist, the directory creates a record carrying provider XSPID and service, and only that provider may activate it. Baudot models that record as an inactive stub until provider provisioning supplies a route. Provider provisioning preserves, rather than invents, the URD-valid state.
-
-## Replication invariant
-
-The public SOW defines an SLA specifically for replication from provisioning operations to the query database. Baudot therefore keeps separate provisioning and query views and makes replication delay an explicit test variable.
-
-## Downstream discovery boundary
-
-DNS/ENUM/NAPTR/SRV observations remain useful routing/service-discovery fixtures, but they are not treated as the persistence model of the TRS Numbering Directory.
-
-## Excluded sources
-
-The referenced iTRS Provisioning Guide V4.0, Query Guide V4.1, production records, credentials, live subscriber data, and any proprietary Neustar/iconectiv implementation details are outside this testkit's source boundary unless an authorized public source becomes available.
+Architectural consequence: DNS/ENUM/NAPTR/SRV observations remain useful downstream service-discovery fixtures, but they are not the persistence model of the TRS Numbering Directory.

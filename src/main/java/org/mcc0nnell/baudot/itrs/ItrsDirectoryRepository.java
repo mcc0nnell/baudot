@@ -1,27 +1,20 @@
 package org.mcc0nnell.baudot.itrs;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Clean-room, in-memory model of the public iTRS directory invariants used by the Baudot testkit.
- *
- * <p>This is not a production schema or an implementation of a proprietary Neustar/iconectiv
- * interface. It models only behavior described by public FCC rules and the 2024 iTRS Statement
- * of Work: default-provider provisioning, URD validity, NPAC/XSPID porting eligibility,
- * provisioning-to-query replication, and two-number AllCallQuery routing.</p>
- */
 public final class ItrsDirectoryRepository {
     private final Map<String, DirectoryRecord> provisioning = new LinkedHashMap<>();
     private final Map<String, DirectoryRecord> queryReplica = new LinkedHashMap<>();
     private final Map<String, PendingReplica> pendingReplica = new LinkedHashMap<>();
+    private final Map<String, String> reverseBindings = new LinkedHashMap<>();
     private final AtomicLong transactionSequence = new AtomicLong();
+    private final AtomicLong reverseSequence = new AtomicLong();
 
-    public ItrsDirectoryRepository() {
-        seed();
-    }
+    public ItrsDirectoryRepository() { seed(); }
 
     public synchronized QueryDecision allCallQuery(String requesterXspid, String fromTn,
             String toTn, String service, String direction) {
@@ -41,15 +34,30 @@ public final class ItrsDirectoryRepository {
         if (!destination.urdValid()) return QueryDecision.failure(transactionId, "URD_INVALID");
         if (!destination.active()) return QueryDecision.failure(transactionId, "DESTINATION_INACTIVE");
         if (!destination.service().equals(service)) return QueryDecision.failure(transactionId, "SERVICE_MISMATCH");
-        if (!validRouteUri(destination.service(), destination.uri())) return QueryDecision.failure(transactionId, "INVALID_ROUTE_URI");
-        return QueryDecision.route(transactionId, destination.uri(), destination.providerXspid());
+        String routeUri = firstSupportedUri(destination.service(), destination.uris());
+        if (routeUri == null) return QueryDecision.failure(transactionId, "INVALID_ROUTE_URI");
+        return QueryDecision.route(transactionId, routeUri, destination.providerXspid(), destination.uris().size());
+    }
+
+    public synchronized ReverseDecision reverseQuery(String type, String value) {
+        materializeReplica();
+        String transactionId = "RQ-RUN-%06d".formatted(reverseSequence.incrementAndGet());
+        if (blank(type) || blank(value)) return ReverseDecision.failure(transactionId, "INVALID_REVERSE_QUERY");
+        String tn = reverseBindings.get(reverseKey(type, value));
+        if (tn == null) return ReverseDecision.notRegistered(transactionId);
+        DirectoryRecord record = queryReplica.get(tn);
+        if (record == null || !record.urdValid()) return ReverseDecision.notRegistered(transactionId);
+        return ReverseDecision.registered(transactionId, record);
     }
 
     public synchronized ProvisionDecision provision(ProvisionRequest request) {
         Objects.requireNonNull(request, "request");
         materializeReplica();
         if (blank(request.actorXspid()) || blank(request.tn()) || blank(request.service())
-                || blank(request.userType()) || blank(request.uri())) {
+                || blank(request.userType()) || request.uris() == null || request.uris().isEmpty()) {
+            return ProvisionDecision.denied("INVALID_PROVISION");
+        }
+        if (request.uris().stream().anyMatch(ItrsDirectoryRepository::blank)) {
             return ProvisionDecision.denied("INVALID_PROVISION");
         }
         DirectoryRecord existing = provisioning.get(request.tn());
@@ -60,13 +68,12 @@ public final class ItrsDirectoryRepository {
         boolean gainingProvider = existing != null && !request.actorXspid().equals(existing.providerXspid());
         PortingObservation porting = gainingProvider || existing == null ? null : existing.porting();
         DirectoryRecord updated = new DirectoryRecord(request.tn(), request.service(), request.userType(),
-                request.actorXspid(), urdValid, request.active(), request.uri(), porting);
+                request.actorXspid(), urdValid, request.active(), request.uris(), porting);
         provisioning.put(request.tn(), updated);
         replicate(updated, request.replicationDelayMs());
         return ProvisionDecision.accepted(updated.providerXspid(), request.replicationDelayMs());
     }
 
-    /** Models the public per-TN URD-valid operation. */
     public synchronized UrdDecision applyUrdValidity(String tn, String providerXspid,
             String service, boolean urdValid) {
         materializeReplica();
@@ -77,10 +84,10 @@ public final class ItrsDirectoryRepository {
         DirectoryRecord updated;
         if (existing == null) {
             updated = new DirectoryRecord(tn, service, "UNSPECIFIED", providerXspid,
-                    urdValid, false, null, null);
+                    urdValid, false, List.of(), null);
         } else {
             updated = new DirectoryRecord(existing.tn(), service, existing.userType(), providerXspid,
-                    urdValid, existing.active(), existing.uri(), existing.porting());
+                    urdValid, existing.active(), existing.uris(), existing.porting());
         }
         provisioning.put(tn, updated);
         queryReplica.put(tn, updated);
@@ -121,6 +128,12 @@ public final class ItrsDirectoryRepository {
         });
     }
 
+    private static String firstSupportedUri(String service, List<String> uris) {
+        if (uris == null) return null;
+        for (String uri : uris) if (validRouteUri(service, uri)) return uri;
+        return null;
+    }
+
     private static boolean validRouteUri(String service, String uri) {
         if (blank(uri)) return false;
         return switch (service) {
@@ -132,20 +145,28 @@ public final class ItrsDirectoryRepository {
 
     private void seed() {
         add(new DirectoryRecord("2025550101", "VRS", "DEAF_HARD_OF_HEARING", "XSPID-A", true, true,
-                "sip:2025550101@vrs-a.example.invalid", null));
+                List.of("sip:2025550101@vrs-a.example.invalid"), null));
         add(new DirectoryRecord("2025550102", "VRS", "HEARING", "XSPID-A", true, true,
-                "sip:2025550102@gateway.provider-a.invalid", null));
+                List.of("sip:2025550102@gateway.provider-a.invalid"), null));
         add(new DirectoryRecord("2025550103", "VRS", "PUBLIC_DEVICE", "XSPID-B", true, true,
-                "sip:2025550103@provider-b.invalid", null));
+                List.of("sip:2025550103@provider-b.invalid"), null));
         add(new DirectoryRecord("2025550104", "IP_RELAY", "DEAF_HARD_OF_HEARING", "XSPID-B", true, true,
-                "im:relay0104@provider-b.invalid", null));
-        add(new DirectoryRecord("2025550105", "VRS", "PRIVATE_DEVICE", "XSPID-A", false, false, null, null));
+                List.of("im:relay0104@provider-b.invalid"), null));
+        add(new DirectoryRecord("2025550105", "VRS", "PRIVATE_DEVICE", "XSPID-A", false, false, List.of(), null));
         add(new DirectoryRecord("2025550106", "VRS", "DEAF_HARD_OF_HEARING", "XSPID-A", true, true,
-                "not-a-valid-uri", null));
+                List.of("not-a-valid-uri"), null));
         add(new DirectoryRecord("2025550107", "VRS", "DEAF_HARD_OF_HEARING", "XSPID-A", true, true,
-                "sip:2025550107@provider-a.invalid", new PortingObservation("CARRIER-1", "XSPID-B", "XSPID-A")));
+                List.of("sip:2025550107@provider-a.invalid"),
+                new PortingObservation("CARRIER-1", "XSPID-B", "XSPID-A")));
         add(new DirectoryRecord("2025550108", "VRS", "DEAF_HARD_OF_HEARING", "XSPID-B", true, true,
-                "sip:2025550108@provider-b.invalid", null));
+                List.of("sip:2025550108@provider-b.invalid"), null));
+        add(new DirectoryRecord("2025550109", "VRS", "DEAF_HARD_OF_HEARING", "XSPID-B", true, true,
+                List.of("tel:+12025550109", "sip:2025550109@provider-b.invalid",
+                        "h323:2025550109@h323.provider-b.invalid"), null));
+
+        bindReverse("userid", "2025550102", "2025550102");
+        bindReverse("ip", "192.0.2.77", "2025550103");
+        bindReverse("screenname", "public-vrs-b", "2025550103");
     }
 
     private void add(DirectoryRecord record) {
@@ -153,20 +174,50 @@ public final class ItrsDirectoryRepository {
         queryReplica.put(record.tn(), record);
     }
 
+    private void bindReverse(String type, String value, String tn) {
+        reverseBindings.put(reverseKey(type, value), tn);
+    }
+
+    private static String reverseKey(String type, String value) {
+        return type.trim().toLowerCase() + ":" + value.trim().toLowerCase();
+    }
+
     private static boolean blank(String value) { return value == null || value.isBlank(); }
 
     public record DirectoryRecord(String tn, String service, String userType, String providerXspid,
-            boolean urdValid, boolean active, String uri, PortingObservation porting) { }
+            boolean urdValid, boolean active, List<String> uris, PortingObservation porting) {
+        public DirectoryRecord {
+            uris = uris == null ? List.of() : List.copyOf(uris);
+        }
+        public String primaryUri() { return firstSupportedUri(service, uris); }
+    }
     public record PortingObservation(String spid, String altSpid, String lastAltSpid) { }
     public record ProvisionRequest(String actorXspid, String tn, String service, String userType,
-            String uri, boolean active, long replicationDelayMs) { }
+            List<String> uris, boolean active, long replicationDelayMs) {
+        public ProvisionRequest {
+            uris = uris == null ? List.of() : List.copyOf(uris);
+        }
+    }
     public record QueryDecision(String transactionId, boolean valid, boolean connectAllowed,
-            String routeUri, String destinationProviderXspid, String failure) {
-        static QueryDecision route(String id, String uri, String providerXspid) {
-            return new QueryDecision(id, true, true, uri, providerXspid, null);
+            String routeUri, String destinationProviderXspid, int candidateCount, String failure) {
+        static QueryDecision route(String id, String uri, String providerXspid, int candidateCount) {
+            return new QueryDecision(id, true, true, uri, providerXspid, candidateCount, null);
         }
         static QueryDecision failure(String id, String failure) {
-            return new QueryDecision(id, false, false, null, null, failure);
+            return new QueryDecision(id, false, false, null, null, 0, failure);
+        }
+    }
+    public record ReverseDecision(String transactionId, boolean registered, String tn,
+            String providerXspid, String service, List<String> uris, String failure) {
+        static ReverseDecision registered(String id, DirectoryRecord record) {
+            return new ReverseDecision(id, true, record.tn(), record.providerXspid(),
+                    record.service(), record.uris(), null);
+        }
+        static ReverseDecision notRegistered(String id) {
+            return new ReverseDecision(id, false, null, null, null, List.of(), null);
+        }
+        static ReverseDecision failure(String id, String failure) {
+            return new ReverseDecision(id, false, null, null, null, List.of(), failure);
         }
     }
     public record ProvisionDecision(boolean accepted, String failure, String providerXspid,

@@ -1,0 +1,38 @@
+{
+  "schema": "baudot.itrs-provider-choreography@1",
+  "authority": "synthetic-clean-room",
+  "implementationFixture": {
+    "name": "ACE Connect Lite",
+    "sourceRepository": "https://github.com/mitrefccace/aceconnectlite-public",
+    "baudotProviderProfile": "PR #41 providers/ace-connect-lite",
+    "legacyNumberLookupSeam": "/vrsverify/"
+  },
+  "roles": [
+    {
+      "fixtureId": "provider-a",
+      "cteSessionId": "provider-a-session",
+      "xspid": "XSPID-A",
+      "implementationRole": "ACE Connect Lite instance A"
+    },
+    {
+      "fixtureId": "provider-b",
+      "cteSessionId": "provider-b-session",
+      "xspid": "XSPID-B",
+      "implementationRole": "ACE Connect Lite instance B"
+    }
+  ],
+  "choreography": [
+    "provider-a authenticates to the local CTE as XSPID-A",
+    "provider-b authenticates to the local CTE as XSPID-B",
+    "provider-a queries a provider-b TN through AllCallQuery",
+    "the returned logical URI is adapted into the provider fixture's legacy number-lookup seam",
+    "a synthetic NPAC observation makes provider-b eligible to gain a provider-a TN",
+    "provider-b provisions the TN and the query replica changes after the configured delay",
+    "provider-a is denied further writes after the first accepted gaining-provider provision"
+  ],
+  "claimBoundary": [
+    "ACE Connect Lite is an implementation under test, not normative iTRS truth.",
+    "This file does not assert that /vrsverify/ matches a production provider or Numbering Administrator interface.",
+    "Terminal interoperability verdicts remain Baudot-owned."
+  ]
+}
