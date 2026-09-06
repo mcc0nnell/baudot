@@ -69,6 +69,31 @@ oldLegReleasedAfterIndependentReadiness=true
 
 The terminal verdict is `ready-after-transfer` only when all six facts are present.
 
+## Acceptance evidence
+
+The first dedicated `tilden-provider-refer-rtt-handoff` run passed on Baudot head `9a106ca6c22e21237c1d056641c72eca00de284e` (Actions run `34000704284`).
+
+The outer evidence proved:
+
+- Tilden selection `sel-provider-refer-rtt-0001` selected `sip:provider-a@127.0.0.1:5310`;
+- the nested provider flow began with exact request line `INVITE sip:provider-a@127.0.0.1:5310 SIP/2.0`;
+- `BAUDOT-INTEROP-004` correlation `jain-to-pjsip-native-handoff-v1` remained `PASS`;
+- REFER was accepted;
+- the pinned PJSIP replacement dialog established;
+- the independent Baudot reference classified replacement `rttReady=true` from first T.140 text `H`;
+- the original provider leg released only after independent readiness; and
+- the outer terminal verdict was `ready-after-transfer` with all six required facts true.
+
+Pinned evidence identities from that run:
+
+- Tilden selection SHA-256: `a203a194ee5be855d5252ffdabbfb94f9da63b2b125417fdbd88e4cbd656dd45`;
+- inner terminal SHA-256: `42c041ef79a8dd333e247f4c64667db16a7f8833ce14b8f7712dbe61d6f69668`;
+- inner bundle-manifest SHA-256: `c82bb92a5db7b970a51e36d0f8b90ec1bb3e01a9f1d34c5f9459379a09843f4b`;
+- qualifying native T.140 packet SHA-256: `d8d7411c59f54385d2809ce952ec27d47756efd9dd9ff3bfd1c8f2f60512651d`;
+- outer bundle-manifest SHA-256: `3ad60282698b3f1351dcb8b94e63cfb36d2e90679fca2d1e2d370e0e47e2c6b0`;
+- Actions artifact id: `9979436293`; and
+- artifact ZIP digest: `sha256:b1367e07e5efe8fdd871909fb789cb502208ff0577a9b074890caf6d8a3d0a2e`.
+
 ## Evidence identity
 
 The outer terminal result preserves:
