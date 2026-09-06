@@ -1,18 +1,10 @@
 #!/usr/bin/env python3
 """Run a deterministic synthetic TRS Fund scenario.
 
-The runtime is intentionally small and event-first:
-
-- commands carry stable idempotency keys;
-- accepted commands append immutable synthetic Fund events;
-- state is folded deterministically from the accepted event stream;
-- duplicate retries are acknowledged but never re-applied;
-- each accepted business event emits a journal intent using the bounded
-  Fineract contract; and
-- final state is independently reconciled to the scenario expectation.
-
-This is a synthetic proving-ground runtime. It is not an FCC, Rolka Loube,
-or Fineract production implementation.
+The event log is scenario execution authority only. Public Fund policy remains in
+canonical public fixtures; accounting vocabulary remains in the canonical
+Fineract journal contract; provider lifecycle invariants remain in the runtime
+lifecycle contract.
 """
 
 from __future__ import annotations
@@ -20,14 +12,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONTRACT = ROOT / "interop" / "fineract" / "journal-contract-v1.json"
-
+DEFAULT_JOURNAL = ROOT / "interop" / "fineract" / "journal-contract-v1.json"
+DEFAULT_RUNTIME = ROOT / "testkit" / "fund" / "trs-fund-runtime-contract-v1.json"
 MONEY = Decimal("0.01")
 
 
@@ -45,6 +37,11 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise ValueError(message)
 
 
 @dataclass(frozen=True)
@@ -67,7 +64,7 @@ class FundState:
         }
 
 
-COMMAND_TO_CONTRACT_EVENT = {
+COMMAND_TO_JOURNAL_EVENT = {
     "CONTRIBUTOR_ASSESSED": "contributorAssessment",
     "CONTRIBUTOR_RECEIPT": "contributorReceipt",
     "PROVIDER_CLAIM_APPROVED": "providerClaimApproved",
@@ -75,13 +72,30 @@ COMMAND_TO_CONTRACT_EVENT = {
 }
 
 
-def require_positive(amount: Decimal, command_type: str) -> None:
-    if amount <= 0:
-        raise ValueError(f"{command_type}: amount must be positive")
+def validate_authority_contracts(journal: dict[str, Any], runtime: dict[str, Any]) -> None:
+    require(journal.get("schema") == "baudot.fineract-trs-journal-contract@1", "unexpected journal contract")
+    require(runtime.get("schema") == "baudot.trs-fund-runtime-contract@1", "unexpected lifecycle contract")
+    require(runtime.get("status") == "experimental", "lifecycle contract must remain experimental")
+    require("accounts" not in runtime, "lifecycle runtime must not define accounts")
+    require("rateProfiles" not in runtime, "lifecycle runtime must not define rates")
+    require(runtime["dependsOn"].get("journalContract") == journal["schema"],
+            "lifecycle contract no longer depends on canonical journal contract")
+
+    scenarios = {item["id"]: item for item in runtime["scenarios"]}
+    require(scenarios["FUND-001"].get("journalEvent") == "providerClaimApproved",
+            "event runtime provider approval drifted from FUND-001")
+    require(scenarios["FUND-002"].get("journalEvent") == "providerDisbursement",
+            "event runtime provider disbursement drifted from FUND-002")
+
+    for event_name in COMMAND_TO_JOURNAL_EVENT.values():
+        require(event_name in journal["events"], f"missing canonical journal event: {event_name}")
+
+
+def require_positive(amount: Decimal, event_type: str) -> None:
+    require(amount > 0, f"{event_type}: amount must be positive")
 
 
 def apply_event(state: FundState, event: dict[str, Any]) -> FundState:
-    """Pure deterministic reducer. No I/O and no Fineract calls."""
     amount = money(event["amount"])
     event_type = event["type"]
     require_positive(amount, event_type)
@@ -95,13 +109,9 @@ def apply_event(state: FundState, event: dict[str, Any]) -> FundState:
             provider_compensation_expense=state.provider_compensation_expense,
             last_seq=event["seq"],
         )
-
     if event_type == "CONTRIBUTOR_RECEIPT":
-        if amount > state.contributor_receivable:
-            raise ValueError(
-                f"{event_type}: receipt {money_text(amount)} exceeds open contributor receivable "
-                f"{money_text(state.contributor_receivable)}"
-            )
+        require(amount <= state.contributor_receivable,
+                f"{event_type}: receipt exceeds open contributor receivable")
         return FundState(
             cash=state.cash + amount,
             contributor_receivable=state.contributor_receivable - amount,
@@ -110,7 +120,6 @@ def apply_event(state: FundState, event: dict[str, Any]) -> FundState:
             provider_compensation_expense=state.provider_compensation_expense,
             last_seq=event["seq"],
         )
-
     if event_type == "PROVIDER_CLAIM_APPROVED":
         return FundState(
             cash=state.cash,
@@ -120,18 +129,10 @@ def apply_event(state: FundState, event: dict[str, Any]) -> FundState:
             provider_compensation_expense=state.provider_compensation_expense + amount,
             last_seq=event["seq"],
         )
-
     if event_type == "PROVIDER_DISBURSED":
-        if amount > state.provider_payable:
-            raise ValueError(
-                f"{event_type}: disbursement {money_text(amount)} exceeds open provider payable "
-                f"{money_text(state.provider_payable)}"
-            )
-        if amount > state.cash:
-            raise ValueError(
-                f"{event_type}: disbursement {money_text(amount)} exceeds Fund cash "
-                f"{money_text(state.cash)}"
-            )
+        require(amount <= state.provider_payable,
+                f"{event_type}: disbursement exceeds open provider payable")
+        require(amount <= state.cash, f"{event_type}: disbursement exceeds Fund cash")
         return FundState(
             cash=state.cash - amount,
             contributor_receivable=state.contributor_receivable,
@@ -140,7 +141,6 @@ def apply_event(state: FundState, event: dict[str, Any]) -> FundState:
             provider_compensation_expense=state.provider_compensation_expense,
             last_seq=event["seq"],
         )
-
     raise ValueError(f"unsupported event type: {event_type}")
 
 
@@ -148,29 +148,25 @@ def fold_events(events: list[dict[str, Any]]) -> FundState:
     state = FundState()
     expected_seq = 1
     seen_keys: set[str] = set()
-
     for event in events:
-        if event["seq"] != expected_seq:
-            raise ValueError(f"event sequence gap: expected {expected_seq}, got {event['seq']}")
+        require(event["seq"] == expected_seq,
+                f"event sequence gap: expected {expected_seq}, got {event['seq']}")
         key = event["idempotencyKey"]
-        if key in seen_keys:
-            raise ValueError(f"event log contains duplicate idempotency key: {key}")
+        require(key not in seen_keys, f"event log contains duplicate idempotency key: {key}")
         seen_keys.add(key)
         state = apply_event(state, event)
         expected_seq += 1
-
     return state
 
 
-def journal_intent(event: dict[str, Any], contract: dict[str, Any]) -> dict[str, Any]:
-    contract_event_name = COMMAND_TO_CONTRACT_EVENT[event["type"]]
-    mapping = contract["events"][contract_event_name]
-    accounts = contract["accounts"]
-
+def journal_intent(event: dict[str, Any], journal: dict[str, Any]) -> dict[str, Any]:
+    event_name = COMMAND_TO_JOURNAL_EVENT[event["type"]]
+    mapping = journal["events"][event_name]
+    accounts = journal["accounts"]
     return {
         "syntheticBusinessTransactionId": event["idempotencyKey"],
         "eventSeq": event["seq"],
-        "eventType": contract_event_name,
+        "eventType": event_name,
         "postingDate": event["effectiveDate"],
         "amount": money_text(money(event["amount"])),
         "debit": {
@@ -188,7 +184,7 @@ def journal_intent(event: dict[str, Any], contract: dict[str, Any]) -> dict[str,
     }
 
 
-def expected_state_from_json(expected: dict[str, Any]) -> FundState:
+def expected_state(expected: dict[str, Any]) -> FundState:
     return FundState(
         cash=money(expected["cash"]),
         contributor_receivable=money(expected["contributorReceivable"]),
@@ -199,9 +195,20 @@ def expected_state_from_json(expected: dict[str, Any]) -> FundState:
     )
 
 
-def run_scenario(scenario_path: Path, contract_path: Path) -> dict[str, Any]:
-    scenario = json.loads(scenario_path.read_text())
-    contract = json.loads(contract_path.read_text())
+def run_scenario(
+    scenario_path: Path,
+    journal_path: Path,
+    runtime_path: Path,
+) -> dict[str, Any]:
+    scenario = json.loads(scenario_path.read_text(encoding="utf-8"))
+    journal = json.loads(journal_path.read_text(encoding="utf-8"))
+    runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+    validate_authority_contracts(journal, runtime)
+
+    require(scenario.get("schema") == "baudot.trs-fund-scenario@1", "unexpected scenario schema")
+    require(scenario["claimBoundary"].get("syntheticOnly") is True, "scenario must remain synthetic")
+    require(scenario["claimBoundary"].get("noFineractPostingInThisScenario") is True,
+            "scenario cannot imply live Fineract posting")
 
     events: list[dict[str, Any]] = []
     key_to_seq: dict[str, int] = {}
@@ -211,19 +218,16 @@ def run_scenario(scenario_path: Path, contract_path: Path) -> dict[str, Any]:
 
     for command in scenario["commands"]:
         command_type = command["type"]
-        if command_type not in COMMAND_TO_CONTRACT_EVENT:
-            raise ValueError(f"unsupported command type: {command_type}")
-
+        require(command_type in COMMAND_TO_JOURNAL_EVENT, f"unsupported command type: {command_type}")
         key = command["idempotencyKey"]
+
         if key in key_to_seq:
-            command_results.append(
-                {
-                    "idempotencyKey": key,
-                    "seq": key_to_seq[key],
-                    "applied": False,
-                    "reason": "idempotent-replay",
-                }
-            )
+            command_results.append({
+                "idempotencyKey": key,
+                "seq": key_to_seq[key],
+                "applied": False,
+                "reason": "idempotent-replay",
+            })
             continue
 
         event = {
@@ -235,50 +239,36 @@ def run_scenario(scenario_path: Path, contract_path: Path) -> dict[str, Any]:
             "actorId": command.get("actorId", "synthetic-runner"),
             "authorityRef": command.get("authorityRef"),
         }
-
-        next_state = apply_event(state, event)
+        state = apply_event(state, event)
         events.append(event)
         key_to_seq[key] = event["seq"]
-        intents.append(journal_intent(event, contract))
-        state = next_state
-        command_results.append(
-            {
-                "idempotencyKey": key,
-                "seq": event["seq"],
-                "applied": True,
-            }
-        )
+        intents.append(journal_intent(event, journal))
+        command_results.append({"idempotencyKey": key, "seq": event["seq"], "applied": True})
 
-    # Cold-start proof: rebuild state from the immutable accepted log and ensure
-    # it is byte-for-byte equivalent at the semantic state boundary.
-    replayed_state = fold_events(events)
-    if replayed_state != state:
-        raise AssertionError("cold-start replay diverged from live fold")
+    replayed = fold_events(events)
+    require(replayed == state, "cold-start replay diverged from live fold")
+    require(state == expected_state(scenario["expected"]["finalState"]),
+            "final-state reconciliation failed")
 
-    expected = expected_state_from_json(scenario["expected"]["finalState"])
-    if state != expected:
-        raise AssertionError(
-            "final-state reconciliation failed:\n"
-            f"expected={expected.to_json()}\n"
-            f"actual={state.to_json()}"
-        )
-
-    applied_count = sum(1 for result in command_results if result["applied"])
-    replay_count = len(command_results) - applied_count
-    if applied_count != int(scenario["expected"]["acceptedEvents"]):
-        raise AssertionError(
-            f"accepted event count: expected {scenario['expected']['acceptedEvents']}, got {applied_count}"
-        )
-    if replay_count != int(scenario["expected"]["idempotentReplays"]):
-        raise AssertionError(
-            f"idempotent replay count: expected {scenario['expected']['idempotentReplays']}, got {replay_count}"
-        )
+    applied = sum(1 for result in command_results if result["applied"])
+    retries = len(command_results) - applied
+    require(applied == int(scenario["expected"]["acceptedEvents"]), "accepted event count drift")
+    require(retries == int(scenario["expected"]["idempotentReplays"]), "idempotent replay count drift")
 
     return {
         "schema": "baudot.trs-fund-scenario-evidence@1",
         "scenarioId": scenario["scenarioId"],
         "scenarioSha256": sha256_file(scenario_path),
-        "journalContractSha256": sha256_file(contract_path),
+        "journalContractSha256": sha256_file(journal_path),
+        "runtimeLifecycleContractSha256": sha256_file(runtime_path),
+        "authorityBindings": {
+            "journalContract": journal["schema"],
+            "runtimeLifecycleContract": runtime["schema"],
+            "eventLogRole": "synthetic-scenario-execution-authority",
+            "policyAuthorityOwnedHere": False,
+            "rateAuthorityOwnedHere": False,
+            "accountCatalogOwnedHere": False,
+        },
         "acceptedEvents": events,
         "commandResults": command_results,
         "journalIntents": intents,
@@ -300,20 +290,19 @@ def run_scenario(scenario_path: Path, contract_path: Path) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("scenario", type=Path)
-    parser.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
+    parser.add_argument("--contract", type=Path, default=DEFAULT_JOURNAL)
+    parser.add_argument("--runtime-contract", type=Path, default=DEFAULT_RUNTIME)
     parser.add_argument("--evidence", type=Path)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    evidence = run_scenario(args.scenario, args.contract)
+    evidence = run_scenario(args.scenario, args.contract, args.runtime_contract)
     rendered = json.dumps(evidence, indent=2, sort_keys=True)
-
     if args.evidence:
         args.evidence.parent.mkdir(parents=True, exist_ok=True)
-        args.evidence.write_text(rendered + "\n")
-
+        args.evidence.write_text(rendered + "\n", encoding="utf-8")
     print(rendered)
     print(f"TRS Fund scenario {evidence['scenarioId']}: PASS")
 
