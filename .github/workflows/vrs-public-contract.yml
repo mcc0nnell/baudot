@@ -14,9 +14,12 @@ on:
       - "scripts/validate_rue_dial_execution.py"
       - "scripts/run-rue-one-stage-dial-around.sh"
       - "scripts/validate_rue_rtt_negotiation.py"
+      - "scripts/validate_rue_rtt_live_execution.py"
+      - "scripts/run-rue-rtt-negotiation-live.sh"
       - "tests/test_rue_provider_selection.py"
       - "tests/test_rue_rtt_negotiation.py"
       - "src/main/java/org/mcc0nnell/baudot/harness/RueOneStageDialAroundProbe.java"
+      - "src/main/java/org/mcc0nnell/baudot/harness/RueRttNegotiationProbe.java"
       - ".github/workflows/vrs-public-contract.yml"
   push:
     branches:
@@ -33,9 +36,12 @@ on:
       - "scripts/validate_rue_dial_execution.py"
       - "scripts/run-rue-one-stage-dial-around.sh"
       - "scripts/validate_rue_rtt_negotiation.py"
+      - "scripts/validate_rue_rtt_live_execution.py"
+      - "scripts/run-rue-rtt-negotiation-live.sh"
       - "tests/test_rue_provider_selection.py"
       - "tests/test_rue_rtt_negotiation.py"
       - "src/main/java/org/mcc0nnell/baudot/harness/RueOneStageDialAroundProbe.java"
+      - "src/main/java/org/mcc0nnell/baudot/harness/RueRttNegotiationProbe.java"
       - ".github/workflows/vrs-public-contract.yml"
 
 permissions:
@@ -70,8 +76,10 @@ jobs:
         run: python -m scripts.validate_rue_dial_execution
       - name: Test RTT negotiation/readiness reducer
         run: python -m unittest tests.test_rue_rtt_negotiation
-      - name: Exercise RTT negotiation/readiness arms
+      - name: Exercise synthetic RTT negotiation/readiness arms
         run: python -m scripts.validate_rue_rtt_negotiation
+      - name: Execute and independently reduce live JAIN RTT negotiation arms
+        run: bash scripts/run-rue-rtt-negotiation-live.sh
       - name: Preserve VRS/RUE evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -81,4 +89,5 @@ jobs:
             target/evidence/RUE-PROV-001
             target/evidence/RUE-DIAL-001
             target/evidence/RUE-RTT-NEGOTIATION
+            target/evidence/RUE-RTT-NEGOTIATION-LIVE
           if-no-files-found: error
