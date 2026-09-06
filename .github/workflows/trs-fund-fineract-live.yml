@@ -49,7 +49,7 @@ jobs:
           mkdir -p ../artifacts/trs-fund-fineract
           ./gradlew --no-daemon --console=plain :fineract-provider:jibDockerBuild \
             -Djib.to.image="${FINERACT_IMAGE}" \
-            -x test -x cucumber -x buildJavaSdk
+            -x test -x cucumber
           docker tag "${FINERACT_IMAGE}" fineract:latest
           IMAGE_ID="$(docker image inspect "${FINERACT_IMAGE}" --format '{{.Id}}')"
           REPO_TAGS="$(docker image inspect "${FINERACT_IMAGE}" --format '{{json .RepoTags}}')"
