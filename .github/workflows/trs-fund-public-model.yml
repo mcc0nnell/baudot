@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "docs/trs-fund-public-ledger.md"
+      - "docs/adr/0003-synthetic-fund-event-runtime.md"
       - "testkit/fund/**"
       - "interop/fineract/**"
       - "scripts/validate_trs_fund_public_model.py"
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - "docs/trs-fund-public-ledger.md"
+      - "docs/adr/0003-synthetic-fund-event-runtime.md"
       - "testkit/fund/**"
       - "interop/fineract/**"
       - "scripts/validate_trs_fund_public_model.py"
@@ -30,3 +32,5 @@ jobs:
           python-version: "3.13"
       - name: Validate public TRS Fund calibration
         run: python scripts/validate_trs_fund_public_model.py
+      - name: Test synthetic Fund event runtime
+        run: python -m unittest discover -s testkit/fund/runtime -p "test_*.py" -v
