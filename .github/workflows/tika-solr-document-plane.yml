@@ -77,13 +77,17 @@ jobs:
           fi
           docker inspect --format='{{.Image}}' baudot-tika > target/tika-solr-live/tika-image-id.txt
 
-      - name: Bootstrap Solr 10.0.0 core before enabling auth
+      - name: Bootstrap writable Solr 10.0.0 home and core before enabling auth
         run: |
           docker pull solr:10.0.0
           docker volume create baudot-solr-data
+          docker run --rm --user root \
+            -v baudot-solr-data:/var/solr \
+            solr:10.0.0 bash -c \
+            'mkdir -p /var/solr/data && chown -R solr:solr /var/solr'
           docker run -d --name baudot-solr-bootstrap --network baudot-docs \
             -p 127.0.0.1:8983:8983 \
-            -v baudot-solr-data:/var/solr/data \
+            -v baudot-solr-data:/var/solr \
             solr:10.0.0 solr-precreate baudot_docs
           ready=0
           for attempt in $(seq 1 90); do
@@ -103,13 +107,13 @@ jobs:
       - name: Install fail-closed synthetic Solr security
         run: |
           docker run --rm --user root \
-            -v baudot-solr-data:/var/solr/data \
+            -v baudot-solr-data:/var/solr \
             -v "$PWD/interop/solr/security/basic-auth-security.json:/tmp/security.json:ro" \
             solr:10.0.0 bash -c \
             'cp /tmp/security.json /var/solr/data/security.json && chown solr:solr /var/solr/data/security.json && chmod 640 /var/solr/data/security.json'
           docker run -d --name baudot-solr --network baudot-docs \
             -p 127.0.0.1:8983:8983 \
-            -v baudot-solr-data:/var/solr/data \
+            -v baudot-solr-data:/var/solr \
             solr:10.0.0 solr-foreground
           ready=0
           for attempt in $(seq 1 90); do
@@ -154,6 +158,6 @@ jobs:
       - name: Stop live document services
         if: always()
         run: |
-          docker rm -f baudot-solr baudot-tika >/dev/null 2>&1 || true
+          docker rm -f baudot-solr-bootstrap baudot-solr baudot-tika >/dev/null 2>&1 || true
           docker volume rm baudot-solr-data >/dev/null 2>&1 || true
           docker network rm baudot-docs >/dev/null 2>&1 || true
