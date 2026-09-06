@@ -48,3 +48,5 @@ jobs:
         run: bash scripts/run-itrs-mocks.sh
       - name: Prove iTRS logical route to JAIN-SIP handoff
         run: bash scripts/run-itrs-sip-handoff.sh
+      - name: Prove public-evidence iTRS CTE state machine and SIP handoff
+        run: bash scripts/run-itrs-cte.sh

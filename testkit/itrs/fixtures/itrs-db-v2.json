@@ -2,148 +2,39 @@
   "schema": "baudot.itrs-directory-fixture@2",
   "authority": "synthetic-clean-room",
   "sourceBoundary": "public FCC rules and 2024 iTRS SOW only",
+  "modelNotes": [
+    "The directory maps TNs to endpoint URIs and retains service, user type, provider XSPID, and URD-valid state.",
+    "Only the default provider may create/update a record unless NPAC AltSPID/LastAltSPID makes a gaining provider eligible to provision.",
+    "The first gaining-provider provision transfers mock ownership and revokes losing-provider write access.",
+    "Provisioning and query views are distinct so replication delay can be exercised."
+  ],
   "providers": [
-    {
-      "xspid": "XSPID-A",
-      "providerId": "provider-a",
-      "serviceTypes": ["VRS"]
-    },
-    {
-      "xspid": "XSPID-B",
-      "providerId": "provider-b",
-      "serviceTypes": ["VRS", "IP_RELAY"]
-    }
+    {"xspid": "XSPID-A", "providerId": "provider-a", "serviceTypes": ["VRS"]},
+    {"xspid": "XSPID-B", "providerId": "provider-b", "serviceTypes": ["VRS", "IP_RELAY"]}
   ],
   "directoryRecords": [
-    {
-      "tn": "2025550101",
-      "service": "VRS",
-      "userType": "DEAF_HARD_OF_HEARING",
-      "providerXspid": "XSPID-A",
-      "urdValid": true,
-      "active": true,
-      "uris": ["sip:2025550101@provider-a.invalid"]
-    },
-    {
-      "tn": "2025550102",
-      "service": "VRS",
-      "userType": "HEARING",
-      "providerXspid": "XSPID-A",
-      "urdValid": true,
-      "active": true,
-      "uris": ["sip:2025550102@gateway.provider-a.invalid"]
-    },
-    {
-      "tn": "2025550103",
-      "service": "VRS",
-      "userType": "PUBLIC_DEVICE",
-      "providerXspid": "XSPID-B",
-      "urdValid": true,
-      "active": true,
-      "uris": ["sip:2025550103@provider-b.invalid"]
-    },
-    {
-      "tn": "2025550104",
-      "service": "IP_RELAY",
-      "userType": "DEAF_HARD_OF_HEARING",
-      "providerXspid": "XSPID-B",
-      "urdValid": true,
-      "active": true,
-      "uris": ["im:relay0104@provider-b.invalid"]
-    },
-    {
-      "tn": "2025550105",
-      "service": "VRS",
-      "userType": "PRIVATE_DEVICE",
-      "providerXspid": "XSPID-A",
-      "urdValid": false,
-      "active": false,
-      "uris": []
-    },
-    {
-      "tn": "2025550106",
-      "service": "VRS",
-      "userType": "DEAF_HARD_OF_HEARING",
-      "providerXspid": "XSPID-A",
-      "urdValid": true,
-      "active": true,
-      "uris": ["not-a-valid-uri"]
-    },
-    {
-      "tn": "2025550107",
-      "service": "VRS",
-      "userType": "DEAF_HARD_OF_HEARING",
-      "providerXspid": "XSPID-B",
-      "urdValid": true,
-      "active": true,
-      "uris": ["sip:2025550107@provider-b.invalid"],
-      "porting": {
-        "spid": "CARRIER-1",
-        "altSpid": "XSPID-B",
-        "lastAltSpid": "XSPID-A",
-        "state": "GAINING_PROVIDER_MAY_PROVISION"
-      }
-    },
-    {
-      "tn": "2025550108",
-      "service": "VRS",
-      "userType": "DEAF_HARD_OF_HEARING",
-      "providerXspid": "XSPID-B",
-      "urdValid": true,
-      "active": true,
-      "uris": ["sip:2025550108@provider-b.invalid"],
-      "replicationDelayMs": 250
-    }
+    {"tn": "2025550101", "service": "VRS", "userType": "DEAF_HARD_OF_HEARING", "providerXspid": "XSPID-A", "urdValid": true, "active": true, "uris": ["sip:2025550101@vrs-a.example.invalid"]},
+    {"tn": "2025550102", "service": "VRS", "userType": "HEARING", "providerXspid": "XSPID-A", "urdValid": true, "active": true, "uris": ["sip:2025550102@gateway.provider-a.invalid"]},
+    {"tn": "2025550103", "service": "VRS", "userType": "PUBLIC_DEVICE", "providerXspid": "XSPID-B", "urdValid": true, "active": true, "uris": ["sip:2025550103@provider-b.invalid"]},
+    {"tn": "2025550104", "service": "IP_RELAY", "userType": "DEAF_HARD_OF_HEARING", "providerXspid": "XSPID-B", "urdValid": true, "active": true, "uris": ["im:relay0104@provider-b.invalid"]},
+    {"tn": "2025550105", "service": "VRS", "userType": "PRIVATE_DEVICE", "providerXspid": "XSPID-A", "urdValid": false, "active": false, "uris": []},
+    {"tn": "2025550106", "service": "VRS", "userType": "DEAF_HARD_OF_HEARING", "providerXspid": "XSPID-A", "urdValid": true, "active": true, "uris": ["not-a-valid-uri"]},
+    {"tn": "2025550107", "service": "VRS", "userType": "DEAF_HARD_OF_HEARING", "providerXspid": "XSPID-A", "urdValid": true, "active": true, "uris": ["sip:2025550107@provider-a.invalid"], "porting": {"spid": "CARRIER-1", "altSpid": "XSPID-B", "lastAltSpid": "XSPID-A", "state": "GAINING_PROVIDER_ELIGIBLE"}},
+    {"tn": "2025550108", "service": "VRS", "userType": "DEAF_HARD_OF_HEARING", "providerXspid": "XSPID-B", "urdValid": true, "active": true, "uris": ["sip:2025550108@provider-b.invalid"], "replicationDelayMs": 250}
   ],
   "allCallQueries": [
-    {
-      "transactionId": "ACQ-0001",
-      "providerXspid": "XSPID-A",
-      "fromTn": "2025550101",
-      "toTn": "2025550103",
-      "service": "VRS",
-      "direction": "OUTBOUND",
-      "expected": {
-        "valid": true,
-        "routeUri": "sip:2025550103@provider-b.invalid",
-        "connectAllowed": true
-      }
-    },
-    {
-      "transactionId": "ACQ-0002",
-      "providerXspid": "XSPID-B",
-      "fromTn": "2025550103",
-      "toTn": "2025550105",
-      "service": "VRS",
-      "direction": "OUTBOUND",
-      "expected": {
-        "valid": false,
-        "failure": "URD_INVALID",
-        "connectAllowed": false
-      }
-    },
-    {
-      "transactionId": "ACQ-0003",
-      "providerXspid": "XSPID-B",
-      "fromTn": "2025550103",
-      "toTn": "2025550106",
-      "service": "VRS",
-      "direction": "OUTBOUND",
-      "expected": {
-        "valid": false,
-        "failure": "INVALID_ROUTE_URI",
-        "connectAllowed": false
-      }
-    }
+    {"transactionId": "ACQ-0001", "providerXspid": "XSPID-A", "fromTn": "2025550101", "toTn": "2025550103", "service": "VRS", "direction": "OUTBOUND", "expected": {"valid": true, "routeUri": "sip:2025550103@provider-b.invalid", "connectAllowed": true}},
+    {"transactionId": "ACQ-0002", "providerXspid": "XSPID-B", "fromTn": "2025550103", "toTn": "2025550105", "service": "VRS", "direction": "OUTBOUND", "expected": {"valid": false, "failure": "URD_INVALID", "connectAllowed": false}},
+    {"transactionId": "ACQ-0003", "providerXspid": "XSPID-B", "fromTn": "2025550103", "toTn": "2025550106", "service": "VRS", "direction": "OUTBOUND", "expected": {"valid": false, "failure": "INVALID_ROUTE_URI", "connectAllowed": false}}
+  ],
+  "provisioningTransitions": [
+    {"name": "gaining-provider-first-provision", "tn": "2025550107", "actorXspid": "XSPID-B", "before": {"providerXspid": "XSPID-A", "routeUri": "sip:2025550107@provider-a.invalid"}, "write": {"routeUri": "sip:2025550107@provider-b.invalid", "replicationDelayMs": 200}, "after": {"providerXspid": "XSPID-B", "losingProviderMayWrite": false}}
+  ],
+  "urdOperations": [
+    {"name": "create-invalid-stub", "tn": "2025550110", "providerXspid": "XSPID-A", "service": "VRS", "urdValid": false, "expected": {"recordCreated": true, "active": false}}
   ],
   "reverseQueries": [
-    {
-      "query": {"userid": "2025550102"},
-      "expected": {"registered": true, "tn": "2025550102"}
-    },
-    {
-      "query": {"ip": "192.0.2.77"},
-      "expected": {"registeredGateway": true}
-    }
+    {"query": {"userid": "2025550102"}, "expected": {"registered": true, "tn": "2025550102"}},
+    {"query": {"ip": "192.0.2.77"}, "expected": {"registeredGateway": true}}
   ]
 }
