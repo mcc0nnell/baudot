@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - "docs/vrs-public-interoperability-osint.md"
+      - "docs/vrs-public-implementation-archaeology.md"
       - "testkit/vrs/**"
       - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/validate_vrs_public_donors.py"
       - "scripts/validate_rue_dial_config_fixtures.py"
       - "scripts/select_rue_provider.py"
       - "scripts/run-rue-provider-selection.sh"
@@ -19,8 +21,10 @@ on:
       - main
     paths:
       - "docs/vrs-public-interoperability-osint.md"
+      - "docs/vrs-public-implementation-archaeology.md"
       - "testkit/vrs/**"
       - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/validate_vrs_public_donors.py"
       - "scripts/validate_rue_dial_config_fixtures.py"
       - "scripts/select_rue_provider.py"
       - "scripts/run-rue-provider-selection.sh"
@@ -48,6 +52,8 @@ jobs:
           cache: maven
       - name: Validate public VRS/RUE research matrix and fixtures
         run: python -m scripts.validate_vrs_public_matrix
+      - name: Validate pinned public implementation donor boundaries
+        run: python -m scripts.validate_vrs_public_donors
       - name: Validate ProviderConfig and two-stage dial-around fixtures
         run: python -m scripts.validate_rue_dial_config_fixtures
       - name: Test deterministic provider selection
