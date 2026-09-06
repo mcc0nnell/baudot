@@ -1,0 +1,33 @@
+name: part64-vrs-call-evidence
+
+on:
+  push:
+    paths:
+      - "docs/part64-vrs-call-evidence.md"
+      - "testkit/part64/vrs-call-evidence-requirements-v1.json"
+      - "testkit/part64/fixtures/vrs-call-records.json"
+      - "testkit/part64/fixtures/vrs-speed-of-answer-months.json"
+      - "scripts/validate_part64_vrs_call_evidence.py"
+      - ".github/workflows/part64-vrs-call-evidence.yml"
+  pull_request:
+    paths:
+      - "docs/part64-vrs-call-evidence.md"
+      - "testkit/part64/vrs-call-evidence-requirements-v1.json"
+      - "testkit/part64/fixtures/vrs-call-records.json"
+      - "testkit/part64/fixtures/vrs-speed-of-answer-months.json"
+      - "scripts/validate_part64_vrs_call_evidence.py"
+      - ".github/workflows/part64-vrs-call-evidence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Part 64 VRS call evidence
+        run: python scripts/validate_part64_vrs_call_evidence.py
