@@ -83,38 +83,89 @@ The positive arms use explicitly Baudot-owned deterministic media stimulus and t
 
 See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model.
 
-## iTRS mock vertical slice
+## iTRS / VRS interoperability lab
 
-`testkit/itrs/` adds a deterministic, clean-room proving ground for iTRS-derived routing behavior without requiring live TRS Numbering Directory access.
+`testkit/itrs/` has grown from deterministic routing fixtures into a layered, clean-room interoperability proving ground. The architectural rule remains the same throughout: **classification, route authority, transport selection, signaling success, and media readiness are separate facts.**
 
-The first executable call-routing slice is:
+The evidence ladder is now:
 
 ```text
-synthetic NANP number
-       |
-       v
-mock iTRS resolution
-       |
-       v
-logical SIP URI
-       |
-       v
-JAIN-SIP INVITE
-       |
-       v
-loopback mock VRS peer
-       |
-       +--> 200 OK
-       +--> ACK
+public FCC routing semantics
+          |
+          v
+synthetic iTRS CTE
+URD / NPAC / provider state
+          |
+          +--> historical ACE /vrsverify/ classification adapter
+          |
+          v
+pinned ACE Connect Lite A / B
+real historical outbound-call handlers
+          |
+          v
+real AMI Originate
+          |
+          v
+controlled Asterisk A / B
+          |
+          | authenticated AllCallQuery
+          v
+exact logical SIP URI
+          |
+          | PJSIP + separate outbound proxy
+          v
+JAIN-SIP evidence peer
 ```
 
-The trial preserves the iTRS-derived logical SIP URI as the SIP Request-URI while using a separate loose Route header for the immediate loopback transport destination. That keeps authoritative route identity separate from downstream service discovery and transport selection.
+The CTE models public-evidence relationships such as TN→URI routing, service and user type, default-provider XSPID responsibility, URD-valid state, NPAC porting observations, provisioning/query replication, AllCallQuery context, transaction IDs, and reverse validation. It does not claim to reproduce a proprietary iconectiv/Neustar schema or nonpublic interface guide.
 
-The fixture matrix also covers alias forwarding, NAPTR priority, SIP service discovery, no-route, malformed-authority, authority-unavailable, and deterministic-latency cases. A clean-room validator independently recomputes ENUM owner derivation, alias traversal, NAPTR selection, `E2U+sip` validation, and synthetic SIP NAPTR/SRV discovery from the fixture data.
+The ACE compatibility layer is deliberately narrow. The pinned historical source consumes `GET /vrsverify/?vrsnum=...` and branches on `message === "success"`; Baudot reproduces only that observed consumer shape. `/vrsverify/` remains classification. **AllCallQuery remains logical-route authority.**
 
-Run the fixture matrix with `bash scripts/run-itrs-mocks.sh` and the JAIN-SIP handoff proof with `bash scripts/run-itrs-sip-handoff.sh`.
+The dual-provider runtime slices then preserve that separation through real application and PBX boundaries:
 
-These are synthetic test fixtures. They do not claim live iTRS access, production VRS interoperability, or provider certification.
+```text
+provider A -> 2025550103 -> sip:2025550103@provider-b.invalid
+provider B -> 2025550101 -> sip:2025550101@vrs-a.example.invalid
+```
+
+The controlled Asterisk dialplan does not hard-code those destination domains. After ACE chooses its historical `outbound-CA` context, the dialplan independently performs an authenticated AllCallQuery and sends the returned URI through PJSIP while a separate loopback proxy determines the immediate transport destination.
+
+The intended signaling proof completes:
+
+```text
+ACE outbound-call
+  -> real AMI
+  -> Asterisk
+  -> authenticated route lookup
+  -> SIP INVITE
+  -> 200 OK
+  -> ACK
+  -> BYE
+  -> 200 OK
+```
+
+with `2025550105` as a URD-invalid negative control that must remain on ACE's `from-phones` path and never reach the route AGI or JAIN-SIP peer.
+
+### Verification status
+
+Status snapshot: **2026-09-05 21:12 America/New_York**.
+
+The dual-ACE and dual-ACE/Asterisk GitHub Actions jobs are currently **queued**. They have not acquired a runner, executed steps, produced logs, or uploaded evidence artifacts. The correct current description is therefore:
+
+> **Implemented and runnable; awaiting hosted runtime verification.**
+
+The expected terminal strings:
+
+```text
+Dual ACE Connect Lite runtime lab: 5/5 PASS
+Dual ACE -> Asterisk -> JAIN-SIP lab: 8/8 PASS
+```
+
+are target verdicts, not current results. Baudot does not promote queued workflows, expected output, syntax checks, or local compilation into interoperability claims.
+
+See [`docs/itrs-vrs-interoperability-lab.md`](docs/itrs-vrs-interoperability-lab.md) for the full evidence ladder, source boundary, current status, and promotion rules.
+
+Even after the signaling path turns green, that result will not establish media or RTT interoperability. T.140/RFC 4103 remains the next independent evidence layer.
 
 ## Interoperability ensemble
 
