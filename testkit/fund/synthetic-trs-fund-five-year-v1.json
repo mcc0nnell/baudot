@@ -1,0 +1,478 @@
+{
+  "schema": "baudot.synthetic-trs-fund-five-year@1",
+  "status": "experimental",
+  "synthetic": true,
+  "period": {
+    "start": "2022-07-01",
+    "end": "2027-06-30",
+    "programYears": 5,
+    "months": 60
+  },
+  "purpose": "Deterministic public-parameter-based synthetic TRS Fund proving corpus.",
+  "authorityBoundary": {
+    "publicParametersAreSourceFacts": true,
+    "providerVolumesAreSynthetic": true,
+    "contributorRevenueBasesAreSynthetic": true,
+    "administratorPrivateImplementationModeled": false,
+    "productionAccountingModeled": false,
+    "productionPaymentRailModeled": false,
+    "fineractRole": "reference financial-state implementation only"
+  },
+  "publicParameterSources": [
+    {
+      "id": "rolka-loube-provider-rates",
+      "url": "https://rolkaloube.com/programs/federal-itrs/trs-providers",
+      "usedFor": [
+        "VRS emergent-provider rates",
+        "IP CTS CA/ASR rates",
+        "IP Relay rates"
+      ]
+    },
+    {
+      "id": "rolka-loube-contributor-factors",
+      "url": "https://rolkaloube.com/programs/federal-itrs/trs-contributors",
+      "usedFor": [
+        "program-year contribution factors",
+        "Form 499 line mapping from 2023-24 onward"
+      ]
+    }
+  ],
+  "openingBalances": {
+    "cash": "8000000.00",
+    "providerPayable": "0.00",
+    "contributorReceivable": "0.00",
+    "recoveryReceivable": "0.00"
+  },
+  "generation": {
+    "monthlySeasonalMultipliers": [
+      "0.96",
+      "0.98",
+      "1.02",
+      "1.05",
+      "1.01",
+      "0.95",
+      "0.97",
+      "1.0",
+      "1.03",
+      "1.04",
+      "1.06",
+      "0.93"
+    ],
+    "contributorAnnualGrowthFactor": "1.03",
+    "rounding": "USD-cent-half-up",
+    "monthlyAssessmentRule": "annual assessment divided by 12; first 11 months rounded to cents; month 12 true-up"
+  },
+  "providers": [
+    {
+      "id": "provider-vrs",
+      "serviceProfile": "VRS-emergent",
+      "synthetic": true,
+      "note": "Synthetic low-volume VRS provider; public emergent-provider rate snapshot only."
+    },
+    {
+      "id": "provider-ipcts",
+      "serviceProfile": "IP-CTS-mixed",
+      "synthetic": true,
+      "note": "Synthetic mix of CA- and ASR-handled minutes."
+    },
+    {
+      "id": "provider-iprelay",
+      "serviceProfile": "IP-Relay",
+      "synthetic": true
+    }
+  ],
+  "contributors": [
+    {
+      "id": "carrier-alpha",
+      "internetBase": "180000000.00",
+      "nonInternetBase": "120000000.00"
+    },
+    {
+      "id": "carrier-bravo",
+      "internetBase": "150000000.00",
+      "nonInternetBase": "90000000.00"
+    },
+    {
+      "id": "carrier-charlie",
+      "internetBase": "120000000.00",
+      "nonInternetBase": "75000000.00"
+    },
+    {
+      "id": "carrier-delta",
+      "internetBase": "100000000.00",
+      "nonInternetBase": "65000000.00"
+    },
+    {
+      "id": "carrier-echo",
+      "internetBase": "80000000.00",
+      "nonInternetBase": "50000000.00"
+    }
+  ],
+  "programYears": [
+    {
+      "id": "FY2022-23",
+      "start": "2022-07",
+      "end": "2023-06",
+      "rates": {
+        "vrsEmergent": "5.29",
+        "ipctsCa": "1.30",
+        "ipctsAsr": "1.30",
+        "ipRelay": "1.9576"
+      },
+      "contributionFormula": {
+        "kind": "legacy-dual-factor",
+        "nonIpctsFactor": "0.01125",
+        "ipctsFactor": "0.00653",
+        "publicLineMappingClaimed": false,
+        "order": "DA-22-699A1"
+      },
+      "anomalies": [
+        {
+          "type": "contributor-collection-delay",
+          "month": "2022-10",
+          "contributorId": "carrier-charlie",
+          "settleMonth": "2022-11"
+        }
+      ],
+      "providerMonthlyVolumeBase": {
+        "vrs": 55000,
+        "ipctsCa": 165000,
+        "ipctsAsr": 125000,
+        "ipRelay": 78000
+      },
+      "contributionAssessmentByContributor": {
+        "carrier-alpha": "2525400.00",
+        "carrier-bravo": "1992000.00",
+        "carrier-charlie": "1627350.00",
+        "carrier-delta": "1384250.00",
+        "carrier-echo": "1084900.00"
+      }
+    },
+    {
+      "id": "FY2023-24",
+      "start": "2023-07",
+      "end": "2024-06",
+      "rates": {
+        "vrsEmergent": "7.77",
+        "ipctsCa": "1.30",
+        "ipctsAsr": "1.30",
+        "ipRelay": "2.048"
+      },
+      "contributionFormula": {
+        "kind": "form499-line-split",
+        "nonInternetFactor": "0.00025",
+        "internetFactor": "0.01615",
+        "nonInternetLine": "514b",
+        "internetLine": "514a",
+        "order": "DA-23-577A1"
+      },
+      "anomalies": [
+        {
+          "type": "duplicate-claim-replay",
+          "month": "2024-03",
+          "providerId": "provider-vrs",
+          "financialEffect": "0.00"
+        }
+      ],
+      "providerMonthlyVolumeBase": {
+        "vrs": 57000,
+        "ipctsCa": 170000,
+        "ipctsAsr": 130000,
+        "ipRelay": 80000
+      },
+      "contributionAssessmentByContributor": {
+        "carrier-alpha": "3025110.00",
+        "carrier-bravo": "2518350.00",
+        "carrier-charlie": "2015452.50",
+        "carrier-delta": "1680187.50",
+        "carrier-echo": "1343635.00"
+      }
+    },
+    {
+      "id": "FY2024-25",
+      "start": "2024-07",
+      "end": "2025-06",
+      "rates": {
+        "vrsEmergent": "8.06",
+        "ipctsCa": "1.30",
+        "ipctsAsr": "1.30",
+        "ipRelay": "2.1252"
+      },
+      "contributionFormula": {
+        "kind": "form499-line-split",
+        "nonInternetFactor": "0.00024",
+        "internetFactor": "0.01952",
+        "nonInternetLine": "514b",
+        "internetLine": "514a",
+        "order": "DA-24-620A1"
+      },
+      "anomalies": [
+        {
+          "type": "claim-adjustment",
+          "month": "2024-12",
+          "providerId": "provider-ipcts",
+          "adjustsServiceMonth": "2024-11",
+          "basis": "ca-rate-correction-demo",
+          "amount": "8888.00"
+        }
+      ],
+      "rateTransitions": [
+        {
+          "effectiveMonth": "2024-11",
+          "updates": {
+            "ipctsCa": "1.35",
+            "ipctsAsr": "1.17"
+          },
+          "publicBasis": "Rolka Loube provider rate table"
+        }
+      ],
+      "providerMonthlyVolumeBase": {
+        "vrs": 59000,
+        "ipctsCa": 176000,
+        "ipctsAsr": 134000,
+        "ipRelay": 82000
+      },
+      "contributionAssessmentByContributor": {
+        "carrier-alpha": "3758132.16",
+        "carrier-bravo": "3129230.64",
+        "carrier-charlie": "2504148.36",
+        "carrier-delta": "2087426.84",
+        "carrier-echo": "1669432.24"
+      }
+    },
+    {
+      "id": "FY2025-26",
+      "start": "2025-07",
+      "end": "2026-06",
+      "rates": {
+        "vrsEmergent": "8.33",
+        "ipctsCa": "1.40",
+        "ipctsAsr": "1.05",
+        "ipRelay": "2.197"
+      },
+      "contributionFormula": {
+        "kind": "form499-line-split",
+        "nonInternetFactor": "0.00025",
+        "internetFactor": "0.02086",
+        "nonInternetLine": "514b",
+        "internetLine": "514a",
+        "order": "DA-25-578"
+      },
+      "anomalies": [
+        {
+          "type": "provider-payment-failure",
+          "month": "2026-04",
+          "providerId": "provider-iprelay",
+          "retryMonth": "2026-05"
+        }
+      ],
+      "providerMonthlyVolumeBase": {
+        "vrs": 61000,
+        "ipctsCa": 182000,
+        "ipctsAsr": 140000,
+        "ipRelay": 84000
+      },
+      "contributionAssessmentByContributor": {
+        "carrier-alpha": "4135753.15",
+        "carrier-bravo": "3443729.14",
+        "carrier-charlie": "2755802.86",
+        "carrier-delta": "2297185.34",
+        "carrier-echo": "1837201.91"
+      }
+    },
+    {
+      "id": "FY2026-27",
+      "start": "2026-07",
+      "end": "2027-06",
+      "rates": {
+        "vrsEmergent": "8.61",
+        "ipctsCa": "1.45",
+        "ipctsAsr": "0.95",
+        "ipRelay": "2.271"
+      },
+      "contributionFormula": {
+        "kind": "form499-line-split",
+        "nonInternetFactor": "0.00021",
+        "internetFactor": "0.02276",
+        "nonInternetLine": "514b",
+        "internetLine": "514a",
+        "order": "DA-26-646A1"
+      },
+      "anomalies": [
+        {
+          "type": "provider-overpayment-recovery",
+          "month": "2026-11",
+          "providerId": "provider-vrs",
+          "overpaymentAmount": "12500.00",
+          "recoverMonth": "2027-01"
+        }
+      ],
+      "providerMonthlyVolumeBase": {
+        "vrs": 63000,
+        "ipctsCa": 188000,
+        "ipctsAsr": 146000,
+        "ipRelay": 86000
+      },
+      "contributionAssessmentByContributor": {
+        "carrier-alpha": "4639347.31",
+        "carrier-bravo": "3863759.19",
+        "carrier-charlie": "3091716.43",
+        "carrier-delta": "2577021.25",
+        "carrier-echo": "2061144.28"
+      }
+    }
+  ],
+  "expected": {
+    "programYears": {
+      "FY2022-23": {
+        "contributionAssessed": "8613900.00",
+        "contributionCashReceived": "8613900.00",
+        "reimbursementApproved": "9847713.60",
+        "providerCashPaid": "9847713.60",
+        "openingBalances": {
+          "cash": "8000000.00",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        },
+        "closingBalances": {
+          "cash": "6766186.40",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        }
+      },
+      "FY2023-24": {
+        "contributionAssessed": "10582735.00",
+        "contributionCashReceived": "10582735.00",
+        "reimbursementApproved": "11960760.00",
+        "providerCashPaid": "11960760.00",
+        "duplicateReplayFinancialEffect": "0.00",
+        "openingBalances": {
+          "cash": "6766186.40",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        },
+        "closingBalances": {
+          "cash": "5388161.40",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        }
+      },
+      "FY2024-25": {
+        "contributionAssessed": "13148370.24",
+        "contributionCashReceived": "13148370.24",
+        "reimbursementApproved": "12573690.99",
+        "providerCashPaid": "12573690.99",
+        "reimbursementAdjustments": "8888.00",
+        "openingBalances": {
+          "cash": "5388161.40",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        },
+        "closingBalances": {
+          "cash": "5962840.65",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        }
+      },
+      "FY2025-26": {
+        "contributionAssessed": "14469672.40",
+        "contributionCashReceived": "14469672.40",
+        "reimbursementApproved": "13133736.00",
+        "providerCashPaid": "13133736.00",
+        "openingBalances": {
+          "cash": "5962840.65",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        },
+        "closingBalances": {
+          "cash": "7298777.05",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        }
+      },
+      "FY2026-27": {
+        "contributionAssessed": "16232988.46",
+        "contributionCashReceived": "16232988.46",
+        "reimbursementApproved": "13788432.00",
+        "providerCashPaid": "13800932.00",
+        "overpaymentsCreated": "12500.00",
+        "recoveriesReceived": "12500.00",
+        "openingBalances": {
+          "cash": "7298777.05",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        },
+        "closingBalances": {
+          "cash": "9743333.51",
+          "providerPayable": "0.00",
+          "contributorReceivable": "0.00",
+          "recoveryReceivable": "0.00"
+        }
+      }
+    },
+    "fiveYear": {
+      "contributionAssessed": "63047666.10",
+      "contributionCashReceived": "63047666.10",
+      "reimbursementApproved": "61304332.59",
+      "providerCashPaid": "61316832.59",
+      "duplicateReplayFinancialEffect": "0.00",
+      "reimbursementAdjustments": "8888.00",
+      "overpaymentsCreated": "12500.00",
+      "recoveriesReceived": "12500.00",
+      "openingCash": "8000000.00",
+      "closingBalances": {
+        "cash": "9743333.51",
+        "providerPayable": "0.00",
+        "contributorReceivable": "0.00",
+        "recoveryReceivable": "0.00"
+      }
+    },
+    "checkpoints": {
+      "2022-10": {
+        "contributorReceivableNonZero": true
+      },
+      "2022-11": {
+        "contributorReceivable": "0.00"
+      },
+      "2024-03": {
+        "duplicateReplayFinancialEffect": "0.00"
+      },
+      "2024-11": {
+        "ipctsCaRate": "1.35",
+        "ipctsAsrRate": "1.17"
+      },
+      "2024-12": {
+        "reimbursementAdjustment": "8888.00"
+      },
+      "2026-04": {
+        "providerPayableNonZero": true
+      },
+      "2026-05": {
+        "providerPayable": "0.00"
+      },
+      "2026-11": {
+        "recoveryReceivable": "12500.00"
+      },
+      "2027-01": {
+        "recoveryReceivable": "0.00"
+      }
+    }
+  },
+  "claimBoundary": {
+    "historicalRateTableReproduction": true,
+    "historicalRealProviderTraffic": false,
+    "historicalRealContributorRevenue": false,
+    "administratorCompatibility": false,
+    "fccPaymentAuthorization": false,
+    "fineractConformance": false
+  }
+}
