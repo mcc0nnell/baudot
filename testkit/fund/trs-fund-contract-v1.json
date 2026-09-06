@@ -1,0 +1,134 @@
+{
+  "schema": "baudot.trs-fund-contract@1",
+  "status": "experimental",
+  "authority": {
+    "callEvidence": "baudot",
+    "compensabilityDecision": "synthetic-fund-admin-fixture",
+    "rateSelection": "synthetic-fund-admin-fixture",
+    "financialState": "apache-fineract-reference-ledger",
+    "paymentSettlement": "synthetic-payment-fixture",
+    "fineractMayDecideCompensability": false,
+    "fineractMaySelectRates": false,
+    "fineractMayAuthorizeProductionPayment": false
+  },
+  "fineractProfile": {
+    "implementation": "Apache Fineract",
+    "targetVersion": "1.15.0",
+    "role": "reference-ledger-implementation",
+    "liveRuntimeRequiredByThisContract": false,
+    "operations": [
+      "create-journal-entry",
+      "reverse-journal-entry",
+      "read-journal-entry"
+    ],
+    "references": [
+      "https://fineract.apache.org/docs/stable/",
+      "https://fineract.apache.org/docs/legacy/"
+    ]
+  },
+  "accounts": [
+    {"code": "1000", "name": "TRS Fund Cash", "type": "asset"},
+    {"code": "1300", "name": "Provider Recovery Receivable", "type": "asset"},
+    {"code": "2100", "name": "Provider Payable", "type": "liability"},
+    {"code": "6100", "name": "VRS Reimbursement Expense", "type": "expense"},
+    {"code": "6200", "name": "IP CTS Reimbursement Expense", "type": "expense"}
+  ],
+  "rateProfiles": [
+    {
+      "id": "synthetic-vrs-flat-001",
+      "service": "VRS",
+      "currency": "USD",
+      "unit": "minute",
+      "rate": "6.00",
+      "synthetic": true,
+      "productionRateClaim": false
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "FUND-001",
+      "name": "approved-vrs-claim-posts-payable",
+      "claim": {
+        "claimId": "claim-vrs-001",
+        "idempotencyKey": "fund-claim-vrs-001",
+        "service": "VRS",
+        "minutes": "10.00",
+        "rateProfile": "synthetic-vrs-flat-001",
+        "approvedAmount": "60.00",
+        "decision": "approved"
+      },
+      "expectedEntries": [
+        {"account": "6100", "side": "debit", "amount": "60.00"},
+        {"account": "2100", "side": "credit", "amount": "60.00"}
+      ],
+      "expectedAdditionalFinancialEffect": "60.00"
+    },
+    {
+      "id": "FUND-002",
+      "name": "settlement-clears-provider-payable",
+      "claimId": "claim-vrs-001",
+      "payment": {
+        "paymentId": "payment-vrs-001",
+        "amount": "60.00",
+        "status": "settled",
+        "synthetic": true
+      },
+      "expectedEntries": [
+        {"account": "2100", "side": "debit", "amount": "60.00"},
+        {"account": "1000", "side": "credit", "amount": "60.00"}
+      ],
+      "expectedPayableDelta": "-60.00",
+      "expectedCashDelta": "-60.00"
+    },
+    {
+      "id": "FUND-003",
+      "name": "duplicate-claim-replay-has-no-second-posting",
+      "claim": {
+        "claimId": "claim-vrs-001",
+        "idempotencyKey": "fund-claim-vrs-001",
+        "decision": "approved"
+      },
+      "replay": true,
+      "expectedEntries": [],
+      "expectedAdditionalFinancialEffect": "0.00"
+    },
+    {
+      "id": "FUND-004",
+      "name": "downward-adjustment-reduces-payable-before-settlement",
+      "claimId": "claim-vrs-002",
+      "originalApprovedAmount": "60.00",
+      "adjustedApprovedAmount": "54.00",
+      "adjustmentId": "adjustment-vrs-002-a",
+      "expectedEntries": [
+        {"account": "2100", "side": "debit", "amount": "6.00"},
+        {"account": "6100", "side": "credit", "amount": "6.00"}
+      ],
+      "expectedPayableDelta": "-6.00"
+    },
+    {
+      "id": "FUND-005",
+      "name": "erroneous-claim-is-reversed-not-deleted",
+      "claimId": "claim-vrs-003",
+      "originalTransactionId": "journal-vrs-003",
+      "reversalTransactionId": "journal-vrs-003-reversal",
+      "reversalOf": "journal-vrs-003",
+      "originalEntries": [
+        {"account": "6100", "side": "debit", "amount": "24.00"},
+        {"account": "2100", "side": "credit", "amount": "24.00"}
+      ],
+      "expectedEntries": [
+        {"account": "2100", "side": "debit", "amount": "24.00"},
+        {"account": "6100", "side": "credit", "amount": "24.00"}
+      ],
+      "originalTransactionMustRemainAddressable": true
+    }
+  ],
+  "claimBoundary": {
+    "productionTrsFundAccounting": false,
+    "productionAdministratorCompatibility": false,
+    "productionProviderReimbursement": false,
+    "fccPaymentAuthorization": false,
+    "fineractConformance": false,
+    "syntheticLifecycleEvidenceOnly": true
+  }
+}
