@@ -4,7 +4,7 @@
 The reducer intentionally keeps five observations separate:
 - local RTT policy for this controlled arm;
 - remote SDP T.140 capability;
-- whether the answer accepts T.140;
+- whether the answer accepts an active T.140 media section;
 - whether T.140 was negotiated; and
 - whether independently observed non-empty T.140 exists.
 
@@ -23,13 +23,20 @@ FIXTURE = ROOT / "testkit" / "vrs" / "fixtures" / "rue-rtt-negotiation-arms-v1.j
 EVIDENCE = ROOT / "target" / "evidence" / "RUE-RTT-NEGOTIATION"
 
 RTPMAP_T140 = re.compile(r"^a=rtpmap:(\d+)\s+t140/1000(?:\s|$)", re.IGNORECASE)
-MEDIA_LINE = re.compile(r"^m=([^\s]+)\s+\d+\s+[^\s]+\s+(.+)$", re.IGNORECASE)
+MEDIA_LINE = re.compile(r"^m=([^\s]+)\s+(\d+)\s+[^\s]+\s+(.+)$", re.IGNORECASE)
 
 
-def remote_offers_t140(sdp: str) -> bool:
-    """Return true only when a text media section maps one offered PT to t140/1000."""
+def t140_media_state(sdp: str) -> tuple[bool, bool]:
+    """Return (offered, active) for a valid t140/1000 mapping in m=text.
+
+    A port-zero text section still records T.140 in the SDP but represents a
+    rejected/inactive media section for this narrow offer/answer reducer.
+    """
     current_media: str | None = None
+    current_port = 0
     text_payloads: set[str] = set()
+    offered = False
+    active = False
 
     for raw in sdp.replace("\r\n", "\n").split("\n"):
         line = raw.strip()
@@ -38,14 +45,28 @@ def remote_offers_t140(sdp: str) -> bool:
         media = MEDIA_LINE.match(line)
         if media:
             current_media = media.group(1).lower()
-            text_payloads = set(media.group(2).split()) if current_media == "text" else set()
+            current_port = int(media.group(2))
+            text_payloads = set(media.group(3).split()) if current_media == "text" else set()
             continue
         if current_media != "text":
             continue
         mapping = RTPMAP_T140.match(line)
         if mapping and mapping.group(1) in text_payloads:
-            return True
-    return False
+            offered = True
+            if current_port != 0:
+                active = True
+
+    return offered, active
+
+
+def remote_offers_t140(sdp: str) -> bool:
+    """Return true when a text media section maps one offered PT to t140/1000."""
+    return t140_media_state(sdp)[0]
+
+
+def active_t140(sdp: str) -> bool:
+    """Return true only for a non-zero-port text section mapping t140/1000."""
+    return t140_media_state(sdp)[1]
 
 
 def reduce_case(case: dict[str, Any]) -> dict[str, Any]:
