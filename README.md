@@ -6,6 +6,16 @@ Baudot is an independent open-source project for defining and testing interopera
 
 The project starts at the semantic boundary: **T.140 real-time text behavior and deterministic test vectors first**. SIP/RFC 4103, WebRTC, gateways, and application integrations are transport work layered on top of that core rather than substitutes for it.
 
+## Why Baudot exists
+
+Accessible real-time communications sit at the junction of disciplines that are usually documented and implemented separately: T.140/RTT semantics, SIP and SDP signaling, RFC 4103 media, call-state transitions, numbering and routing, VRS/iTRS service behavior, application gateways, controlled-network testing, and evidence preservation.
+
+Interoperability failures tend to happen at those junctions. The knowledge needed to explain them often lives in different places: standards, vendor implementations, packet captures, production history, test harnesses, and institutional memory.
+
+**Baudot's job is to make those boundaries executable.** It documents the parts of accessible telecommunications that otherwise tend to live only in institutional memory, vendor implementations, packet captures, and operational folklore, then turns them into portable scenarios, deterministic fixtures, observable facts, and reproducible evidence.
+
+The project is not an attempt to replace every SIP stack, VRS provider, application, or network component. It provides a neutral semantic and test layer where those systems can be exercised against explicit behavior and claim boundaries.
+
 ## Working principles
 
 1. **Behavior before stack choice.** A normative or interoperable behavior should be expressible as a portable test vector before it is tied to one SIP, WebRTC, or application implementation.
