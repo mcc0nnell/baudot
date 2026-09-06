@@ -1,0 +1,32 @@
+---
+title: Interoperability signal panel
+description: Replay Baudot evidence ordering as a modem-style signal path and inspect the scenario matrix generated from repository contracts.
+---
+
+import ModemPanel from '../../components/ModemPanel.astro';
+import ScenarioMatrix from '../../components/ScenarioMatrix.astro';
+
+# Interoperability signal panel
+
+Baudot treats accessibility as a sequence of independently observable states. A successful SIP transaction cannot light an RTT-ready indicator by itself.
+
+<ModemPanel />
+
+The control arm reaches accessibility readiness before the original leg is released. The signaling-only arm deliberately demonstrates the opposite: signaling and replacement-dialog establishment can succeed while the first T.140 character is never observed. In that case `READY` remains false and the old leg stays preserved.
+
+The panel is an explanatory projection of the scenario contract. Preserved artifacts and reducers remain the evidence authority.
+
+## Scenario matrix
+
+The table below is generated directly from the machine-readable scenario contracts during the site build.
+
+<ScenarioMatrix />
+
+## Reading the lights
+
+- **Observed** means the selected scenario arm requires that fact to be present at that point in the evidence chain.
+- **Not observed** is an intentional negative observation, not a generic test failure.
+- **Preserved** means continuity policy prevents teardown because the configured accessibility-ready condition has not been met.
+- **Released** means the scenario permits old-leg teardown only after the required readiness point.
+
+The visualization never infers downstream state from an upstream success. That is the same boundary enforced by the testkit and terminal reducers.

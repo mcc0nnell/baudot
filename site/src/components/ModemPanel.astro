@@ -1,0 +1,173 @@
+---
+import { readFileSync } from 'node:fs';
+
+const scenario = JSON.parse(
+  readFileSync(
+    new URL('../../../testkit/scenarios/BAUDOT-INTEROP-004-cross-provider-refer.json', import.meta.url),
+    'utf8',
+  ),
+);
+
+const stages = [
+  { id: 'original', label: 'ORIG LEG', control: 'pass', signaling: 'pass' },
+  { id: 'refer', label: 'REFER', control: 'pass', signaling: 'pass' },
+  { id: 'notify', label: 'NOTIFY', control: 'pass', signaling: 'pass' },
+  { id: 'replacement', label: 'REPL LEG', control: 'pass', signaling: 'pass' },
+  { id: 'negotiated', label: 'RTT NEG', control: 'pass', signaling: 'pass' },
+  { id: 't140', label: 'T.140', control: 'pass', signaling: 'fail' },
+  { id: 'ready', label: 'READY', control: 'pass', signaling: 'fail' },
+  { id: 'release', label: 'OLD LEG', control: 'released', signaling: 'held' },
+];
+---
+
+<section class="panel" data-baudot-panel aria-labelledby="panel-title">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">BAUDOT SIGNAL MONITOR</p>
+      <h2 id="panel-title">{scenario.id}</h2>
+      <p class="scenario-title">{scenario.title}</p>
+    </div>
+    <div class="status-block" aria-label={`Scenario status ${scenario.status}`}>
+      <span class="status-label">PROFILE</span>
+      <strong>{scenario.status.toUpperCase()}</strong>
+    </div>
+  </div>
+
+  <div class="lamps" role="list" aria-label="Accessibility handoff evidence stages">
+    {stages.map((stage, index) => (
+      <div
+        class="stage"
+        role="listitem"
+        data-stage
+        data-control={stage.control}
+        data-signaling={stage.signaling}
+        style={`--stage-index:${index}`}
+      >
+        <span class="lamp" aria-hidden="true"><span class="lamp-symbol">○</span></span>
+        <span class="stage-label">{stage.label}</span>
+        <span class="stage-state">idle</span>
+      </div>
+    ))}
+  </div>
+
+  <div class="trace" aria-hidden="true">
+    <span>RX</span>
+    <span class="trace-line"></span>
+    <span>TX</span>
+  </div>
+
+  <div class="controls">
+    <button type="button" data-replay="control">REPLAY CONTROL</button>
+    <button type="button" data-replay="signaling">REPLAY SIGNALING-ONLY</button>
+  </div>
+
+  <p class="readout" data-readout aria-live="polite">
+    Select an arm to replay the evidence ordering.
+  </p>
+
+  <p class="boundary">
+    This panel projects the scenario contract. It does not create evidence or promote scenario status.
+  </p>
+</section>
+
+<script is:inline>
+  document.querySelectorAll('[data-baudot-panel]').forEach((panel) => {
+    const stages = [...panel.querySelectorAll('[data-stage]')];
+    const readout = panel.querySelector('[data-readout]');
+    let timers = [];
+
+    const clear = () => {
+      timers.forEach(clearTimeout);
+      timers = [];
+      stages.forEach((stage) => {
+        stage.dataset.active = 'false';
+        stage.dataset.result = 'idle';
+        stage.querySelector('.lamp-symbol').textContent = '○';
+        stage.querySelector('.stage-state').textContent = 'idle';
+      });
+    };
+
+    const applyState = (stage, state) => {
+      stage.dataset.active = 'true';
+      stage.dataset.result = state;
+      const symbol = stage.querySelector('.lamp-symbol');
+      const text = stage.querySelector('.stage-state');
+      if (state === 'pass') {
+        symbol.textContent = '●';
+        text.textContent = 'observed';
+      } else if (state === 'fail') {
+        symbol.textContent = '×';
+        text.textContent = 'not observed';
+      } else if (state === 'released') {
+        symbol.textContent = '●';
+        text.textContent = 'released';
+      } else if (state === 'held') {
+        symbol.textContent = '■';
+        text.textContent = 'preserved';
+      }
+    };
+
+    const replay = (arm) => {
+      clear();
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      readout.textContent = arm === 'control'
+        ? 'Control arm: old leg may release only after independent RTT readiness.'
+        : 'Signaling-only arm: transfer signaling succeeds, but readiness stays false and the old leg remains preserved.';
+
+      stages.forEach((stage, index) => {
+        const run = () => applyState(stage, stage.dataset[arm]);
+        if (reducedMotion) run();
+        else timers.push(setTimeout(run, 170 * (index + 1)));
+      });
+    };
+
+    panel.querySelectorAll('[data-replay]').forEach((button) => {
+      button.addEventListener('click', () => replay(button.dataset.replay));
+    });
+  });
+</script>
+
+<style>
+  .panel {
+    margin: 2rem 0;
+    padding: clamp(1rem, 3vw, 1.75rem);
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-5), transparent 15%);
+    border-radius: 0.75rem;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.025), transparent 18%),
+      #111714;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.025), 0 1rem 3rem rgba(0,0,0,.22);
+    color: #d9e2dd;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  .panel-head { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; }
+  .eyebrow, .status-label { margin:0; font-size:.72rem; letter-spacing:.16em; color:#7f9188; }
+  .panel h2 { margin:.2rem 0 0; font-size:clamp(1.1rem,3vw,1.45rem); color:#f2f7f4; }
+  .scenario-title { margin:.25rem 0 0; max-width:48rem; color:#9eafa6; font-size:.86rem; }
+  .status-block { min-width:7rem; padding:.55rem .7rem; border:1px solid #34443c; border-radius:.4rem; text-align:right; background:#0c100e; }
+  .status-block strong { display:block; margin-top:.18rem; color:#c8e6d5; font-size:.82rem; }
+  .lamps { display:grid; grid-template-columns:repeat(8,minmax(5.4rem,1fr)); gap:.65rem; margin:1.8rem 0 1.1rem; overflow-x:auto; padding-bottom:.35rem; }
+  .stage { min-width:5.4rem; text-align:center; }
+  .lamp { display:grid; place-items:center; width:2.3rem; height:2.3rem; margin:0 auto .55rem; border-radius:50%; border:1px solid #405047; background:#090c0b; box-shadow:inset 0 0 .8rem rgba(0,0,0,.8); }
+  .lamp-symbol { color:#4b5a52; font-size:1.05rem; line-height:1; }
+  .stage-label { display:block; color:#bcc8c1; font-size:.72rem; letter-spacing:.08em; white-space:nowrap; }
+  .stage-state { display:block; margin-top:.2rem; color:#66756d; font-size:.62rem; white-space:nowrap; }
+  .stage[data-result='pass'] .lamp, .stage[data-result='released'] .lamp { border-color:#68c58e; box-shadow:0 0 .55rem rgba(104,197,142,.45), inset 0 0 .5rem rgba(104,197,142,.2); }
+  .stage[data-result='pass'] .lamp-symbol, .stage[data-result='released'] .lamp-symbol { color:#7ce0a6; text-shadow:0 0 .55rem rgba(124,224,166,.8); }
+  .stage[data-result='fail'] .lamp { border-color:#b76565; box-shadow:0 0 .45rem rgba(183,101,101,.32); }
+  .stage[data-result='fail'] .lamp-symbol { color:#e59090; }
+  .stage[data-result='held'] .lamp { border-color:#d0b66f; box-shadow:0 0 .45rem rgba(208,182,111,.28); }
+  .stage[data-result='held'] .lamp-symbol { color:#e5ca7d; }
+  .stage[data-result='pass'] .stage-state, .stage[data-result='released'] .stage-state { color:#7fc49a; }
+  .stage[data-result='fail'] .stage-state { color:#d48c8c; }
+  .stage[data-result='held'] .stage-state { color:#d6bd78; }
+  .trace { display:flex; align-items:center; gap:.6rem; color:#56655d; font-size:.65rem; letter-spacing:.12em; }
+  .trace-line { height:1px; flex:1; background:repeating-linear-gradient(90deg,#53645a 0 10px,transparent 10px 17px); }
+  .controls { display:flex; flex-wrap:wrap; gap:.65rem; margin-top:1.15rem; }
+  .controls button { cursor:pointer; border:1px solid #42554a; border-radius:.35rem; padding:.62rem .82rem; background:#172019; color:#d9e6de; font:inherit; font-size:.7rem; letter-spacing:.06em; }
+  .controls button:hover, .controls button:focus-visible { border-color:#75bd91; outline:none; box-shadow:0 0 0 2px rgba(117,189,145,.2); }
+  .readout { min-height:2.5rem; margin:1rem 0 0; padding:.65rem .75rem; border-left:2px solid #53665a; background:#0c100e; color:#a8b7af; font-size:.75rem; }
+  .boundary { margin:.7rem 0 0; color:#718078; font-size:.67rem; }
+  @media (max-width: 50rem) { .panel-head { flex-direction:column; } .status-block { text-align:left; } }
+  @media (prefers-reduced-motion: reduce) { .lamp, .lamp-symbol { transition:none !important; } }
+</style>
