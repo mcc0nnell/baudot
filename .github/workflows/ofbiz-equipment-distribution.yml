@@ -1,0 +1,52 @@
+name: ofbiz-equipment-distribution
+
+on:
+  pull_request:
+    paths:
+      - "docs/ofbiz-equipment-distribution.md"
+      - "testkit/business/ofbiz-equipment-distribution-v1.json"
+      - "scripts/validate_ofbiz_equipment_distribution.py"
+      - "scripts/validate_ofbiz_source_admission.py"
+      - ".github/workflows/ofbiz-equipment-distribution.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/ofbiz-equipment-distribution.md"
+      - "testkit/business/ofbiz-equipment-distribution-v1.json"
+      - "scripts/validate_ofbiz_equipment_distribution.py"
+      - "scripts/validate_ofbiz_source_admission.py"
+      - ".github/workflows/ofbiz-equipment-distribution.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  equipment-distribution:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Execute synthetic equipment-distribution contract
+        run: python scripts/validate_ofbiz_equipment_distribution.py
+
+      - name: Fetch exact pinned OFBiz source
+        run: |
+          mkdir -p target/ofbiz-source
+          git -C target/ofbiz-source init
+          git -C target/ofbiz-source remote add origin https://github.com/apache/ofbiz-framework.git
+          git -C target/ofbiz-source fetch --depth=1 origin d65f164191f331fc77da198701ab97df9bff5564
+          git -C target/ofbiz-source checkout --detach FETCH_HEAD
+          git -C target/ofbiz-source rev-parse HEAD > target/ofbiz-source-commit.txt
+
+      - name: Validate pinned OFBiz entity/service surfaces
+        run: python scripts/validate_ofbiz_source_admission.py target/ofbiz-source
+
+      - name: Preserve source admission
+        uses: actions/upload-artifact@v4
+        with:
+          name: ofbiz-equipment-distribution-admission
+          path: target/ofbiz-source-commit.txt
+          if-no-files-found: error
