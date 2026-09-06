@@ -1,0 +1,17 @@
+{
+  "schema": "baudot.vrs-rate-formula-cases@1",
+  "provenance": "baudot-authored-formula-test-only",
+  "inflation": {
+    "scenario": "VRS-RATE-INFLATION-FORMULA-001",
+    "previousFundYearAmountUsdPerMinute": "10.00",
+    "inflationAdjustmentFactor": "0.0337",
+    "expectedExactUnroundedAmountUsdPerMinute": "10.337000"
+  },
+  "exogenous": {
+    "scenario": "VRS-RATE-EXOGENOUS-FORMULA-001",
+    "approvedClaimsUsd": "120000.00",
+    "projectedFundYearMinutes": 6000000,
+    "expectedExactAdjustmentUsdPerMinute": "0.020000"
+  },
+  "claimBoundary": "formula tests validate arithmetic only and do not assert an FCC rate, approved factor, approved cost claim, or payment amount"
+}
