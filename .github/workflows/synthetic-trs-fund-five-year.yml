@@ -1,0 +1,51 @@
+name: synthetic-trs-fund-five-year
+
+on:
+  pull_request:
+    paths:
+      - "testkit/fund/synthetic-trs-fund-five-year-v1.json"
+      - "scripts/validate_synthetic_trs_fund_five_year.py"
+      - "docs/trs-fund-five-year-corpus.md"
+      - ".github/workflows/synthetic-trs-fund-five-year.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "testkit/fund/synthetic-trs-fund-five-year-v1.json"
+      - "scripts/validate_synthetic_trs_fund_five_year.py"
+      - "docs/trs-fund-five-year-corpus.md"
+      - ".github/workflows/synthetic-trs-fund-five-year.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-five-year-fund:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate five-year synthetic fund
+        run: python scripts/validate_synthetic_trs_fund_five_year.py
+      - name: Seal corpus evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=target/evidence-external/TRS-FUND-FIVE-YEAR/v1
+          mkdir -p "$out"
+          cp testkit/fund/synthetic-trs-fund-five-year-v1.json "$out/"
+          cp scripts/validate_synthetic_trs_fund_five_year.py "$out/"
+          (
+            cd "$out"
+            sha256sum synthetic-trs-fund-five-year-v1.json validate_synthetic_trs_fund_five_year.py > bundle.manifest.sha256
+            sha256sum -c bundle.manifest.sha256
+          )
+      - name: Preserve corpus evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-synthetic-trs-fund-five-year
+          path: target/evidence-external/TRS-FUND-FIVE-YEAR/v1
+          if-no-files-found: warn
