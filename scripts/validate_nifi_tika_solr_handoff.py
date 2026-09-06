@@ -15,6 +15,7 @@ UPSTREAM = {
     "flowId",
     "correlationId",
 }
+SOURCE_IDENTITY = ["sourceSystem", "sourceObjectId", "contentSha256"]
 FORBIDDEN_AUTHORITY = {
     "sourceAuthoritative",
     "subscriberEligible",
@@ -66,6 +67,7 @@ def main() -> None:
     derived = set(handoff["derivedFieldsOnly"])
     require("exact upstream envelope", upstream == UPSTREAM)
     require("derived fields append-only", upstream.isdisjoint(derived))
+    require("stable source evidence id is derived", "sourceEvidenceId" in derived)
     require("append-only marker", handoff["appendOnly"] is True)
     require("raw bytes immutable", handoff["rawBytesMustRemainIdentical"] is True)
     require("upstream envelope immutable", handoff["upstreamEnvelopeMustRemainByteIdentical"] is True)
@@ -77,6 +79,13 @@ def main() -> None:
             "contentSha256": "sourceSha256",
         },
     )
+
+    replay = profile["replay"]
+    require("source identity fields", replay["sourceIdentityFields"] == SOURCE_IDENTITY)
+    require("index id source-derived", replay["indexIdDerivedOnlyFromSourceIdentity"] is True)
+    require("exact replay idempotent", replay["exactEnvelopeReplayIsIdempotent"] is True)
+    require("divergent observation rejected", replay["sameSourceDifferentEnvelopeRejectedFromSearch"] is True)
+    require("no observation-ledger claim", replay["observationLedgerClaimed"] is False)
 
     for key, value in profile["authority"].items():
         require(f"authority boundary {key}", value is False)
