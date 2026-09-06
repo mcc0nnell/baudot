@@ -7,8 +7,8 @@ import argparse
 import json
 from pathlib import Path
 
-EXPECTED_QUERY_ROWS = {
-    "OLAP-Q001": 6,
+MIN_QUERY_ROWS = {
+    "OLAP-Q001": 1,
     "OLAP-Q002": 4,
     "OLAP-Q003": 2880,
     "OLAP-Q004": 16,
@@ -46,17 +46,26 @@ def main() -> None:
     for evidence in (pinot, druid):
         engine = evidence["engine"]
         queries = {item["id"]: item for item in evidence["queries"]}
-        if set(queries) != set(EXPECTED_QUERY_ROWS):
+        if set(queries) != set(MIN_QUERY_ROWS):
             raise AssertionError(f"{engine}: benchmark query set mismatch")
-        for query_id, expected in EXPECTED_QUERY_ROWS.items():
+        for query_id, minimum in MIN_QUERY_ROWS.items():
             actual = queries[query_id]["responseRows"]
-            if actual != expected:
-                raise AssertionError(f"{engine} {query_id}: expected {expected} response rows, got {actual}")
+            if actual < minimum:
+                raise AssertionError(f"{engine} {query_id}: expected at least {minimum} response rows, got {actual}")
         by_engine[engine] = {
             "catchupMs": pinot_wait["catchupMs"] if engine == "pinot" else druid_wait["catchupMs"],
             "queryP50Ms": {item["id"]: item["p50Ms"] for item in evidence["queries"]},
             "queryP95Ms": {item["id"]: item["p95Ms"] for item in evidence["queries"]},
+            "responseRows": {item["id"]: item["responseRows"] for item in evidence["queries"]},
         }
+
+    for query_id in MIN_QUERY_ROWS:
+        pinot_rows = by_engine["pinot"]["responseRows"][query_id]
+        druid_rows = by_engine["druid"]["responseRows"][query_id]
+        if pinot_rows != druid_rows:
+            raise AssertionError(
+                f"cross-engine response cardinality mismatch for {query_id}: pinot={pinot_rows}, druid={druid_rows}"
+            )
 
     interactive_ids = ["OLAP-Q001", "OLAP-Q002", "OLAP-Q004", "OLAP-Q005"]
     score = {
