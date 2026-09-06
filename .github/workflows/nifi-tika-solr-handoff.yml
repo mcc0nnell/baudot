@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'testkit/business/nifi-tika-solr-handoff-v1.json'
+      - 'testkit/documents/live/**'
+      - 'interop/solr/security/**'
+      - 'scripts/run_nifi_live.py'
+      - 'scripts/run_tika_solr_live.py'
       - 'scripts/validate_nifi_tika_solr_handoff.py'
       - 'scripts/validate_nifi_tika_solr_handoff_negative.py'
       - 'scripts/run_nifi_tika_solr_handoff.py'
@@ -12,6 +16,10 @@ on:
   push:
     paths:
       - 'testkit/business/nifi-tika-solr-handoff-v1.json'
+      - 'testkit/documents/live/**'
+      - 'interop/solr/security/**'
+      - 'scripts/run_nifi_live.py'
+      - 'scripts/run_tika_solr_live.py'
       - 'scripts/validate_nifi_tika_solr_handoff.py'
       - 'scripts/validate_nifi_tika_solr_handoff_negative.py'
       - 'scripts/run_nifi_tika_solr_handoff.py'
@@ -22,9 +30,6 @@ permissions:
   contents: read
 
 env:
-  COMMON_BASE: '65723f8c6f566f092ebdd4a3901cf8743ca5a0bc'
-  NIFI_HEAD_SHA: 'bf6ffa25423c9107ef3b1ca546bc14f7574116bf'
-  DOCUMENT_HEAD_SHA: '9df3f208cc126d070060f495295c1babbedf6cb6'
   NIFI_VERSION: '2.11.0'
   TIKA_VERSION: '4.0.0'
   SOLR_VERSION: '10.0.0'
@@ -38,49 +43,37 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-      - name: Validate append-only handoff contract
+      - name: Validate converged append-only handoff contract
         run: |
+          set -euo pipefail
           python -m py_compile \
+            scripts/run_nifi_live.py \
+            scripts/run_tika_solr_live.py \
             scripts/validate_nifi_tika_solr_handoff.py \
             scripts/validate_nifi_tika_solr_handoff_negative.py \
             scripts/run_nifi_tika_solr_handoff.py
           python scripts/validate_nifi_tika_solr_handoff.py
           python scripts/validate_nifi_tika_solr_handoff_negative.py
-      - name: Verify exact sibling head pins share the declared base
-        run: |
-          set -euo pipefail
-          git fetch --no-tags origin "$NIFI_HEAD_SHA"
-          git fetch --no-tags origin "$DOCUMENT_HEAD_SHA"
-          git cat-file -e "$NIFI_HEAD_SHA^{commit}"
-          git cat-file -e "$DOCUMENT_HEAD_SHA^{commit}"
-          git merge-base --is-ancestor "$COMMON_BASE" "$NIFI_HEAD_SHA"
-          git merge-base --is-ancestor "$COMMON_BASE" "$DOCUMENT_HEAD_SHA"
 
   live-handoff:
     runs-on: ubuntu-24.04
     needs: validate
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
-      - name: Compose exact green sibling trees in the CI worktree only
+      - name: Verify converged live handoff inputs
         run: |
           set -euo pipefail
-          git config user.name 'Baudot CI'
-          git config user.email 'baudot-ci@invalid.example'
-          git fetch --no-tags origin "$NIFI_HEAD_SHA"
-          git fetch --no-tags origin "$DOCUMENT_HEAD_SHA"
-          git merge --no-edit --no-ff "$NIFI_HEAD_SHA"
-          git merge --no-edit --no-ff "$DOCUMENT_HEAD_SHA"
+          test -f scripts/run_nifi_live.py
+          test -f scripts/run_tika_solr_live.py
+          test -f testkit/documents/live/public-rule.txt
+          test -f interop/solr/security/basic-auth-security.json
           python -m py_compile \
             scripts/run_nifi_live.py \
             scripts/run_tika_solr_live.py \
@@ -185,7 +178,7 @@ jobs:
           fi
           docker inspect --format='{{.Image}}' baudot-solr > target/nifi-tika-solr-handoff/solr-image-id.txt
 
-      - name: Exercise provenance-preserving composed handoff
+      - name: Exercise provenance-preserving replay-safe handoff
         run: |
           set -euo pipefail
           umask 000
@@ -200,7 +193,7 @@ jobs:
             --data-root target/nifi-tika-solr-handoff/nifi \
             --out target/nifi-tika-solr-handoff/evidence.json
 
-      - name: Verify append-only evidence
+      - name: Verify closure evidence
         run: |
           set -euo pipefail
           evidence=target/nifi-tika-solr-handoff/evidence.json
@@ -209,6 +202,10 @@ jobs:
           jq -e '.contentHashMatched == true' "$evidence" >/dev/null
           jq -e '.indexRoundTripPreservedUpstream == true' "$evidence" >/dev/null
           jq -e '.derived.derivedEvidenceOnly == true' "$evidence" >/dev/null
+          jq -e '.replay.exactReplayIdempotent == true' "$evidence" >/dev/null
+          jq -e '.replay.exactReplayRecordCount == 1' "$evidence" >/dev/null
+          jq -e '.replay.sameSourceDifferentEnvelopeRejected == true' "$evidence" >/dev/null
+          jq -e '.replay.observationLedgerClaimed == false' "$evidence" >/dev/null
           jq -e '.authority | [ .[] ] | all(. == false)' "$evidence" >/dev/null
           jq -e '.upstream | keys | sort == ["contentSha256","correlationId","flowId","receivedAt","sourceObjectId","sourceSystem"]' "$evidence" >/dev/null
           ! grep -Eq '"(documentId|sourceSha256)"' "$evidence"
