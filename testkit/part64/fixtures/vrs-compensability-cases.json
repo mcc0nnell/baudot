@@ -1,0 +1,184 @@
+{
+  "schema": "baudot.part64-vrs-compensability-cases@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "cases": [
+    {
+      "scenario": "VRS-COMP-DOMESTIC-001",
+      "completedInternetBasedTrsCall": true,
+      "providerCommissionCertified": true,
+      "upstreamUserValidated": true,
+      "callRecordComplete": true,
+      "prohibitedIncentiveKnown": false,
+      "unauthorizedOrUnnecessaryUseKnown": false,
+      "providerInvolvedRemoteTraining": false,
+      "internationalIpOrigin": false,
+      "executiveCertificationPresent": true,
+      "auditPaymentSuspended": false,
+      "withholdingState": "none",
+      "administratorDetermination": "compensable",
+      "expected": {
+        "eligibleToSeekCompensation": true,
+        "establishedCompensable": true,
+        "paymentState": "eligible-for-downstream-payment-processing"
+      }
+    },
+    {
+      "scenario": "VRS-COMP-PENDING-001",
+      "completedInternetBasedTrsCall": true,
+      "providerCommissionCertified": true,
+      "upstreamUserValidated": true,
+      "callRecordComplete": true,
+      "prohibitedIncentiveKnown": false,
+      "unauthorizedOrUnnecessaryUseKnown": false,
+      "providerInvolvedRemoteTraining": false,
+      "internationalIpOrigin": false,
+      "executiveCertificationPresent": true,
+      "auditPaymentSuspended": false,
+      "withholdingState": "none",
+      "administratorDetermination": "pending",
+      "expected": {
+        "eligibleToSeekCompensation": true,
+        "establishedCompensable": false,
+        "paymentState": "not-yet-payable"
+      }
+    },
+    {
+      "scenario": "VRS-COMP-INTERNATIONAL-DENY-001",
+      "completedInternetBasedTrsCall": true,
+      "providerCommissionCertified": true,
+      "internationalIpOrigin": true,
+      "travelException": {
+        "usResident": true,
+        "preRegisteredBeforeDeparture": false,
+        "withinSpecifiedTravelPeriod": true,
+        "withinSpecifiedTravelRegion": true,
+        "identityVerified": true,
+        "locationVerified": true
+      },
+      "expected": {
+        "eligibleToSeekCompensation": false,
+        "reason": "international-origin-without-complete-preregistration-exception",
+        "establishedCompensable": false
+      }
+    },
+    {
+      "scenario": "VRS-COMP-INTERNATIONAL-EXCEPTION-001",
+      "completedInternetBasedTrsCall": true,
+      "providerCommissionCertified": true,
+      "internationalIpOrigin": true,
+      "travelException": {
+        "usResident": true,
+        "preRegisteredBeforeDeparture": true,
+        "withinSpecifiedTravelPeriod": true,
+        "withinSpecifiedTravelRegion": true,
+        "identityVerified": true,
+        "locationVerified": true
+      },
+      "executiveCertificationPresent": true,
+      "administratorDetermination": "pending",
+      "expected": {
+        "internationalRuleAllowsCandidate": true,
+        "eligibleToSeekCompensation": true,
+        "establishedCompensable": false
+      }
+    },
+    {
+      "scenario": "VRS-COMP-TRAINING-DENY-001",
+      "completedInternetBasedTrsCall": true,
+      "providerCommissionCertified": true,
+      "providerInvolvedRemoteTraining": true,
+      "providerInvolvement": ["arranging", "promoting"],
+      "expected": {
+        "eligibleToSeekCompensation": false,
+        "reason": "provider-involved-remote-training",
+        "establishedCompensable": false
+      }
+    },
+    {
+      "scenario": "VRS-COMP-INCENTIVE-DENY-001",
+      "providerCommissionCertified": true,
+      "prohibitedIncentiveKnown": true,
+      "incentivePurpose": "encourage-vrs-use",
+      "expected": {
+        "serviceFundEligible": false,
+        "eligibleToSeekCompensation": false,
+        "establishedCompensable": false
+      }
+    },
+    {
+      "scenario": "VRS-COMP-UNAUTHORIZED-USE-001",
+      "providerCommissionCertified": true,
+      "unauthorizedOrUnnecessaryUseKnown": true,
+      "knownPractice": "calls-that-would-not-otherwise-be-made",
+      "expected": {
+        "seekPaymentAllowed": false,
+        "reportAsSoonAsPracticable": true,
+        "establishedCompensable": false
+      }
+    },
+    {
+      "scenario": "VRS-COMP-AUDIT-SUSPEND-001",
+      "providerCommissionCertified": true,
+      "auditRequested": true,
+      "submittedToAudit": false,
+      "verificationDocumentationProvided": false,
+      "expected": {
+        "automaticPaymentSuspension": true,
+        "suspensionUntilCured": true,
+        "establishedCompensable": false
+      }
+    },
+    {
+      "scenario": "VRS-COMP-WITHHOLD-001",
+      "providerCommissionCertified": true,
+      "withholdingState": "notified",
+      "monthsFromClaimToWithholdNotice": 2,
+      "providerResponseMonthsAfterNotice": 2,
+      "additionalJustificationSufficient": true,
+      "administratorDetermination": "compensable",
+      "expected": {
+        "paymentBeforeDetermination": false,
+        "establishedCompensable": true,
+        "paymentState": "released-after-determination"
+      }
+    },
+    {
+      "scenario": "VRS-IVCS-COMP-001",
+      "providerCommissionCertified": true,
+      "registeredRequestConfirmed": true,
+      "conferenceCount": 1,
+      "caEnteredAt": "2026-08-18T15:00:00Z",
+      "requestingUserIdentifiedAt": "2026-08-18T15:03:00Z",
+      "terminationEvents": {
+        "caDisconnectedAt": "2026-08-18T15:42:00Z",
+        "allNonSigningDisconnectedAt": "2026-08-18T15:40:00Z",
+        "allSigningDisconnectedAt": "2026-08-18T15:44:00Z",
+        "requestingUserDisconnectedAt": "2026-08-18T15:31:00Z",
+        "newRegisteredRequestWithinFiveMinutes": false,
+        "requestingUserFiveMinuteExpiryAt": "2026-08-18T15:36:00Z"
+      },
+      "expected": {
+        "singleCompensationCall": true,
+        "compensableStart": "2026-08-18T15:00:00Z",
+        "compensableEnd": "2026-08-18T15:36:00Z",
+        "conversationSeconds": 2160,
+        "ivcsTimingEligible": true,
+        "establishedCompensable": false
+      }
+    },
+    {
+      "scenario": "VRS-IVCS-NO-USER-001",
+      "providerCommissionCertified": true,
+      "registeredRequestConfirmed": true,
+      "conferenceCount": 1,
+      "caEnteredAt": "2026-08-18T16:00:00Z",
+      "requestingUserIdentifiedAt": null,
+      "elapsedWithoutIdentificationSeconds": 300,
+      "expected": {
+        "ivcsTimingEligible": false,
+        "callMustBeIdentifiedNonCompensable": true,
+        "establishedCompensable": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "schema": "baudot.part64-vrs-compensability-requirements@1",
+  "authority": {
+    "citation": "47 CFR 64.604",
+    "source": "https://www.ecfr.gov/current/title-47/chapter-I/subchapter-B/part-64/subpart-F/section-64.604",
+    "accessed": "2026-09-06"
+  },
+  "safety": {
+    "productionFundClaims": false,
+    "realSubscriberData": false,
+    "realCaIdentityData": false,
+    "providerCredentials": false,
+    "productionAuditRecords": false,
+    "productionTravelRegistrationData": false,
+    "productionConferenceRecords": false,
+    "realExecutiveCertification": false
+  },
+  "requirements": [
+    {
+      "id": "PART64-604-E2-MINUTES",
+      "citation": "64.604(c)(5)(iii)(E)(2)",
+      "requirement": "TRS minutes for Fund cost recovery derive from completed interstate or internet-based TRS calls after call setup through the last message call unit, with integrated VRS governed by paragraph (e)."
+    },
+    {
+      "id": "PART64-604-E6-COMPENSABLE",
+      "citation": "64.604(c)(5)(iii)(E)(6)",
+      "requirement": "A compensation request is not payable until the administrator in consultation with the Commission, or the Commission, determines that the provider met its burden to establish compensability."
+    },
+    {
+      "id": "PART64-604-F2-ELIGIBLE-PROVIDER",
+      "citation": "64.604(c)(5)(iii)(F)(2)",
+      "requirement": "An Internet-based TRS provider must be Commission-certified under 64.606 to be eligible for Fund payment."
+    },
+    {
+      "id": "PART64-604-D5-CERTIFICATION",
+      "citation": "64.604(c)(5)(iii)(D)(5)",
+      "requirement": "Each compensation request carries a certification by a CEO, CFO, or other senior executive with first-hand knowledge covering accuracy/completeness, compliance with section 225 and Commission rules/orders, and absence of impermissible call-generation incentives."
+    },
+    {
+      "id": "PART64-604-D6-AUDIT",
+      "citation": "64.604(c)(5)(iii)(D)(6)",
+      "requirement": "Failure to submit to a requested audit or provide verification documentation triggers automatic payment suspension until cured."
+    },
+    {
+      "id": "PART64-604-L-WITHHOLD",
+      "citation": "64.604(c)(5)(iii)(L)",
+      "requirement": "Withheld minutes remain unresolved until the provider supplies adequate justification and the administrator/Commission determines compensability; insufficient or absent response may lead to permanent denial."
+    },
+    {
+      "id": "PART64-604-C8-INCENTIVES",
+      "citation": "64.604(c)(8)(v)-(vi)",
+      "requirement": "A VRS provider may not offer incentives to encourage registration or use; noncompliance makes the service ineligible for Fund compensation."
+    },
+    {
+      "id": "PART64-604-C13-UNAUTHORIZED",
+      "citation": "64.604(c)(13)",
+      "requirement": "A provider may not seek Fund payment for minutes it knows or has reason to know result from false/unverified claims, unauthorized use, induced calls, or use by persons not needing the service; known practices must be reported as soon as practicable."
+    },
+    {
+      "id": "PART64-604-D4-TRAINING",
+      "citation": "64.604(d)(4)",
+      "requirement": "Remote-training-session or comparable calls are non-compensable when the submitting provider or related party is involved in arranging, sponsoring, hosting, conducting, or promoting the activity."
+    },
+    {
+      "id": "PART64-604-D6-INTERNATIONAL",
+      "citation": "64.604(d)(6)",
+      "requirement": "VRS calls originating from an international IP address are non-compensable unless a U.S. resident pre-registered before travel for specified periods/regions and identity and location can be accurately verified."
+    },
+    {
+      "id": "PART64-604-E-IVCS-SINGLE",
+      "citation": "64.604(e)(2)(iii)",
+      "requirement": "Each integrated-VRS video conference is treated as one call for compensation unless specifically authorized otherwise."
+    },
+    {
+      "id": "PART64-604-E-IVCS-START",
+      "citation": "64.604(e)(3)",
+      "requirement": "Integrated-VRS compensable time begins when the CA enters the conference only if the requesting registered VRS user is identified within five minutes; otherwise the call is non-compensable."
+    },
+    {
+      "id": "PART64-604-E-IVCS-END",
+      "citation": "64.604(e)(4)",
+      "requirement": "Integrated-VRS compensable time ends at the earliest listed termination event, including CA departure, all signing/non-signing participants leaving, or the requesting user leaving followed by five minutes without another registered request."
+    }
+  ],
+  "deferredMonthlyCapacityControls": [
+    "64.604(d)(1)(iii)(B) third-party interpretation 30 percent cap",
+    "64.604(d)(7)(i) at-home VRS 80 percent cap"
+  ]
+}
