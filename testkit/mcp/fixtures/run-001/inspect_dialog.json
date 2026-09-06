@@ -1,0 +1,1 @@
+{"schema":"baudot.mcp.inspect-dialog-result@1","runId":"run-001","correlationId":"corr-run-001","dialog":{"callId":"fixture-call-001","state":"CONFIRMED","localTag":"fixture-local-tag","remoteTag":"fixture-remote-tag","transactions":[{"method":"INVITE","state":"TERMINATED"},{"method":"ACK","state":"TRANSACTIONLESS"}]},"evidenceRefs":["sip-evidence-001"]}

@@ -1,0 +1,1 @@
+{"schema":"baudot.mcp.export-evidence-result@1","runId":"run-001","correlationId":"corr-run-001","bundle":{"bundleId":"evidence-bundle-001","manifestSha256":"9b28dc1c1927975a679b2686dcbe5a51d5808515e30b25a39590968cb8eaf0d8","evidenceRefs":["sip-evidence-001","sdp-offer-001","sdp-answer-001"]},"claims":{"newSemanticClaimCreated":false,"accessibilityVerdictCreated":false}}
