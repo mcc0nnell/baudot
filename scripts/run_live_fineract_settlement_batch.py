@@ -227,6 +227,28 @@ def main() -> None:
     live.require(replay["duplicateMutationsSuppressed"] == int(expected["firstPassLedgerMutations"]),
                  "replay did not suppress every previously posted business mutation")
 
+    approved_claims = [claim for claim in fixture["claims"] if claim["claimDecision"] == "approved"]
+    authorized_claims = [claim for claim in fixture["claims"] if claim["paymentAuthorization"] == "authorized"]
+    held_claims = [claim for claim in approved_claims if claim["paymentAuthorization"] == "held"]
+    rejected_claims = [claim for claim in fixture["claims"] if claim["claimDecision"] == "rejected"]
+    rejected_total = live.money(sum((live.money(claim["amount"]) for claim in rejected_claims), Decimal("0.00")))
+    expected_rejected_total = live.money(expected["rejectedAmountExcluded"])
+
+    live.require(len(first["excludedClaims"]) == len(rejected_claims), "rejected-claim exclusion count mismatch")
+    live.require(len(first["heldApprovedClaims"]) == len(held_claims), "held-approved-claim count mismatch")
+    observed_rejected_total = live.money(sum(
+        (live.money(item["amount"]) for item in first["excludedClaims"]), Decimal("0.00")
+    ))
+    live.require(rejected_total == expected_rejected_total, "fixture rejected total disagrees with expected value")
+    live.require(observed_rejected_total == expected_rejected_total, "rejected amount crossed or escaped exclusion boundary")
+    for claim in rejected_claims:
+        live.require(f"accrual:{claim['eventId']}" not in posted and f"payment:{claim['eventId']}" not in posted,
+                     f"rejected claim reached Fineract mutation boundary: {claim['eventId']}")
+    for claim in held_claims:
+        live.require(f"accrual:{claim['eventId']}" in posted, f"held approved claim did not accrue: {claim['eventId']}")
+        live.require(f"payment:{claim['eventId']}" not in posted,
+                     f"held approved claim crossed payment authorization boundary: {claim['eventId']}")
+
     first_readbacks = first["transactions"]
     totals = movement(first_readbacks, specs)
     approved_total = live.money(expected["approvedAccrualTotal"])
@@ -268,6 +290,7 @@ def main() -> None:
         "approvedAccrualTotal": format(approved_total, "f"),
         "authorizedDisbursementTotal": format(paid_total, "f"),
         "endingPayableNetCredit": format(payable_net, "f"),
+        "rejectedAmountExcluded": format(observed_rejected_total, "f"),
         "transactionIds": posted,
         "allTransactionIdsDistinct": len(set(posted.values())) == len(posted),
     }
@@ -283,10 +306,13 @@ def main() -> None:
         "firstPassLedgerMutations": first["httpMutations"],
         "replayLedgerMutations": replay["httpMutations"],
         "duplicateReplaySuppressedBeforeMutation": replay["httpMutations"] == 0,
-        "approvedClaimCount": 3,
-        "authorizedPaymentCount": 2,
-        "heldApprovedClaimCount": 1,
-        "rejectedClaimCount": 1,
+        "approvedClaimCount": len(approved_claims),
+        "authorizedPaymentCount": len(authorized_claims),
+        "heldApprovedClaimCount": len(held_claims),
+        "rejectedClaimCount": len(rejected_claims),
+        "rejectedAmountExcluded": format(observed_rejected_total, "f"),
+        "rejectedClaimsNeverMutated": True,
+        "heldClaimsNeverDisbursed": True,
         "aggregateReconciliationMatched": True,
         "postCloseLateMutationRejected": True,
         "durableCrossProcessIdempotencyClaimed": False,
