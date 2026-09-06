@@ -133,6 +133,7 @@ def validate_manifest(manifest_path: Path, contract_path: Path | None = None) ->
             require(claim in known_nodes, f"{proof_id}: unknown expected claim {claim}")
             require(claim in derived, f"{proof_id}: expected claim {claim} is not derivable")
         for claim in forbid_claims:
+            require(claim in known_nodes, f"{proof_id}: unknown forbidden claim {claim}")
             require(claim not in derived, f"{proof_id}: forbidden claim {claim} became derivable")
 
         summaries.append(
@@ -150,6 +151,14 @@ def validate_manifest(manifest_path: Path, contract_path: Path | None = None) ->
 
 
 def self_test() -> None:
+    def expect_failure(path: Path, expected_fragment: str) -> None:
+        try:
+            validate_manifest(path)
+        except ValueError as exc:
+            require(expected_fragment in str(exc), f"unexpected failure: {exc}")
+            return
+        raise ValueError(f"expected manifest failure containing {expected_fragment!r}")
+
     with tempfile.TemporaryDirectory(prefix="baudot-causal-proof-") as tmp:
         tmp_path = Path(tmp)
         evidence = tmp_path / "evidence"
@@ -205,11 +214,49 @@ def self_test() -> None:
                 },
             ],
         }
+
         manifest_path = tmp_path / "proof.json"
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         summaries = validate_manifest(manifest_path)
         require(len(summaries) == 2, "self-test proof count mismatch")
+
+        tampered = json.loads(json.dumps(manifest))
+        tampered["proofs"][0]["sourceFacts"][2]["evidence"][0]["sha256"] = "0" * 64
+        tampered_path = tmp_path / "tampered.json"
+        tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+        expect_failure(tampered_path, "sha256 mismatch")
+
+        wrong_authority = json.loads(json.dumps(manifest))
+        wrong_authority["proofs"][0]["sourceFacts"][0]["authority"] = "baudot-semantic-reducer"
+        wrong_authority_path = tmp_path / "wrong-authority.json"
+        wrong_authority_path.write_text(json.dumps(wrong_authority), encoding="utf-8")
+        expect_failure(wrong_authority_path, "authority mismatch")
+
+        outside = tmp_path / "outside.txt"
+        outside.write_text("not inside evidence root\n", encoding="utf-8")
+        escaped = json.loads(json.dumps(manifest))
+        escaped["proofs"][0]["sourceFacts"][0]["evidence"][0] = {
+            "path": "../outside.txt",
+            "sha256": sha256(outside),
+            "reducer": "self-test",
+        }
+        escaped_path = tmp_path / "escaped.json"
+        escaped_path.write_text(json.dumps(escaped), encoding="utf-8")
+        expect_failure(escaped_path, "evidence path escapes evidence root")
+
+        typo = json.loads(json.dumps(manifest))
+        typo["proofs"][1]["forbidClaims"] = ["replacement.rtt.readdy"]
+        typo_path = tmp_path / "typo.json"
+        typo_path.write_text(json.dumps(typo), encoding="utf-8")
+        expect_failure(typo_path, "unknown forbidden claim")
+
         print("causal proof manifest self-test: PASS")
+        print("  positive derivation: PASS")
+        print("  negative derivation: PASS")
+        print("  digest tamper rejection: PASS")
+        print("  authority mismatch rejection: PASS")
+        print("  evidence-root escape rejection: PASS")
+        print("  unknown-claim rejection: PASS")
 
 
 def main() -> int:
