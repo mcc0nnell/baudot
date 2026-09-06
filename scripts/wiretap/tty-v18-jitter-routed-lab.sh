@@ -56,9 +56,9 @@ cleanup() {
   fi
   ip netns del "$CNS" 2>/dev/null
   ip netns del "$SNS" 2>/dev/null
-  ip link del bdt-tty-jit-ul-h 2>/dev/null
-  ip link del bdt-tty-jit-sig-h 2>/dev/null
-  ip link del bdt-tty-jit-med-h 2>/dev/null
+  ip link del bdt-tty-j-ul-h 2>/dev/null
+  ip link del bdt-tty-j-sig-h 2>/dev/null
+  ip link del bdt-tty-j-med-h 2>/dev/null
   rm -rf "$WORK"
   [[ -n "${SUDO_UID:-}" && -d "$EVIDENCE" ]] && chown -R "${SUDO_UID}:${SUDO_GID}" "$EVIDENCE" 2>/dev/null
 }
@@ -87,9 +87,9 @@ python3 scripts/wiretap_topology_preflight.py \
   --response-routing "$RESPONSE_ROUTING" \
   --namespace "$CNS" \
   --namespace "$SNS" \
-  --host-link bdt-tty-jit-ul-h \
-  --host-link bdt-tty-jit-sig-h \
-  --host-link bdt-tty-jit-med-h \
+  --host-link bdt-tty-j-ul-h \
+  --host-link bdt-tty-j-sig-h \
+  --host-link bdt-tty-j-med-h \
   --require-bin ip \
   --require-bin wg-quick \
   --require-bin python3 \
@@ -102,26 +102,26 @@ ip netns add "$SNS"
 ip -n "$CNS" link set lo up
 ip -n "$SNS" link set lo up
 
-ip link add bdt-tty-jit-ul-h type veth peer name bdt-tty-jit-ul-c
-ip link set bdt-tty-jit-ul-c netns "$CNS"
-ip addr add "$UL_HOST/24" dev bdt-tty-jit-ul-h
-ip link set bdt-tty-jit-ul-h up
-ip -n "$CNS" addr add "$UL_CLIENT/24" dev bdt-tty-jit-ul-c
-ip -n "$CNS" link set bdt-tty-jit-ul-c up
+ip link add bdt-tty-j-ul-h type veth peer name bdt-tty-j-ul-c
+ip link set bdt-tty-j-ul-c netns "$CNS"
+ip addr add "$UL_HOST/24" dev bdt-tty-j-ul-h
+ip link set bdt-tty-j-ul-h up
+ip -n "$CNS" addr add "$UL_CLIENT/24" dev bdt-tty-j-ul-c
+ip -n "$CNS" link set bdt-tty-j-ul-c up
 
-ip link add bdt-tty-jit-sig-h type veth peer name bdt-tty-jit-sig-s
-ip link set bdt-tty-jit-sig-s netns "$SNS"
-ip addr add "$SIG_HOST/24" dev bdt-tty-jit-sig-h
-ip link set bdt-tty-jit-sig-h up
-ip -n "$SNS" addr add "$SIG_SERVER/24" dev bdt-tty-jit-sig-s
-ip -n "$SNS" link set bdt-tty-jit-sig-s up
+ip link add bdt-tty-j-sig-h type veth peer name bdt-tty-j-sig-s
+ip link set bdt-tty-j-sig-s netns "$SNS"
+ip addr add "$SIG_HOST/24" dev bdt-tty-j-sig-h
+ip link set bdt-tty-j-sig-h up
+ip -n "$SNS" addr add "$SIG_SERVER/24" dev bdt-tty-j-sig-s
+ip -n "$SNS" link set bdt-tty-j-sig-s up
 
-ip link add bdt-tty-jit-med-h type veth peer name bdt-tty-jit-med-s
-ip link set bdt-tty-jit-med-s netns "$SNS"
-ip addr add "$MEDIA_HOST/24" dev bdt-tty-jit-med-h
-ip link set bdt-tty-jit-med-h up
-ip -n "$SNS" addr add "$MEDIA_SERVER/24" dev bdt-tty-jit-med-s
-ip -n "$SNS" link set bdt-tty-jit-med-s up
+ip link add bdt-tty-j-med-h type veth peer name bdt-tty-j-med-s
+ip link set bdt-tty-j-med-s netns "$SNS"
+ip addr add "$MEDIA_HOST/24" dev bdt-tty-j-med-h
+ip link set bdt-tty-j-med-h up
+ip -n "$SNS" addr add "$MEDIA_SERVER/24" dev bdt-tty-j-med-s
+ip -n "$SNS" link set bdt-tty-j-med-s up
 
 cd "$WORK"
 "$WT" configure --endpoint "$UL_CLIENT:$WT_PORT" --routes "$ROUTES" --port "$WT_PORT" >configure.log
