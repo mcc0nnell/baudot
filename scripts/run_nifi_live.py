@@ -64,6 +64,8 @@ def reset_data_root(root: Path) -> None:
     """Clear a bind-mounted data root without unlinking the mount point itself."""
     root.mkdir(parents=True, exist_ok=True)
     for child in root.iterdir():
+        if child.name == "nifi-image-id.txt":
+            continue
         if child.is_dir() and not child.is_symlink():
             shutil.rmtree(child)
         else:
@@ -89,7 +91,11 @@ def prepare_data(root: Path) -> dict[str, dict[str, object]]:
     for filename, (kind, destination) in mapping.items():
         source = FIXTURES / filename
         shutil.copy2(source, root / "input" / kind / filename)
-        expected[filename] = {"destination": destination, "sha256": sha256(source), "bytes": source.read_bytes()}
+        expected[filename] = {
+            "destination": destination,
+            "sha256": sha256(source),
+            "bytes": source.read_bytes(),
+        }
     return expected
 
 
@@ -154,7 +160,10 @@ def create_processor(client, group_id, bundles, processor_type, name, x, y, *, p
     return configured
 
 
-def connect(client, group_id, source, destination, relationship, name):
+def connect(client, group_id, source, destination, relationships, name):
+    selected = [relationships] if isinstance(relationships, str) else list(relationships)
+    if not selected:
+        raise RuntimeError(f"connection {name} has no selected relationship")
     client.request(
         f"/process-groups/{group_id}/connections",
         method="POST",
@@ -165,7 +174,7 @@ def connect(client, group_id, source, destination, relationship, name):
                 "name": name,
                 "source": {"id": source["id"], "groupId": group_id, "type": "PROCESSOR"},
                 "destination": {"id": destination["id"], "groupId": group_id, "type": "PROCESSOR"},
-                "selectedRelationships": [relationship],
+                "selectedRelationships": selected,
                 "backPressureObjectThreshold": 10000,
                 "backPressureDataSizeThreshold": "1 GB",
                 "flowFileExpiration": "0 sec",
@@ -193,22 +202,33 @@ def build_lane(client, group_id, bundles, *, kind: str, y: int) -> dict:
     standard = "org.apache.nifi.processors.standard."
     get_file = create_processor(
         client, group_id, bundles, standard + "GetFile", f"{kind}-GetFile", 0, y,
-        properties={"Input Directory": f"/data/input/{kind}", "Recurse Subdirectories": "false", "Keep Source File": "false", "Polling Interval": "250 ms", "Batch Size": "10"},
+        properties={
+            "Input Directory": f"/data/input/{kind}",
+            "Recurse Subdirectories": "false",
+            "Keep Source File": "false",
+            "Polling Interval": "250 ms",
+            "Batch Size": "10",
+        },
         auto_terminate=[],
     )
     hasher = create_processor(
         client, group_id, bundles, standard + "CryptographicHashContent", f"{kind}-SHA256", 250, y,
-        properties={"Hash Algorithm": "SHA-256", "Fail When Content Empty": "false"}, auto_terminate=[],
+        properties={"Hash Algorithm": "SHA-256", "Fail When Content Empty": "false"},
+        auto_terminate=[],
     )
     update = create_processor(
         client, group_id, bundles, "org.apache.nifi.processors.attributes.UpdateAttribute", f"{kind}-EvidenceAttributes", 500, y,
-        properties=evidence_properties(kind), auto_terminate=[],
+        properties=evidence_properties(kind),
+        auto_terminate=[],
     )
     logger = create_processor(
         client, group_id, bundles, standard + "LogAttribute", f"{kind}-EvidenceLog", 750, y,
         properties={
-            "Log Level": "info", "Log Payload": "false", "Log FlowFile Properties": "false",
-            "Output Format": "Line per Attribute", "Attributes to Log": ",".join(REQUIRED_EVIDENCE),
+            "Log Level": "info",
+            "Log Payload": "false",
+            "Log FlowFile Properties": "false",
+            "Output Format": "Line per Attribute",
+            "Attributes to Log": ",".join(REQUIRED_EVIDENCE),
             "Log Prefix": f"BAUDOT_NIFI_{kind.upper()}_EVIDENCE",
         },
         auto_terminate=[],
@@ -217,12 +237,18 @@ def build_lane(client, group_id, bundles, *, kind: str, y: int) -> dict:
     if kind == "provider":
         validator = create_processor(
             client, group_id, bundles, standard + "ValidateCsv", "provider-ValidateCsv", 1000, y,
-            properties={"Schema": "StrNotNullOrEmpty,StrNotNullOrEmpty,StrNotNullOrEmpty", "Header": "true", "Validation Strategy": "FlowFile validation"},
+            properties={
+                "Schema": "StrNotNullOrEmpty,StrNotNullOrEmpty,StrNotNullOrEmpty",
+                "Header": "true",
+                "Validation Strategy": "FlowFile validation",
+            },
             auto_terminate=[],
         )
+        quarantine_relationships = ["invalid"]
     else:
         schema = {
-            "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
             "required": ["cdrId", "providerId", "durationSeconds"],
             "properties": {
                 "cdrId": {"type": "string", "minLength": 1},
@@ -233,18 +259,34 @@ def build_lane(client, group_id, bundles, *, kind: str, y: int) -> dict:
         }
         validator = create_processor(
             client, group_id, bundles, standard + "ValidateJson", "cdr-ValidateJson", 1000, y,
-            properties={"Schema Access Strategy": "SCHEMA_CONTENT_PROPERTY", "JSON Schema": json.dumps(schema, separators=(",", ":")), "Input Format": "FLOW_FILE"},
+            properties={
+                "Schema Access Strategy": "SCHEMA_CONTENT_PROPERTY",
+                "JSON Schema": json.dumps(schema, separators=(",", ":")),
+                "Input Format": "FLOW_FILE",
+            },
             auto_terminate=[],
         )
+        # NiFi 2.11 ValidateJson has a distinct `failure` relationship for input that
+        # cannot be read as JSON.  Both invalid-schema and parser-failure records are
+        # quarantine evidence; neither is silently dropped or treated as a valid CDR.
+        quarantine_relationships = ["invalid", "failure"]
 
     accepted = create_processor(
         client, group_id, bundles, standard + "PutFile", f"{kind}-AcceptedStaging", 1250, y - 100,
-        properties={"Directory": f"/data/accepted/{kind}", "Conflict Resolution Strategy": "replace", "Create Missing Directories": "true"},
+        properties={
+            "Directory": f"/data/accepted/{kind}",
+            "Conflict Resolution Strategy": "replace",
+            "Create Missing Directories": "true",
+        },
         auto_terminate=["success", "failure"],
     )
     quarantine = create_processor(
         client, group_id, bundles, standard + "PutFile", f"{kind}-Quarantine", 1250, y + 100,
-        properties={"Directory": f"/data/quarantine/{kind}", "Conflict Resolution Strategy": "replace", "Create Missing Directories": "true"},
+        properties={
+            "Directory": f"/data/quarantine/{kind}",
+            "Conflict Resolution Strategy": "replace",
+            "Create Missing Directories": "true",
+        },
         auto_terminate=["success", "failure"],
     )
 
@@ -254,12 +296,24 @@ def build_lane(client, group_id, bundles, *, kind: str, y: int) -> dict:
     connect(client, group_id, update, logger, "success", f"{kind}-evidence-to-log")
     connect(client, group_id, logger, validator, "success", f"{kind}-log-to-validation")
     connect(client, group_id, validator, accepted, "valid", f"{kind}-valid-to-staging")
-    connect(client, group_id, validator, quarantine, "invalid", f"{kind}-invalid-to-quarantine")
-    return {"getFile": get_file["id"], "hash": hasher["id"], "evidence": update["id"], "log": logger["id"], "validator": validator["id"], "accepted": accepted["id"], "quarantine": quarantine["id"]}
+    connect(client, group_id, validator, quarantine, quarantine_relationships, f"{kind}-reject-to-quarantine")
+    return {
+        "getFile": get_file["id"],
+        "hash": hasher["id"],
+        "evidence": update["id"],
+        "log": logger["id"],
+        "validator": validator["id"],
+        "accepted": accepted["id"],
+        "quarantine": quarantine["id"],
+    }
 
 
 def set_group_state(client, group_id: str, state: str):
-    client.request(f"/flow/process-groups/{group_id}", method="PUT", payload={"id": group_id, "disconnectedNodeAcknowledged": False, "state": state})
+    client.request(
+        f"/flow/process-groups/{group_id}",
+        method="PUT",
+        payload={"id": group_id, "disconnectedNodeAcknowledged": False, "state": state},
+    )
 
 
 def wait_for_outputs(root: Path, expected, timeout: int = 90):
@@ -280,10 +334,17 @@ def validate_outputs(root: Path, expected) -> list[dict]:
         digest = hashlib.sha256(actual).hexdigest()
         if actual != item["bytes"] or digest != item["sha256"]:
             raise RuntimeError(f"NiFi changed staged bytes or hash for {name}")
-        results.append({"file": name, "destination": str(item["destination"]), "sha256": digest, "bytesPreserved": True})
+        results.append({
+            "file": name,
+            "destination": str(item["destination"]),
+            "sha256": digest,
+            "bytesPreserved": True,
+        })
     forbidden = [
-        root / "accepted/provider/provider-invalid.csv", root / "accepted/cdr/cdr-invalid.json",
-        root / "quarantine/provider/provider-valid.csv", root / "quarantine/cdr/cdr-valid.json",
+        root / "accepted/provider/provider-invalid.csv",
+        root / "accepted/cdr/cdr-invalid.json",
+        root / "quarantine/provider/provider-valid.csv",
+        root / "quarantine/cdr/cdr-valid.json",
     ]
     if any(path.exists() for path in forbidden):
         raise RuntimeError("NiFi staging boundary was crossed by a misclassified fixture")
@@ -317,13 +378,19 @@ def main() -> None:
         set_group_state(client, group_id, "STOPPED")
 
     evidence = {
-        "schema": "baudot.nifi-live-evidence@1", "nifiVersion": "2.11.0", "processGroupId": group_id,
-        "flows": flows, "requiredEvidenceAttributes": REQUIRED_EVIDENCE, "stagedFiles": staged_files,
+        "schema": "baudot.nifi-live-evidence@1",
+        "nifiVersion": "2.11.0",
+        "processGroupId": group_id,
+        "flows": flows,
+        "requiredEvidenceAttributes": REQUIRED_EVIDENCE,
+        "stagedFiles": staged_files,
         "accepted": ["provider-valid.csv", "cdr-valid.json"],
         "quarantined": ["provider-invalid.csv", "cdr-invalid.json"],
         "authority": {
-            "ingestionCompleteIsBusinessApproval": False, "schemaValidIsSourceAuthoritative": False,
-            "deliveryToKafkaIsCallTruth": False, "deliveryToFineractStagingIsLedgerPosting": False,
+            "ingestionCompleteIsBusinessApproval": False,
+            "schemaValidIsSourceAuthoritative": False,
+            "deliveryToKafkaIsCallTruth": False,
+            "deliveryToFineractStagingIsLedgerPosting": False,
             "deliveryToOFBizStagingIsEligibility": False,
         },
     }
