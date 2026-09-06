@@ -1,0 +1,63 @@
+{
+  "schema": "baudot.nifi-tika-solr-handoff@1",
+  "composition": {
+    "commonBase": "65723f8c6f566f092ebdd4a3901cf8743ca5a0bc",
+    "nifiPr": 121,
+    "nifiHead": "bf6ffa25423c9107ef3b1ca546bc14f7574116bf",
+    "documentPr": 129,
+    "documentHead": "9df3f208cc126d070060f495295c1babbedf6cb6",
+    "strategy": "ci-local-merge-of-exact-sibling-heads"
+  },
+  "runtimePins": {
+    "nifi": "2.11.0",
+    "tika": "4.0.0",
+    "solr": "10.0.0"
+  },
+  "sourceFixture": "testkit/documents/live/public-rule.txt",
+  "handoff": {
+    "flowId": "document-drop-ingest",
+    "rawBytesMustRemainIdentical": true,
+    "upstreamEnvelopeMustRemainByteIdentical": true,
+    "requiredUpstreamFields": [
+      "sourceSystem",
+      "sourceObjectId",
+      "receivedAt",
+      "contentSha256",
+      "flowId",
+      "correlationId"
+    ],
+    "derivedFieldsOnly": [
+      "id",
+      "indexRecordId",
+      "extractor",
+      "extractorVersion",
+      "parserHttpStatus",
+      "extractedContentSha256",
+      "indexVersion",
+      "indexedAt",
+      "content",
+      "derivedEvidenceOnly"
+    ],
+    "forbiddenRenames": {
+      "sourceObjectId": "documentId",
+      "contentSha256": "sourceSha256"
+    },
+    "appendOnly": true
+  },
+  "authority": {
+    "nifiAcceptanceIsSourceAuthority": false,
+    "tikaParseSuccessIsSourceAuthenticity": false,
+    "solrIndexSuccessIsSourceAuthority": false,
+    "solrSearchHitIsRegulatoryInterpretation": false,
+    "solrSearchHitIsPolicyDecision": false,
+    "handoffSuccessIsCompensability": false,
+    "handoffSuccessIsClaimApproval": false
+  },
+  "claimBoundary": {
+    "productionPipelineClaimed": false,
+    "productionSearchSecurityClaimed": false,
+    "sourceAuthenticityClaimed": false,
+    "regulatoryInterpretationClaimed": false,
+    "protectedRecordSuitabilityClaimed": false
+  }
+}
