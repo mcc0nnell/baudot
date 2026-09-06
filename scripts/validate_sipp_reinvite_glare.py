@@ -1,54 +1,18 @@
 #!/usr/bin/env python3
-"""Terminal reducer for SIPP-HOSTILE-004 against the JAIN SIP glare target.
-
-SIPp's own success is evidence, not verdict authority. This reducer joins the
-preserved SIPp wire trace with target-side JAIN observations and publishes only
-the narrow signaling-overlap verdict. It does not promote media or RTT readiness.
-"""
+"""Terminal reducer for SIPP-HOSTILE-004 against the JAIN SIP glare target."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-import re
 import sys
-from dataclasses import dataclass
 from pathlib import Path
+
+from sipp_trace import find_request, find_response, parse_messages
 
 SCENARIO = "BAUDOT-INTEROP-003"
 HOSTILE_ID = "SIPP-HOSTILE-004"
 CORRELATION = "sipp-hostile-004-jain-v1"
-
-MESSAGE_START = re.compile(
-    r"(?im)^[ \t]*(?:(?:INVITE|ACK|BYE|REFER|NOTIFY|OPTIONS)\s+\S+\s+SIP/2\.0|SIP/2\.0\s+\d{3}\b[^\r\n]*)[ \t]*$"
-)
-CSEQ = re.compile(r"(?im)^CSeq:\s*(\d+)\s+([A-Z]+)\s*$")
-
-
-@dataclass(frozen=True)
-class SipMessage:
-    offset: int
-    start_line: str
-    raw: str
-    cseq: int | None
-    cseq_method: str | None
-
-    @property
-    def is_response(self) -> bool:
-        return self.start_line.upper().startswith("SIP/2.0 ")
-
-    @property
-    def status(self) -> int | None:
-        if not self.is_response:
-            return None
-        match = re.match(r"(?i)^SIP/2\.0\s+(\d{3})\b", self.start_line)
-        return int(match.group(1)) if match else None
-
-    @property
-    def request_method(self) -> str | None:
-        if self.is_response:
-            return None
-        return self.start_line.split(None, 1)[0].upper()
 
 
 def require(condition: bool, message: str) -> None:
@@ -69,56 +33,6 @@ def read_properties(path: Path) -> dict[str, str]:
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def parse_messages(trace: str) -> list[SipMessage]:
-    starts = list(MESSAGE_START.finditer(trace))
-    messages: list[SipMessage] = []
-    for index, match in enumerate(starts):
-        end = starts[index + 1].start() if index + 1 < len(starts) else len(trace)
-        raw = trace[match.start():end]
-        start_line = match.group(0).strip()
-        cseq_match = CSEQ.search(raw)
-        messages.append(
-            SipMessage(
-                offset=match.start(),
-                start_line=start_line,
-                raw=raw,
-                cseq=int(cseq_match.group(1)) if cseq_match else None,
-                cseq_method=cseq_match.group(2).upper() if cseq_match else None,
-            )
-        )
-    return messages
-
-
-def find_request(messages: list[SipMessage], method: str, cseq: int) -> SipMessage | None:
-    method = method.upper()
-    return next(
-        (
-            message
-            for message in messages
-            if not message.is_response
-            and message.request_method == method
-            and message.cseq == cseq
-            and message.cseq_method == method
-        ),
-        None,
-    )
-
-
-def find_response(messages: list[SipMessage], status: int, cseq: int, method: str) -> SipMessage | None:
-    method = method.upper()
-    return next(
-        (
-            message
-            for message in messages
-            if message.is_response
-            and message.status == status
-            and message.cseq == cseq
-            and message.cseq_method == method
-        ),
-        None,
-    )
 
 
 def main() -> int:
