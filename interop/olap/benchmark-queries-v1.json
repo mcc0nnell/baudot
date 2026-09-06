@@ -1,0 +1,31 @@
+{
+  "schema": "baudot.olap-benchmark-queries@1",
+  "table": "cdr_analytics_v1",
+  "queries": [
+    {
+      "id": "OLAP-Q001",
+      "pinot": "SELECT providerId, serviceType, COUNT(*) AS callCount FROM cdr_analytics_v1 GROUP BY providerId, serviceType ORDER BY providerId, serviceType",
+      "druid": "SELECT providerId, serviceType, COUNT(*) AS callCount FROM cdr_analytics_v1 GROUP BY providerId, serviceType ORDER BY providerId, serviceType"
+    },
+    {
+      "id": "OLAP-Q002",
+      "pinot": "SELECT providerId, PERCENTILETDIGEST(durationSeconds, 50) AS p50, PERCENTILETDIGEST(durationSeconds, 95) AS p95 FROM cdr_analytics_v1 GROUP BY providerId ORDER BY providerId",
+      "druid": "SELECT providerId, APPROX_QUANTILE_DS(durationSeconds, 0.50) AS p50, APPROX_QUANTILE_DS(durationSeconds, 0.95) AS p95 FROM cdr_analytics_v1 GROUP BY providerId ORDER BY providerId"
+    },
+    {
+      "id": "OLAP-Q003",
+      "pinot": "SELECT serviceType, DATETIMECONVERT(eventTime, '1:MILLISECONDS:EPOCH', '1:HOURS:EPOCH', '1:HOURS') AS eventHour, COUNT(*) AS callCount, SUM(durationSeconds) AS totalDuration FROM cdr_analytics_v1 GROUP BY serviceType, eventHour ORDER BY eventHour, serviceType LIMIT 5000",
+      "druid": "SELECT serviceType, TIME_FLOOR(__time, 'PT1H') AS eventHour, COUNT(*) AS callCount, SUM(durationSeconds) AS totalDuration FROM cdr_analytics_v1 GROUP BY serviceType, TIME_FLOOR(__time, 'PT1H') ORDER BY eventHour, serviceType LIMIT 5000"
+    },
+    {
+      "id": "OLAP-Q004",
+      "pinot": "SELECT providerId, outcome, COUNT(*) AS callCount FROM cdr_analytics_v1 GROUP BY providerId, outcome ORDER BY providerId, outcome",
+      "druid": "SELECT providerId, outcome, COUNT(*) AS callCount FROM cdr_analytics_v1 GROUP BY providerId, outcome ORDER BY providerId, outcome"
+    },
+    {
+      "id": "OLAP-Q005",
+      "pinot": "SELECT eventId, callId, providerId, serviceType, direction, durationSeconds, outcome, sourceObservationCount FROM cdr_analytics_v1 WHERE callId = 'olap-call-00010000' LIMIT 1",
+      "druid": "SELECT eventId, callId, providerId, serviceType, direction, durationSeconds, outcome, sourceObservationCount FROM cdr_analytics_v1 WHERE callId = 'olap-call-00010000' LIMIT 1"
+    }
+  ]
+}
