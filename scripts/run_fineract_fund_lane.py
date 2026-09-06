@@ -220,9 +220,13 @@ def classify_entry_type(value: Any) -> str | None:
         code = str(value.get("code", "")).lower()
         label = str(value.get("value", "")).lower()
         entry_id = value.get("id")
-        if "debit" in code or "debit" in label or entry_id == 1:
+        if "debit" in code or "debit" in label:
             return "debit"
-        if "credit" in code or "credit" in label or entry_id == 2:
+        if "credit" in code or "credit" in label:
+            return "credit"
+        if entry_id in (2, "2"):
+            return "debit"
+        if entry_id in (1, "1"):
             return "credit"
     if isinstance(value, str):
         lowered = value.lower()
