@@ -1,0 +1,75 @@
+{
+  "schema": "baudot.apisix-api-edge@1",
+  "apisix": {
+    "version": "3.18.0",
+    "releaseCommit": "0796d9c2cbedb1f8bf8194292ff526599f4fde20"
+  },
+  "routes": [
+    {
+      "id": "itrs-edge",
+      "path": "/itrs/*",
+      "upstream": "baudot-itrs-service",
+      "authentication": "oidc",
+      "rateLimit": true,
+      "tlsRequired": true,
+      "rangerDecisionRequiredDownstream": true
+    },
+    {
+      "id": "equipment-edge",
+      "path": "/equipment/*",
+      "upstream": "baudot-equipment-service",
+      "authentication": "oidc",
+      "rateLimit": true,
+      "tlsRequired": true,
+      "rangerDecisionRequiredDownstream": true
+    },
+    {
+      "id": "fund-edge",
+      "path": "/fund/*",
+      "upstream": "baudot-fund-service",
+      "authentication": "oidc",
+      "rateLimit": true,
+      "tlsRequired": true,
+      "rangerDecisionRequiredDownstream": true
+    },
+    {
+      "id": "analytics-edge",
+      "path": "/analytics/*",
+      "upstream": "baudot-analytics-service",
+      "authentication": "oidc",
+      "rateLimit": true,
+      "tlsRequired": true,
+      "rangerDecisionRequiredDownstream": false
+    }
+  ],
+  "logging": {
+    "requestBodyLogging": false,
+    "responseBodyLogging": false,
+    "authorizationHeaderLogging": false,
+    "tokenLogging": false,
+    "telephoneNumberLogging": false,
+    "subscriberIdLogging": false,
+    "allowedCorrelationAttributes": [
+      "requestId",
+      "correlationId",
+      "routeId",
+      "upstreamService"
+    ]
+  },
+  "authority": {
+    "gatewayAuthenticationIsRangerAuthorization": false,
+    "gatewayRouteMatchIsProtocolValidity": false,
+    "gatewaySuccessIsBusinessSuccess": false,
+    "gatewaySuccessIsAccessibilityReady": false,
+    "rateLimitDecisionIsTRSPolicy": false
+  },
+  "forbiddenGatewayClaims": [
+    "subscriberEligible",
+    "providerCertified",
+    "itrsProtocolValid",
+    "compensable",
+    "claimApproved",
+    "paymentAuthorized",
+    "accessibilityReady"
+  ]
+}
