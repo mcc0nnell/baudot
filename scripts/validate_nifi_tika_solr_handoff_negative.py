@@ -4,11 +4,9 @@
 from __future__ import annotations
 
 import hashlib
-import json
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "testkit" / "documents" / "live" / "public-rule.txt"
+SOURCE_NAME = "public-rule.txt"
+SYNTHETIC_RAW = b"synthetic permitted document\n"
 REQUIRED = {
     "sourceSystem",
     "sourceObjectId",
@@ -28,7 +26,7 @@ def admit(raw: bytes, envelope: dict[str, object]) -> tuple[bool, str]:
         return False, "upstream-envelope-shape-changed"
     if any(not envelope[field] for field in REQUIRED):
         return False, "required-provenance-empty"
-    if envelope["sourceObjectId"] != SOURCE.name:
+    if envelope["sourceObjectId"] != SOURCE_NAME:
         return False, "source-object-id-mismatch"
     if envelope["flowId"] != "document-drop-ingest":
         return False, "flow-id-mismatch"
@@ -45,10 +43,10 @@ def expect_reject(name: str, raw: bytes, envelope: dict[str, object], reason: st
 
 
 def main() -> None:
-    raw = SOURCE.read_bytes()
+    raw = SYNTHETIC_RAW
     baseline = {
         "sourceSystem": "synthetic-permitted-document-drop",
-        "sourceObjectId": SOURCE.name,
+        "sourceObjectId": SOURCE_NAME,
         "receivedAt": "epoch-ms:1788710400000",
         "contentSha256": sha256_bytes(raw),
         "flowId": "document-drop-ingest",
@@ -72,7 +70,7 @@ def main() -> None:
     mutated["contentSha256"] = "0" * 64
     expect_reject("mutated source hash", raw, mutated, "content-hash-mismatch")
 
-    tampered_raw = raw + b"\nTAMPERED"
+    tampered_raw = raw + b"TAMPERED"
     expect_reject("mutated staged bytes", tampered_raw, baseline, "content-hash-mismatch")
 
     mutated = dict(baseline)
