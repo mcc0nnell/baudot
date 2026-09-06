@@ -7,7 +7,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Baudot',
-      description: 'Accessible real-time communications, specified as behavior before implementation.',
+      description: 'Evidence-first proving grounds for accessible communications and synthetic TRS Fund systems.',
       favicon: '/baudot/favicon.svg',
       customCss: ['./src/styles/custom.css'],
       social: [
@@ -30,7 +30,10 @@ export default defineConfig({
         },
         {
           label: 'Proving ground',
-          items: [{ label: 'Scenario catalog', slug: 'scenarios' }],
+          items: [
+            { label: 'Scenario catalog', slug: 'scenarios' },
+            { label: 'Synthetic TRS Fund Lab', slug: 'fund-lab' },
+          ],
         },
         {
           label: 'Architecture',
