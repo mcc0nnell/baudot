@@ -1,0 +1,22 @@
+{
+  "schema": "baudot.part64-vrs-compensation-certification@1",
+  "scenario": "VRS-CERT-001",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "signer": {
+    "role": "other-senior-executive",
+    "firstHandKnowledge": true,
+    "realIdentityStored": false
+  },
+  "certification": {
+    "underPenaltyOfPerjury": true,
+    "reportsExamined": true,
+    "allRequestedInformationProvided": true,
+    "statementsAndCostDemandDataTrueAndAccurate": true,
+    "callsHandledInComplianceWithSection225AndCommissionRulesOrders": true,
+    "callsNotResultOfImpermissibleFinancialIncentivesOrPayments": true
+  },
+  "claimScope": {
+    "syntheticClaimBatch": "VRS-CLAIM-BATCH-EXAMPLE-001",
+    "productionClaim": false
+  }
+}
