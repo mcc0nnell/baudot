@@ -63,7 +63,42 @@ For RTT-bearing scenarios, terminal readiness remains owned by the independent B
 7. **Successful NOTIFY without replacement RTT** — signaling success does not imply accessible replacement-leg readiness.
 8. **Premature teardown pressure** — old-leg teardown is attempted before terminal readiness authority exists.
 
-The catalog is metadata, not a claim that all eight cases have already been executed against an independent implementation.
+The catalog is metadata. Individual cases become runnable only when a live target, preserved wire evidence, and an independent Baudot reducer are attached.
+
+## First live gate: SIPP-HOSTILE-004
+
+The branch makes the re-INVITE glare case executable against a standalone JAIN SIP UAS target.
+
+```text
+SIPp establishes dialog
+  -> CSeq 2 re-INVITE sent
+  -> JAIN target intentionally holds CSeq 2 for 800 ms
+  -> SIPp waits 100 ms
+  -> CSeq 3 re-INVITE sent on same dialog
+  -> CSeq 3 receives 491 Request Pending
+  -> CSeq 3 ACK sent
+  -> held CSeq 2 receives 200 OK
+  -> CSeq 2 ACK sent
+  -> Baudot reducer joins SIPp wire trace + JAIN target evidence
+```
+
+The target deliberately does **not** publish the terminal glare result. SIPp deliberately does **not** publish it either. `scripts/validate_sipp_reinvite_glare.py` parses preserved SIP message blocks, verifies transaction ordering and response correlation, checks the target-side evidence boundary, and only then emits:
+
+```text
+terminalVerdict=RUNNABLE_PASS
+status=runnable
+rttReady=false
+```
+
+That result is narrow: the exact pinned SIPp generator successfully applied one live overlap pressure pattern to the controlled JAIN SIP target and the evidence independently reduced to the expected `491-before-200` ordering. It is not an RTT-readiness or conformance result.
+
+Run the live gate with an exact admitted SIPp executable:
+
+```bash
+SIPP_BIN=/path/to/pinned/sipp bash scripts/run-sipp-reinvite-glare.sh
+```
+
+CI builds the exact pinned SIPp commit from source before running this gate and preserves both the source-admission bundle and the live glare evidence bundle.
 
 ## How this composes with existing Baudot lanes
 
@@ -87,7 +122,7 @@ independent Baudot RFC 4103/T.140 reduction
 terminal scenario verdict
 ```
 
-The natural first live targets are `BAUDOT-INTEROP-003` re-INVITE freshness and `BAUDOT-INTEROP-004` REFER/replacement-leg continuity because those scenarios already separate transaction success from RTT readiness.
+The next useful live targets are `BAUDOT-INTEROP-004` delayed/duplicate REFER pressure and the RTT-bearing stale-SDP / signaling-only replacement-leg cases, because those scenarios already separate transaction success from accessibility readiness.
 
 ## Evidence requirements for live execution
 
@@ -103,7 +138,7 @@ A live SIPp arm should preserve at least:
 - raw SDP generations and hashes;
 - target implementation identity;
 - any resulting RTT datagrams;
-- independent RFC 4103/T.140 reduction; and
+- independent RFC 4103/T.140 reduction when media is part of the arm; and
 - outer SHA-256 evidence manifest.
 
 A SIPp process exit code is never sufficient to publish `rttReady=true`.
@@ -112,4 +147,4 @@ A SIPp process exit code is never sufficient to publish `rttReady=true`.
 
 This lane does not claim SIPp, SIP, REFER, re-INVITE, SDP, RFC 4103, T.140, PJSIP, Linphone, JAIN SIP, VRS, SBC/NAT, or accessibility conformance.
 
-It establishes that one exact external stimulus implementation exposes the controlled signaling-pressure primitives required to drive Baudot's existing evidence model.
+It establishes a disciplined external stimulus boundary and, for `SIPP-HOSTILE-004`, one controlled live signaling-pressure composition whose terminal result is independently reduced.
