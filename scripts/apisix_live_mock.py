@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthetic OIDC introspection and Ranger-deny upstream for the APISIX live lane."""
+"""Synthetic OIDC discovery/introspection and Ranger-deny upstream for APISIX."""
 
 from __future__ import annotations
 
@@ -12,9 +12,26 @@ from urllib.parse import parse_qs
 
 EVIDENCE_DIR = Path(os.environ.get("BAUDOT_EDGE_EVIDENCE", "/evidence"))
 EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+ISSUER = "http://baudot-edge-mock:8080"
 
 
-class IntrospectionHandler(BaseHTTPRequestHandler):
+class OidcHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path != "/.well-known/openid-configuration":
+            self.send_error(404)
+            return
+        response = {
+            "issuer": ISSUER,
+            "introspection_endpoint": f"{ISSUER}/introspect",
+            "token_endpoint_auth_methods_supported": ["client_secret_post"],
+        }
+        payload = json.dumps(response, sort_keys=True).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
     def do_POST(self) -> None:  # noqa: N802
         if self.path != "/introspect":
             self.send_error(404)
@@ -28,6 +45,7 @@ class IntrospectionHandler(BaseHTTPRequestHandler):
                 "sub": "synthetic-provider-operator",
                 "scope": "openid itrs",
                 "aud": "baudot-edge",
+                "iss": ISSUER,
             }
         elif token == "missing-scope-token":
             response = {
@@ -35,6 +53,7 @@ class IntrospectionHandler(BaseHTTPRequestHandler):
                 "sub": "synthetic-provider-operator",
                 "scope": "openid profile",
                 "aud": "baudot-edge",
+                "iss": ISSUER,
             }
         else:
             response = {"active": False}
@@ -90,10 +109,8 @@ def serve(port: int, handler: type[BaseHTTPRequestHandler]) -> None:
 
 
 def main() -> None:
-    introspection = threading.Thread(
-        target=serve, args=(8080, IntrospectionHandler), daemon=True
-    )
-    introspection.start()
+    oidc = threading.Thread(target=serve, args=(8080, OidcHandler), daemon=True)
+    oidc.start()
     serve(8081, UpstreamHandler)
 
 
