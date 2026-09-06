@@ -1,0 +1,44 @@
+name: trs-fund-scenario
+
+on:
+  pull_request:
+    paths:
+      - "docs/trs-fund-event-runtime.md"
+      - "interop/fineract/**"
+      - "scripts/run_trs_fund_scenario.py"
+      - "testkit/fund/scenarios/**"
+      - ".github/workflows/trs-fund-scenario.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/trs-fund-event-runtime.md"
+      - "interop/fineract/**"
+      - "scripts/run_trs_fund_scenario.py"
+      - "testkit/fund/scenarios/**"
+      - ".github/workflows/trs-fund-scenario.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-fund-runtime:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate public Fund calibration
+        run: python scripts/validate_trs_fund_public_model.py
+      - name: Run Year 1 synthetic Fund smoke scenario
+        run: |
+          mkdir -p build/evidence
+          python scripts/run_trs_fund_scenario.py \
+            testkit/fund/scenarios/year-1-smoke.json \
+            --evidence build/evidence/fund-year-1-smoke.json
+      - name: Preserve synthetic evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: trs-fund-year-1-smoke-evidence
+          path: build/evidence/fund-year-1-smoke.json
+          if-no-files-found: error
