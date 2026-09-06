@@ -8,7 +8,6 @@ import base64
 import hashlib
 import json
 import re
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -24,6 +23,12 @@ FORBIDDEN_PATTERNS = [
     re.compile(r"\baccess[_-]?token\s*:", re.IGNORECASE),
     re.compile(r"\brefresh[_-]?token\s*:", re.IGNORECASE),
 ]
+EXPECTED = {
+    "indexed": ("index", []),
+    "quarantined-empty-extraction": ("reject", ["empty-extraction"]),
+    "rejected-missing-source-hash": ("reject", ["missing-source-hash"]),
+    "rejected-forbidden-data": ("reject", ["forbidden-sensitive-field"]),
+}
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -56,7 +61,7 @@ def extract_tika(tika: str, path: Path) -> tuple[str, str]:
         data=raw,
         headers={
             # Tika 4's bare /tika endpoint returns Markdown content but advertises
-            # it as text/plain;charset=UTF-8.  Asking for text/markdown yields 406.
+            # it as text/plain;charset=UTF-8. Asking for text/markdown yields 406.
             "Accept": "text/plain",
             "Content-Type": "text/plain; charset=utf-8",
         },
@@ -137,9 +142,10 @@ def main() -> None:
     rejected_ids = []
 
     for item in MANIFEST["documents"]:
+        document_id = item["documentId"]
         path = FIXTURE_ROOT / item["file"]
         raw = path.read_bytes()
-        source_hash = sha256_bytes(raw) if item.get("sourceHashPresent", True) else None
+        source_hash = None if item.get("omitSourceHash", False) else sha256_bytes(raw)
         extracted, extracted_hash = extract_tika(args.tika, path)
         has_forbidden = any(pattern.search(extracted) for pattern in FORBIDDEN_PATTERNS)
         parse_nonempty = bool(extracted.strip())
@@ -153,8 +159,17 @@ def main() -> None:
             reasons.append("forbidden-sensitive-field")
 
         decision = "index" if not reasons else "reject"
+        expected_decision, expected_reasons = EXPECTED[item["expect"]]
+        if decision != expected_decision or sorted(reasons) != sorted(expected_reasons):
+            raise SystemExit(
+                f"fixture {document_id} produced {decision}/{reasons}, "
+                f"expected {expected_decision}/{expected_reasons}"
+            )
+
         record = {
-            "id": item["id"],
+            "documentId": document_id,
+            "sourceClass": item["sourceClass"],
+            "sourceRef": item["sourceRef"],
             "file": item["file"],
             "sourceSha256": source_hash,
             "extractionSha256": extracted_hash,
@@ -168,9 +183,9 @@ def main() -> None:
         if decision == "index":
             admitted.append(
                 {
-                    "id": item["id"],
-                    "documentClass": item["documentClass"],
-                    "sourceRef": f"fixture:{item['file']}",
+                    "id": document_id,
+                    "documentClass": item["sourceClass"],
+                    "sourceRef": item["sourceRef"],
                     "sourceSha256": source_hash,
                     "extractionSha256": extracted_hash,
                     "content": extracted,
@@ -178,7 +193,7 @@ def main() -> None:
                 }
             )
         else:
-            rejected_ids.append(item["id"])
+            rejected_ids.append(document_id)
 
     if admitted:
         status, update = request_json(
