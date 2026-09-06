@@ -30,7 +30,10 @@ export default defineConfig({
         },
         {
           label: 'Proving ground',
-          items: [{ label: 'Scenario catalog', slug: 'scenarios' }],
+          items: [
+            { label: 'Signal panel', slug: 'interoperability' },
+            { label: 'Scenario catalog', slug: 'scenarios' },
+          ],
         },
         {
           label: 'Architecture',
