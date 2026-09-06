@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -11,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "testkit" / "fund" / "rolka-loube-2025-26.json"
 CONTRIBUTORS = ROOT / "testkit" / "fund" / "contributor-assessments-2026-27.json"
 JOURNAL = ROOT / "interop" / "fineract" / "journal-contract-v1.json"
+EVIDENCE = ROOT / "target" / "evidence" / "TRS-FUND-PUBLIC-MODEL"
 
 
 def money(value: Decimal) -> int:
@@ -23,6 +25,10 @@ def cents(value: Decimal) -> Decimal:
 
 def d(value: str | int) -> Decimal:
     return Decimal(str(value))
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def require(name: str, actual, expected) -> None:
@@ -51,28 +57,12 @@ def validate_public_fund_model(fixture: dict) -> None:
         reserve = money(d(may_jun_2026[service]) * d(new_rates[service]))
         total = requirement + reserve
 
-        require(
-            f"{service} fund requirement",
-            requirement,
-            published[service]["fundRequirement"],
-        )
-        require(
-            f"{service} two-month reserve",
-            reserve,
-            published[service]["twoMonthReserve"],
-        )
-        require(
-            f"{service} total fund requirement",
-            total,
-            published[service]["totalFundRequirement"],
-        )
+        require(f"{service} fund requirement", requirement, published[service]["fundRequirement"])
+        require(f"{service} two-month reserve", reserve, published[service]["twoMonthReserve"])
+        require(f"{service} total fund requirement", total, published[service]["totalFundRequirement"])
         service_totals[service] = total
 
-    require(
-        "gross analog fund requirement",
-        sum(service_totals.values()),
-        published["grossAnalogFundRequirement"],
-    )
+    require("gross analog fund requirement", sum(service_totals.values()), published["grossAnalogFundRequirement"])
 
     analog_net = (
         published["grossAnalogFundRequirement"]
@@ -85,9 +75,7 @@ def validate_public_fund_model(fixture: dict) -> None:
     ip = fixture["publishedIpBased"]
     require(
         "gross IP-based fund requirement",
-        ip["serviceRevenueRequirement"]
-        + ip["allocatedNdbedp"]
-        + ip["allocatedAdministrativeCosts"],
+        ip["serviceRevenueRequirement"] + ip["allocatedNdbedp"] + ip["allocatedAdministrativeCosts"],
         ip["grossFundRequirement"],
     )
     require(
@@ -104,9 +92,7 @@ def validate_public_fund_model(fixture: dict) -> None:
     )
     require(
         "gross fund requirement",
-        fund["totalServiceRevenueRequirement"]
-        + fund["ndbedp"]
-        + fund["administrativeCosts"],
+        fund["totalServiceRevenueRequirement"] + fund["ndbedp"] + fund["administrativeCosts"],
         fund["grossFundRequirement"],
     )
     require(
@@ -187,6 +173,87 @@ def validate_journal_contract(journal: dict) -> None:
         print(f"PASS {event_name}: Dr {debit} / Cr {credit}")
 
 
+def emit_causal_evidence() -> None:
+    EVIDENCE.mkdir(parents=True, exist_ok=True)
+    evidence = {
+        "schema": "baudot.fund-calibration-evidence@1",
+        "scenarioId": "TRS-FUND-PUBLIC-MODEL",
+        "correlationId": "public-calibration-v1",
+        "result": "PASS",
+        "facts": {
+            "fund.public-model.calibrated": True,
+            "ledger.contract.validated": True,
+        },
+        "inputs": {
+            str(FIXTURE.relative_to(ROOT)): sha256(FIXTURE),
+            str(CONTRIBUTORS.relative_to(ROOT)): sha256(CONTRIBUTORS),
+            str(JOURNAL.relative_to(ROOT)): sha256(JOURNAL),
+        },
+        "liveFineractExecution": False,
+        "claimBoundary": {
+            "fundClaimApproved": False,
+            "ledgerPosted": False,
+            "fundPayableConfirmed": False,
+            "productionFundAuthority": False,
+        },
+    }
+    evidence_path = EVIDENCE / "validation.json"
+    evidence_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    evidence_digest = sha256(evidence_path)
+
+    proof = {
+        "schema": "baudot.causal-proof-manifest@1",
+        "scenarioId": "TRS-FUND-PUBLIC-MODEL",
+        "correlationId": "public-calibration-v1",
+        "contract": "testkit/meta/causal-proof-contract-v1.json",
+        "evidenceRoot": ".",
+        "proofs": [
+            {
+                "id": "calibration-is-not-claim-approval",
+                "sourceFacts": [
+                    {
+                        "id": "fund.public-model.calibrated",
+                        "authority": "fund-calibration-evidence",
+                        "evidence": [
+                            {
+                                "path": "validation.json",
+                                "sha256": evidence_digest,
+                                "reducer": "scripts.validate_trs_fund_public_model",
+                                "selector": "facts.fund.public-model.calibrated=true",
+                            }
+                        ],
+                    }
+                ],
+                "forbidClaims": ["fund.claim.approved"],
+            },
+            {
+                "id": "journal-contract-is-not-ledger-posting",
+                "sourceFacts": [
+                    {
+                        "id": "ledger.contract.validated",
+                        "authority": "ledger-contract-evidence",
+                        "evidence": [
+                            {
+                                "path": "validation.json",
+                                "sha256": evidence_digest,
+                                "reducer": "scripts.validate_trs_fund_public_model",
+                                "selector": "facts.ledger.contract.validated=true",
+                            }
+                        ],
+                    }
+                ],
+                "forbidClaims": ["ledger.posted"],
+            },
+        ],
+        "claimBoundary": evidence["claimBoundary"],
+    }
+    proof_path = EVIDENCE / "causal-proof.json"
+    proof_path.write_text(json.dumps(proof, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    print(f"Fund calibration evidence: {evidence_path}")
+    print(f"Fund causal proof: {proof_path}")
+
+
 def main() -> None:
     fixture = json.loads(FIXTURE.read_text())
     contributors = json.loads(CONTRIBUTORS.read_text())
@@ -202,6 +269,7 @@ def main() -> None:
     require("no production Rolka Loube compatibility claim", boundary["productionRolkaLoubeCompatibilityClaimed"], False)
     require("no provider eligibility claim", boundary["providerEligibilityClaimed"], False)
 
+    emit_causal_evidence()
     print("TRS Fund public calibration and contributor assessment model: PASS")
 
 
