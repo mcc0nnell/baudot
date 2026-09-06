@@ -40,7 +40,7 @@ HTTP success at edge
 
 ## Live APISIX 3.18 qualification lane
 
-The repository now boots the exact released `apache/apisix:3.18.0-debian` runtime in standalone YAML mode with a synthetic TLS certificate, a bounded OIDC introspection/discovery peer, and a synthetic downstream service representing a Ranger-gated application service.
+The repository boots the exact released `apache/apisix:3.18.0-debian` runtime in standalone YAML mode with a synthetic TLS certificate, a bounded OIDC introspection/discovery peer, and a synthetic downstream service representing a Ranger-gated application service.
 
 The live route is deliberately narrow:
 
@@ -61,7 +61,7 @@ missing bearer token             -> 401
 inactive / invalid token         -> 401
 active token without itrs scope  -> 403
 authenticated + scoped request   -> downstream Ranger DENY -> 403
-third admitted request/window     -> 429
+third admitted request/window    -> 429
 ```
 
 The authenticated request remaining `403` is intentional: gateway authentication succeeds, but the downstream protected-domain policy decision is still DENY.
@@ -103,6 +103,14 @@ Only the `/itrs/*` family is exercised in the current live qualification lane.
 ## Privacy boundary
 
 Gateway evidence and logs must not become a shadow identity/URD/CDR store. The profile forbids request/response body logging, Authorization/token logging, telephone numbers, and subscriber IDs. Only bounded technical/correlation data is admissible.
+
+## Evidence state
+
+The live APISIX lane, exact release-source admission, static authority contract, TRS business-authority gate, testkit, CI, and wiretap/RTT lanes have all passed on the live implementation series. The neutral contract now records the bounded `401/403/429` observations without promoting them into TRS policy facts.
+
+## Next threshold
+
+Compose the live edge with the separate Shiro/Ranger application boundary so the authenticated principal arriving from the gateway cannot directly assert a protected domain subject. Keep production IdP/TLS configuration separate from this synthetic qualification lane.
 
 ## Claim boundary
 
