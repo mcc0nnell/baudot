@@ -14,6 +14,8 @@ REQUIRED = {
     "mitre-fcc-vatrp-desktop": "9f82469ba8c591869c1e9ce9fc66b866ab5983a4",
     "mitre-fcc-vatrp-webrtc": "2aa96bb7306d0482da9ca4412a6cf520ded6a6cc",
     "fcc-vtc-secure-linphone": "60f23ce7845cdaa13f442bb9fa8087336dbfd495",
+    "mitre-ace-direct": "39c8f9ba73d889e743de56a2d49faf418b575c32",
+    "mitre-ace-asterisk-itrs": "cbfc11e7660ed9d64c98d72336b3de3ea7b3aa33",
 }
 FORBIDDEN_CLASSES = {"normative-authority", "terminal-verdict-authority", "current-provider-truth"}
 
