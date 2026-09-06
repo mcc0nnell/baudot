@@ -109,6 +109,17 @@ baudot_add_probe(GoodCompositionProbeBundle BAUDOT_PROFILE_GOOD)
 baudot_add_probe(FaultInjectedCompositionProbeBundle BAUDOT_PROFILE_FAULT_INJECTED)
 baudot_add_probe(MissingRttCompositionProbeBundle BAUDOT_PROFILE_MISSING_RTT)
 
+# A standalone framework driver is intentionally used for lifecycle evidence.
+# It runs from a normal process thread, so Celix startBundle/stopBundle calls are
+# synchronous and the capability presence checks are deterministic.
+add_executable(baudot_celix_pjsip_lifecycle
+  src/pjsip_lifecycle_probe.cc
+)
+target_include_directories(baudot_celix_pjsip_lifecycle PRIVATE "${BAUDOT_CELIX_INCLUDE_DIR}")
+target_compile_features(baudot_celix_pjsip_lifecycle PRIVATE cxx_std_17)
+target_link_libraries(baudot_celix_pjsip_lifecycle PRIVATE Celix::framework)
+add_dependencies(baudot_celix_pjsip_lifecycle PjsipCallAdmissionBundle)
+
 add_celix_container(baudot_celix_good
   BUNDLES
     EvidenceEmitterBundle
