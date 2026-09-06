@@ -1,0 +1,33 @@
+name: application-ingest-contract
+
+on:
+  pull_request:
+    paths:
+      - "docs/application-ingest-teams-zoom.md"
+      - "testkit/applications/**"
+      - "scripts/normalize_application_ingest.py"
+      - "scripts/validate_application_ingest.py"
+      - ".github/workflows/application-ingest-contract.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/application-ingest-teams-zoom.md"
+      - "testkit/applications/**"
+      - "scripts/normalize_application_ingest.py"
+      - "scripts/validate_application_ingest.py"
+      - ".github/workflows/application-ingest-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Teams/Zoom ingest contract and expected normalizations
+        run: python -m scripts.validate_application_ingest
