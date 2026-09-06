@@ -15,6 +15,8 @@ namespace {
 constexpr std::string_view PJSIP_IDENTITY =
     "pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd";
 
+constexpr std::string_view EXPECTED_ADMISSION_VERDICT = "PJSIP_UAS_TEXT_ANSWER_SELECTED";
+
 constexpr std::string_view INVITE_FIXTURE =
     "INVITE sip:callee@example.invalid SIP/2.0\r\n"
     "Via: SIP/2.0/UDP 127.0.0.1:5060;branch=z9hG4bK-baudot-celix-lifecycle\r\n"
@@ -85,7 +87,7 @@ bool emitExpectedActiveAdmission(
         std::cerr << phase << ": ICallAdmission service missing" << std::endl;
         return false;
     }
-    if (decision->verdict != "PJSIP_PARSE_ACCEPTED") {
+    if (decision->verdict != EXPECTED_ADMISSION_VERDICT) {
         std::cerr << phase << ": unexpected admission verdict " << decision->verdict << std::endl;
         return false;
     }
