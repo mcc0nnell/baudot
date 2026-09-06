@@ -63,8 +63,9 @@ The executable proving ground now includes:
 - `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain;
 - a bidirectional JAIN SIP ↔ Elixip `BAUDOT-INTEROP-004` matrix with controlled negative and positive readiness arms, preserved wire evidence, and independent terminal reduction;
 - a PJSIP 2.17 native-media qualification lane in which PJSUA2/PJMEDIA generates live text traffic that Baudot independently reduces to T.140 behavior;
-- an incoming PJSIP 2.17 native-text endpoint qualification in which JAIN releases the controlled call only after the live Baudot reference publishes readiness; and
-- a JAIN SIP → PJSIP 2.17 `BAUDOT-INTEROP-004` positive arm in which native PJMEDIA text replaces Baudot-owned canonical stimulus and original-leg release is gated by the independent live readiness token.
+- an incoming PJSIP 2.17 native-text endpoint qualification in which JAIN releases the controlled call only after the live Baudot reference publishes readiness;
+- a JAIN SIP → PJSIP 2.17 `BAUDOT-INTEROP-004` positive arm in which native PJMEDIA text replaces Baudot-owned canonical stimulus and original-leg release is gated by the independent live readiness token; and
+- an ACE Direct Kamailio/rtpengine donor gate that keeps proxy routing, SDP/media relay control, packet observation, and terminal T.140 readiness as separate evidence facts before a live proxy/relay experiment is admitted.
 
 A passing transfer does **not** mean that REFER succeeded. The relevant evidence can distinguish:
 
@@ -122,7 +123,7 @@ See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed 
 - **Elixip** — first externally installed independent SIP/call-state oracle;
 - **PJSIP/PJPROJECT 2.17** — accepted external native RTT media oracle under ADR-0002, not a replacement for JAIN SIP or Elixip;
 - **Apache OpenMeetings** — integration specimen and scenario donor, not the second independent SIP stack;
-- **ACE Direct** — historical production donor corpus; and
+- **ACE Direct** — historical production donor corpus, including the Kamailio/rtpengine proxy-and-relay boundary;
 - **Wiretap** — external network/evidence substrate, never verdict authority.
 
 Baudot reducers and reference code retain terminal verdict authority within explicit claim boundaries. Implementation agreement is evidence, not correctness by majority vote.
@@ -131,11 +132,13 @@ The Elixip external-oracle lane is documented in [`interop/elixip/`](interop/eli
 
 The PJSIP native-media lane is documented in [`interop/pjsip/`](interop/pjsip/). It separately qualifies native outbound text generation, incoming native text endpoint behavior, and participation as the replacement native-media endpoint in a controlled `BAUDOT-INTEROP-004` positive arm. In all three profiles, PJSIP supplies implementation behavior while Baudot's independent reference retains semantic readiness authority.
 
+The ACE Kamailio/rtpengine donor lane is documented in [`interop/ace-kamailio/`](interop/ace-kamailio/). Its static vectors preserve production-derived proxy/media-relay pressure without running external services. A future live lane will insert an ephemeral Kamailio + rtpengine substrate between independently qualified native endpoints while keeping relay-control observations out of the terminal RTT verdict.
+
 ## Status and claim boundary
 
 Baudot is in active proving-ground development. Several scenarios are **runnable**, but runnable is not the same as proven or conformant.
 
-The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, or other implementation conformance. The native PJSIP handoff arm is evidence that the pinned implementation participated in one controlled replacement-leg flow whose live media was independently reduced before old-leg release; it is not a general conformance finding. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
+The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, Kamailio, rtpengine, or other implementation conformance. The native PJSIP handoff arm is evidence that the pinned implementation participated in one controlled replacement-leg flow whose live media was independently reduced before old-leg release; it is not a general conformance finding. The ACE Kamailio/rtpengine lane is currently a static donor boundary, not live proxy/media-relay qualification. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
 
 ## Project name
 
