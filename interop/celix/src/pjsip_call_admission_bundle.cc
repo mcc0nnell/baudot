@@ -4,6 +4,7 @@
 
 extern "C" {
 #include <pjlib.h>
+#include <pjsip/sip_endpoint.h>
 #include <pjsip/sip_msg.h>
 #include <pjsip/sip_parser.h>
 }
@@ -22,19 +23,32 @@ constexpr std::string_view PJSIP_IDENTITY =
 class PjsipCallAdmission final : public ICallAdmission {
 public:
     PjsipCallAdmission() {
-        const pj_status_t status = pj_init();
-        if (status != PJ_SUCCESS) {
+        const pj_status_t initStatus = pj_init();
+        if (initStatus != PJ_SUCCESS) {
             throw std::runtime_error("pj_init failed for Celix PJSIP admission adapter");
         }
-        initialized_ = true;
-        pj_caching_pool_init(&cachingPool_, nullptr, 0);
+        pjInitialized_ = true;
+
+        pj_caching_pool_init(&cachingPool_, &pj_pool_factory_default_policy, 0);
+        poolInitialized_ = true;
+
+        // pjsip_parse_msg() depends on parser tables initialized by the PJSIP
+        // endpoint lifecycle. Use the public endpoint API rather than calling
+        // PJSIP's internal init_sip_parser() symbol directly. Creating an
+        // endpoint constructs runtime managers but does not register or start
+        // any UDP/TCP transport or bind a listening socket.
+        const pj_status_t endpointStatus = pjsip_endpt_create(
+            &cachingPool_.factory,
+            "baudot-celix-pjsip",
+            &endpoint_);
+        if (endpointStatus != PJ_SUCCESS) {
+            cleanup();
+            throw std::runtime_error("pjsip_endpt_create failed for Celix PJSIP admission adapter");
+        }
     }
 
     ~PjsipCallAdmission() noexcept override {
-        if (initialized_) {
-            pj_caching_pool_destroy(&cachingPool_);
-            pj_shutdown();
-        }
+        cleanup();
     }
 
     CapabilityDecision evaluate(std::string_view signaling) override {
@@ -43,7 +57,7 @@ public:
 
         pj_pool_t* pool = pj_pool_create(
             &cachingPool_.factory,
-            "baudot-celix-pjsip",
+            "baudot-celix-pjsip-parse",
             4096,
             4096,
             nullptr);
@@ -89,8 +103,25 @@ public:
     }
 
 private:
-    bool initialized_{false};
+    void cleanup() noexcept {
+        if (endpoint_ != nullptr) {
+            pjsip_endpt_destroy(endpoint_);
+            endpoint_ = nullptr;
+        }
+        if (poolInitialized_) {
+            pj_caching_pool_destroy(&cachingPool_);
+            poolInitialized_ = false;
+        }
+        if (pjInitialized_) {
+            pj_shutdown();
+            pjInitialized_ = false;
+        }
+    }
+
+    bool pjInitialized_{false};
+    bool poolInitialized_{false};
     pj_caching_pool cachingPool_{};
+    pjsip_endpoint* endpoint_{nullptr};
 };
 
 class PjsipCallAdmissionBundleActivator {
