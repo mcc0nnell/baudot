@@ -1,0 +1,23 @@
+{
+  "schema": "baudot.part64-service-interruption-requirements@1",
+  "authority": {
+    "citation": "47 CFR 64.606(h)",
+    "source": "https://www.ecfr.gov/current/title-47/chapter-I/subchapter-B/part-64/subpart-F/section-64.606",
+    "accessed": "2026-09-06"
+  },
+  "safety": {
+    "productionOutageData": false,
+    "realCustomerNotifications": false,
+    "realCommissionRequests": false,
+    "claimsCommissionAuthorization": false,
+    "claimsEnforcementOutcome": false
+  },
+  "requirements": [
+    {"id":"PART64-606-H1-CONTINUITY","citation":"64.606(h)(1)","requirement":"Certified VRS providers provide Internet-based TRS without unauthorized voluntary service interruptions."},
+    {"id":"PART64-606-H2-PLANNED-30","citation":"64.606(h)(2)","requirement":"A voluntary interruption lasting 30 minutes or more requires prior Commission authorization requested at least 60 days in advance with justification, customer-notice plan, and service-resumption plan."},
+    {"id":"PART64-606-H2-DECISION-35","citation":"64.606(h)(2)","requirement":"CGB grants or denies a planned-interruption request at least 35 days before the proposed interruption."},
+    {"id":"PART64-606-H3-SHORT-UNFORESEEN","citation":"64.606(h)(3)","requirement":"An unforeseen interruption beyond provider control, or a voluntary interruption under 30 minutes, requires written CGB notification within two business days of commencement and accessible consumer service-status notice updated timely."},
+    {"id":"PART64-606-H3-RESTORE","citation":"64.606(h)(3)","requirement":"If service is not restored when the first report is filed, a second report is due within two business days of restoration explaining restoration."},
+    {"id":"PART64-606-H4-CONSEQUENCE-BOUNDARY","citation":"64.606(h)(4)","requirement":"Failure to obtain required prior authorization or provide required interruption notice may expose a provider to revocation, Fund-payment suspension, or other Commission enforcement; Baudot must not choose the enforcement outcome."}
+  ]
+}
