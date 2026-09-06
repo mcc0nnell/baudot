@@ -3,6 +3,7 @@
   "authority": "synthetic-accounting-adapter-only",
   "targetFineract": {
     "release": "1.15.0",
+    "commit": "d5636847ac556c30b437254c353f05526d172b97",
     "idempotencyHeader": "Idempotency-Key",
     "notes": [
       "request idempotency is supplied by the Baudot synthetic business transaction id",
