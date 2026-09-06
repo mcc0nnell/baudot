@@ -27,6 +27,53 @@ The mocks exist so Baudot can prove signaling and route-consumption behavior ind
 - authoritative service unavailable; and
 - explicit fixture-driven latency.
 
+## Public historical provenance
+
+The clean-room model now has revision-pinned public historical corroboration from the MITRE ACE Direct repositories. The donor catalog lives at:
+
+```text
+testkit/itrs/research/public-itrs-donors-v1.json
+```
+
+Two sources are kept distinct:
+
+```text
+mitre-ace-direct/ace-direct
+39c8f9ba73d889e743de56a2d49faf418b575c32
+  -> public application-side iTRS adapter boundary
+  -> sanitized test replacement for the lookup helper
+
+mitre-ace-direct/asterisk
+cbfc11e7660ed9d64c98d72336b3de3ea7b3aa33
+  -> public historical scripts/itrslookup.sh
+  -> reversed-number + .1 lookup owner
+  -> optional CNAME hop
+  -> E2U+sip selection
+  -> ordinary SIP NAPTR/SRV discovery in full mode
+```
+
+That evidence corroborates the shape of four existing fixtures:
+
+- `direct-e2u-sip`;
+- `alias-then-e2u-sip`;
+- `naptr-priority-selection`; and
+- `sip-service-discovery`.
+
+The following remain deliberate Baudot resilience extensions rather than behaviors claimed from the historical donor:
+
+- `no-route`;
+- `malformed-e2u-sip`;
+- `directory-unavailable`; and
+- `slow-authority`.
+
+The provenance gate enforces that distinction:
+
+```bash
+python -m scripts.validate_itrs_public_provenance
+```
+
+Historical code is not normative authority, a representation of current iTRS deployment behavior, a source of live routing data, or terminal verdict authority for Baudot. No donor code or production records are copied into the fixtures.
+
 ## Fixture contract
 
 `fixtures/itrs-resolution-v1.json` is the canonical mock vector set. Each case contains:
