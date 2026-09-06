@@ -29,13 +29,17 @@ def post_json(url: str, payload: dict, timeout: int = 60):
 
 def query(engine: str, endpoint: str, sql: str):
     if engine == "pinot":
-        payload = post_json(endpoint.rstrip("/") + "/query/sql", {"sql": sql, "queryOptions": "useMultistageEngine=true"})
+        payload = post_json(
+            endpoint.rstrip("/") + "/query/sql",
+            {"sql": sql, "queryOptions": "useMultistageEngine=true"},
+        )
         if payload.get("exceptions"):
             raise RuntimeError(f"Pinot query failed: {payload['exceptions']}")
         table = payload.get("resultTable")
         if not table:
             raise RuntimeError(f"Pinot response missing resultTable: {payload}")
-        columns = [column["name"] for column in table["dataSchema"]["columnNamesAndTypes"]] if isinstance(table.get("dataSchema", {}).get("columnNamesAndTypes"), list) else table.get("dataSchema", {}).get("columnNames", [])
+        data_schema = table.get("dataSchema", {})
+        columns = data_schema.get("columnNames", [])
         rows = table.get("rows", [])
         if columns and rows and not isinstance(rows[0], dict):
             return [dict(zip(columns, row)) for row in rows]
@@ -88,13 +92,15 @@ def wait_for_rows(engine: str, endpoint: str, expected: int, timeout_seconds: in
         attempts += 1
         try:
             last_count = extract_count(query(engine, endpoint, "SELECT COUNT(*) AS c FROM cdr_analytics_v1"))
-            if last_count >= expected:
+            if last_count == expected:
                 elapsed = round((time.monotonic() - started) * 1000, 3)
                 return {"rows": last_count, "catchupMs": elapsed, "attempts": attempts}
-        except (urllib.error.URLError, RuntimeError, ValueError):
+            if last_count > expected:
+                raise RuntimeError(f"{engine}: duplicate/extra rows observed: {last_count} > {expected}")
+        except (urllib.error.URLError, ValueError):
             pass
         time.sleep(2)
-    raise SystemExit(f"{engine}: timed out waiting for {expected} rows; last_count={last_count}")
+    raise SystemExit(f"{engine}: timed out waiting for exactly {expected} rows; last_count={last_count}")
 
 
 def bench(engine: str, endpoint: str, output: Path, warmups: int, iterations: int) -> None:
@@ -103,6 +109,7 @@ def bench(engine: str, endpoint: str, output: Path, warmups: int, iterations: in
         "schema": "baudot.olap-live-benchmark-result@1",
         "engine": engine,
         "endpoint": endpoint,
+        "windowAnchor": contract["windowAnchor"],
         "warmups": warmups,
         "iterations": iterations,
         "queries": [],
