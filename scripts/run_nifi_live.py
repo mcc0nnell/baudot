@@ -30,15 +30,11 @@ REQUIRED_EVIDENCE = [
 class NiFiClient:
     def __init__(self, base: str, username: str, password: str):
         self.base = base.rstrip("/") + "/nifi-api"
-        self.username = username
-        self.password = password
         self.ctx = ssl._create_unverified_context()
-        self.token = self._login()
+        self.token = self._login(username, password)
 
-    def _login(self) -> str:
-        data = urllib.parse.urlencode(
-            {"username": self.username, "password": self.password}
-        ).encode()
+    def _login(self, username: str, password: str) -> str:
+        data = urllib.parse.urlencode({"username": username, "password": password}).encode()
         req = urllib.request.Request(
             self.base + "/access/token",
             data=data,
@@ -53,25 +49,18 @@ class NiFiClient:
 
     def request(self, path: str, *, method: str = "GET", payload=None):
         body = None
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Accept": "application/json",
-        }
+        headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/json"}
         if payload is not None:
             body = json.dumps(payload).encode()
             headers["Content-Type"] = "application/json"
-        req = urllib.request.Request(
-            self.base + path, data=body, headers=headers, method=method
-        )
+        req = urllib.request.Request(self.base + path, data=body, headers=headers, method=method)
         try:
             with urllib.request.urlopen(req, context=self.ctx, timeout=45) as response:
                 raw = response.read()
                 return response.status, json.loads(raw.decode() or "{}")
         except urllib.error.HTTPError as exc:
             text = exc.read().decode("utf-8", errors="replace")[:4000]
-            raise RuntimeError(
-                f"NiFi API {method} {path} failed: HTTP {exc.code}: {text}"
-            ) from exc
+            raise RuntimeError(f"NiFi API {method} {path} failed: HTTP {exc.code}: {text}") from exc
 
 
 def sha256(path: Path) -> str:
@@ -81,15 +70,11 @@ def sha256(path: Path) -> str:
 def prepare_data(root: Path) -> dict[str, dict[str, object]]:
     if root.exists():
         shutil.rmtree(root)
-    for path in (
-        root / "input/provider",
-        root / "input/cdr",
-        root / "accepted/provider",
-        root / "accepted/cdr",
-        root / "quarantine/provider",
-        root / "quarantine/cdr",
+    for relative in (
+        "input/provider", "input/cdr", "accepted/provider", "accepted/cdr",
+        "quarantine/provider", "quarantine/cdr",
     ):
-        path.mkdir(parents=True, exist_ok=True)
+        (root / relative).mkdir(parents=True, exist_ok=True)
 
     mapping = {
         "provider-valid.csv": ("provider", "accepted/provider"),
@@ -100,10 +85,8 @@ def prepare_data(root: Path) -> dict[str, dict[str, object]]:
     expected: dict[str, dict[str, object]] = {}
     for filename, (kind, destination) in mapping.items():
         source = FIXTURES / filename
-        target = root / "input" / kind / filename
-        shutil.copy2(source, target)
+        shutil.copy2(source, root / "input" / kind / filename)
         expected[filename] = {
-            "kind": kind,
             "destination": destination,
             "sha256": sha256(source),
             "bytes": source.read_bytes(),
@@ -111,22 +94,19 @@ def prepare_data(root: Path) -> dict[str, dict[str, object]]:
     return expected
 
 
-def processor_bundle_map(client: NiFiClient) -> dict[str, dict]:
+def processor_bundles(client: NiFiClient) -> dict[str, dict]:
     _, payload = client.request("/flow/processor-types")
-    result = {}
-    for entry in payload.get("processorTypes", []):
-        result[entry["type"]] = entry["bundle"]
-    return result
+    return {entry["type"]: entry["bundle"] for entry in payload.get("processorTypes", [])}
 
 
-def create_group(client: NiFiClient, name: str) -> dict:
+def create_group(client: NiFiClient) -> dict:
     _, entity = client.request(
         "/process-groups/root/process-groups",
         method="POST",
         payload={
             "revision": {"version": 0, "clientId": CLIENT_ID},
             "disconnectedNodeAcknowledged": False,
-            "component": {"position": {"x": 0, "y": 0}, "name": name},
+            "component": {"position": {"x": 0, "y": 0}, "name": "Baudot Synthetic Bulk Ingest"},
         },
     )
     return entity
@@ -144,9 +124,11 @@ def create_processor(
     properties: dict[str, str],
     auto_terminate: list[str],
 ) -> dict:
-    if processor_type not in bundles:
+    bundle = bundles.get(processor_type)
+    if bundle is None:
         raise RuntimeError(f"NiFi runtime did not advertise processor {processor_type}")
-    _, entity = client.request(
+
+    _, created = client.request(
         f"/process-groups/{group_id}/processors",
         method="POST",
         payload={
@@ -155,18 +137,16 @@ def create_processor(
             "component": {
                 "position": {"x": x, "y": y},
                 "type": processor_type,
-                "bundle": bundles[processor_type],
+                "bundle": bundle,
             },
         },
     )
-
-    revision = entity["revision"]
-    processor_id = entity["id"]
+    processor_id = created["id"]
     _, configured = client.request(
         f"/processors/{processor_id}",
         method="PUT",
         payload={
-            "revision": revision,
+            "revision": created["revision"],
             "disconnectedNodeAcknowledged": False,
             "component": {
                 "id": processor_id,
@@ -191,15 +171,8 @@ def create_processor(
     return configured
 
 
-def connect(
-    client: NiFiClient,
-    group_id: str,
-    source: dict,
-    destination: dict,
-    relationship: str,
-    name: str,
-) -> dict:
-    _, entity = client.request(
+def connect(client: NiFiClient, group_id: str, source: dict, destination: dict, relationship: str, name: str) -> None:
+    client.request(
         f"/process-groups/{group_id}/connections",
         method="POST",
         payload={
@@ -208,11 +181,7 @@ def connect(
             "component": {
                 "name": name,
                 "source": {"id": source["id"], "groupId": group_id, "type": "PROCESSOR"},
-                "destination": {
-                    "id": destination["id"],
-                    "groupId": group_id,
-                    "type": "PROCESSOR",
-                },
+                "destination": {"id": destination["id"], "groupId": group_id, "type": "PROCESSOR"},
                 "selectedRelationships": [relationship],
                 "backPressureObjectThreshold": 10000,
                 "backPressureDataSizeThreshold": "1 GB",
@@ -224,16 +193,15 @@ def connect(
             },
         },
     )
-    return entity
 
 
-def evidence_properties(flow_id: str, source_system: str) -> dict[str, str]:
+def evidence_properties(kind: str) -> dict[str, str]:
     return {
-        "sourceSystem": source_system,
+        "sourceSystem": "synthetic-provider-batch" if kind == "provider" else "synthetic-legacy-cdr",
         "sourceObjectId": "${filename}",
         "receivedAt": "${now():toNumber()}",
         "contentSha256": "${'content_SHA-256'}",
-        "flowId": flow_id,
+        "flowId": "provider-roster-import" if kind == "provider" else "cdr-backfill-import",
         "correlationId": "${uuid}",
     }
 
@@ -241,20 +209,11 @@ def evidence_properties(flow_id: str, source_system: str) -> dict[str, str]:
 def build_lane(client: NiFiClient, group_id: str, bundles: dict[str, dict], *, kind: str, y: int) -> dict:
     standard = "org.apache.nifi.processors.standard."
     update_type = "org.apache.nifi.processors.attributes.UpdateAttribute"
-    input_dir = f"/data/input/{kind}"
-    accepted_dir = f"/data/accepted/{kind}"
-    quarantine_dir = f"/data/quarantine/{kind}"
 
     get_file = create_processor(
-        client,
-        group_id,
-        bundles,
-        standard + "GetFile",
-        f"{kind}-GetFile",
-        0,
-        y,
+        client, group_id, bundles, standard + "GetFile", f"{kind}-GetFile", 0, y,
         properties={
-            "Input Directory": input_dir,
+            "Input Directory": f"/data/input/{kind}",
             "Recurse Subdirectories": "false",
             "Keep Source File": "false",
             "Polling Interval": "250 ms",
@@ -263,38 +222,16 @@ def build_lane(client: NiFiClient, group_id: str, bundles: dict[str, dict], *, k
         auto_terminate=[],
     )
     hash_content = create_processor(
-        client,
-        group_id,
-        bundles,
-        standard + "CryptographicHashContent",
-        f"{kind}-SHA256",
-        250,
-        y,
-        properties={"Hash Algorithm": "SHA-256", "Fail on empty": "false"},
+        client, group_id, bundles, standard + "CryptographicHashContent", f"{kind}-SHA256", 250, y,
+        properties={"Hash Algorithm": "SHA-256", "Fail When Content Empty": "false"},
         auto_terminate=[],
     )
     update = create_processor(
-        client,
-        group_id,
-        bundles,
-        update_type,
-        f"{kind}-EvidenceAttributes",
-        500,
-        y,
-        properties=evidence_properties(
-            "provider-roster-import" if kind == "provider" else "cdr-backfill-import",
-            "synthetic-provider-batch" if kind == "provider" else "synthetic-legacy-cdr",
-        ),
-        auto_terminate=[],
+        client, group_id, bundles, update_type, f"{kind}-EvidenceAttributes", 500, y,
+        properties=evidence_properties(kind), auto_terminate=[],
     )
     logger = create_processor(
-        client,
-        group_id,
-        bundles,
-        standard + "LogAttribute",
-        f"{kind}-EvidenceLog",
-        750,
-        y,
+        client, group_id, bundles, standard + "LogAttribute", f"{kind}-EvidenceLog", 750, y,
         properties={
             "Log Level": "info",
             "Log Payload": "false",
@@ -308,13 +245,7 @@ def build_lane(client: NiFiClient, group_id: str, bundles: dict[str, dict], *, k
 
     if kind == "provider":
         validator = create_processor(
-            client,
-            group_id,
-            bundles,
-            standard + "ValidateCsv",
-            "provider-ValidateCsv",
-            1000,
-            y,
+            client, group_id, bundles, standard + "ValidateCsv", "provider-ValidateCsv", 1000, y,
             properties={
                 "Schema": "StrNotNullOrEmpty,StrNotNullOrEmpty,StrNotNullOrEmpty",
                 "Header": "true",
@@ -335,13 +266,7 @@ def build_lane(client: NiFiClient, group_id: str, bundles: dict[str, dict], *, k
             "additionalProperties": False,
         }
         validator = create_processor(
-            client,
-            group_id,
-            bundles,
-            standard + "ValidateJson",
-            "cdr-ValidateJson",
-            1000,
-            y,
+            client, group_id, bundles, standard + "ValidateJson", "cdr-ValidateJson", 1000, y,
             properties={
                 "Schema Access Strategy": "SCHEMA_CONTENT_PROPERTY",
                 "JSON Schema": json.dumps(schema, separators=(",", ":")),
@@ -351,30 +276,18 @@ def build_lane(client: NiFiClient, group_id: str, bundles: dict[str, dict], *, k
         )
 
     accepted = create_processor(
-        client,
-        group_id,
-        bundles,
-        standard + "PutFile",
-        f"{kind}-AcceptedStaging",
-        1250,
-        y - 100,
+        client, group_id, bundles, standard + "PutFile", f"{kind}-AcceptedStaging", 1250, y - 100,
         properties={
-            "Directory": accepted_dir,
+            "Directory": f"/data/accepted/{kind}",
             "Conflict Resolution Strategy": "replace",
             "Create Missing Directories": "true",
         },
         auto_terminate=["success", "failure"],
     )
     quarantine = create_processor(
-        client,
-        group_id,
-        bundles,
-        standard + "PutFile",
-        f"{kind}-Quarantine",
-        1250,
-        y + 100,
+        client, group_id, bundles, standard + "PutFile", f"{kind}-Quarantine", 1250, y + 100,
         properties={
-            "Directory": quarantine_dir,
+            "Directory": f"/data/quarantine/{kind}",
             "Conflict Resolution Strategy": "replace",
             "Create Missing Directories": "true",
         },
@@ -390,28 +303,27 @@ def build_lane(client: NiFiClient, group_id: str, bundles: dict[str, dict], *, k
     connect(client, group_id, validator, quarantine, "invalid", f"{kind}-invalid-to-quarantine")
 
     return {
-        "getFile": get_file["id"],
-        "hash": hash_content["id"],
-        "evidence": update["id"],
-        "log": logger["id"],
-        "validator": validator["id"],
-        "accepted": accepted["id"],
+        "getFile": get_file["id"], "hash": hash_content["id"], "evidence": update["id"],
+        "log": logger["id"], "validator": validator["id"], "accepted": accepted["id"],
         "quarantine": quarantine["id"],
     }
+
+
+def set_group_state(client: NiFiClient, group_id: str, state: str) -> None:
+    client.request(
+        f"/flow/process-groups/{group_id}",
+        method="PUT",
+        payload={"id": group_id, "disconnectedNodeAcknowledged": False, "state": state},
+    )
 
 
 def wait_for_outputs(data_root: Path, expected: dict[str, dict[str, object]], timeout: int = 90) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
-        ready = True
-        for filename, item in expected.items():
-            if not (data_root / str(item["destination"]) / filename).exists():
-                ready = False
-                break
-        if ready:
+        if all((data_root / str(item["destination"]) / filename).exists() for filename, item in expected.items()):
             return
         time.sleep(1)
-    present = [str(p.relative_to(data_root)) for p in data_root.rglob("*") if p.is_file()]
+    present = sorted(str(p.relative_to(data_root)) for p in data_root.rglob("*") if p.is_file())
     raise RuntimeError(f"NiFi did not stage all expected outputs; present={present}")
 
 
@@ -419,28 +331,22 @@ def validate_outputs(data_root: Path, expected: dict[str, dict[str, object]]) ->
     results = []
     for filename, item in expected.items():
         out = data_root / str(item["destination"]) / filename
-        actual_bytes = out.read_bytes()
-        if actual_bytes != item["bytes"]:
+        actual = out.read_bytes()
+        if actual != item["bytes"]:
             raise RuntimeError(f"NiFi changed staged bytes for {filename}")
-        actual_sha = hashlib.sha256(actual_bytes).hexdigest()
-        if actual_sha != item["sha256"]:
+        digest = hashlib.sha256(actual).hexdigest()
+        if digest != item["sha256"]:
             raise RuntimeError(f"NiFi staging hash mismatch for {filename}")
-        results.append(
-            {
-                "file": filename,
-                "destination": str(item["destination"]),
-                "sha256": actual_sha,
-                "bytesPreserved": True,
-            }
-        )
-    if (data_root / "accepted/provider/provider-invalid.csv").exists():
-        raise RuntimeError("malformed provider roster reached accepted staging")
-    if (data_root / "accepted/cdr/cdr-invalid.json").exists():
-        raise RuntimeError("malformed CDR reached accepted staging")
-    if (data_root / "quarantine/provider/provider-valid.csv").exists():
-        raise RuntimeError("valid provider roster reached quarantine")
-    if (data_root / "quarantine/cdr/cdr-valid.json").exists():
-        raise RuntimeError("valid CDR reached quarantine")
+        results.append({"file": filename, "destination": str(item["destination"]), "sha256": digest, "bytesPreserved": True})
+
+    forbidden = [
+        data_root / "accepted/provider/provider-invalid.csv",
+        data_root / "accepted/cdr/cdr-invalid.json",
+        data_root / "quarantine/provider/provider-valid.csv",
+        data_root / "quarantine/cdr/cdr-valid.json",
+    ]
+    if any(path.exists() for path in forbidden):
+        raise RuntimeError("NiFi staging boundary was crossed by a misclassified fixture")
     return results
 
 
@@ -456,41 +362,27 @@ def main() -> None:
     data_root = Path(args.data_root).resolve()
     expected = prepare_data(data_root)
     client = NiFiClient(args.base, args.user, args.password)
-    bundles = processor_bundle_map(client)
-    group = create_group(client, "Baudot Synthetic Bulk Ingest")
+    bundles = processor_bundles(client)
+    group = create_group(client)
     group_id = group["id"]
 
-    provider = build_lane(client, group_id, bundles, kind="provider", y=200)
-    cdr = build_lane(client, group_id, bundles, kind="cdr", y=600)
+    flows = {
+        "provider": build_lane(client, group_id, bundles, kind="provider", y=200),
+        "cdr": build_lane(client, group_id, bundles, kind="cdr", y=600),
+    }
 
-    client.request(
-        f"/flow/process-groups/{group_id}",
-        method="PUT",
-        payload={
-            "id": group_id,
-            "disconnectedNodeAcknowledged": False,
-            "state": "RUNNING",
-        },
-    )
-
-    wait_for_outputs(data_root, expected)
-    files = validate_outputs(data_root, expected)
-
-    client.request(
-        f"/flow/process-groups/{group_id}",
-        method="PUT",
-        payload={
-            "id": group_id,
-            "disconnectedNodeAcknowledged": False,
-            "state": "STOPPED",
-        },
-    )
+    set_group_state(client, group_id, "RUNNING")
+    try:
+        wait_for_outputs(data_root, expected)
+        files = validate_outputs(data_root, expected)
+    finally:
+        set_group_state(client, group_id, "STOPPED")
 
     evidence = {
         "schema": "baudot.nifi-live-evidence@1",
         "nifiVersion": "2.11.0",
         "processGroupId": group_id,
-        "flows": {"provider": provider, "cdr": cdr},
+        "flows": flows,
         "requiredEvidenceAttributes": REQUIRED_EVIDENCE,
         "stagedFiles": files,
         "accepted": ["provider-valid.csv", "cdr-valid.json"],
