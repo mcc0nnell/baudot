@@ -1,0 +1,24 @@
+# Baudot synthetic RUE one-stage dial-around fixture
+#
+# Public basis: RFC 9248 section 5.2.2.
+# This request is Baudot-authored and uses reserved example domains and a
+# fictional NANP 555 number. It is not copied from a provider trace.
+#
+# Test intent:
+# - subscriber/default-provider identity remains provider-a.example
+# - selected dial-around provider is provider-b.example
+# - called number remains in both Request-URI and To URI
+# - media/SDP is deliberately out of scope for this fixture
+
+INVITE sip:+12025550199@provider-b.example;user=phone SIP/2.0
+Via: SIP/2.0/TLS rue.provider-a.example:5061;branch=z9hG4bK-baudot-dial-001
+Max-Forwards: 70
+From: "Synthetic RUE" <sip:+12025550101@provider-a.example;user=phone>;tag=baudot-a-001
+To: <sip:+12025550199@provider-b.example;user=phone>
+Call-ID: rue-dial-001@baudot.example
+CSeq: 1 INVITE
+Contact: <sip:rue@rue.provider-a.example;transport=tls>
+Supported: outbound, replaces, norefersub
+User-Agent: Baudot-RUE-Mock/0.1
+Content-Length: 0
+
