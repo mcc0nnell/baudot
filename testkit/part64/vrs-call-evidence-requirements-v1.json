@@ -1,0 +1,68 @@
+{
+  "schema": "baudot.part64-vrs-call-evidence@1",
+  "authority": {
+    "source": "47 CFR § 64.604",
+    "sections": [
+      "64.604(b)(2)(iii)",
+      "64.604(c)(5)(iii)(D)(2)",
+      "64.604(c)(5)(iii)(D)(3)",
+      "64.604(c)(5)(iii)(D)(4)",
+      "64.604(c)(5)(iii)(D)(7)",
+      "64.604(c)(5)(iii)(D)(9)"
+    ],
+    "status": "regulatory-test-design-authority"
+  },
+  "safety": {
+    "productionCdr": false,
+    "productionFundClaim": false,
+    "realSubscriberIdentity": false,
+    "realCaIdentity": false,
+    "productionIpAddress": false,
+    "productionUrl": false,
+    "conversationContent": false
+  },
+  "requirements": [
+    {
+      "id": "PART64-604-VRS-SOA",
+      "section": "64.604(b)(2)(iii)",
+      "scenarios": ["VRS-SOA-PASS-001", "VRS-SOA-FAIL-001"],
+      "requires": ["monthly-measurement", "timely-answer-threshold-percent=80", "timely-answer-seconds<=120", "interval-ends-at-ca-answer", "abandoned-calls-in-denominator"],
+      "doesNotProve": ["individual-call-compensability", "provider-certification"]
+    },
+    {
+      "id": "PART64-604-CDR-FIELDS",
+      "section": "64.604(c)(5)(iii)(D)(2)",
+      "scenarios": ["VRS-CDR-001"],
+      "requires": ["call-record-id", "ca-id", "session-start-end", "conversation-start-end", "incoming-number-and-ip", "outbound-number-and-ip", "conversation-minutes", "session-minutes", "handling-location-id", "initiating-url"],
+      "doesNotProve": ["compensability", "payment"]
+    },
+    {
+      "id": "PART64-604-SOA-SUBMISSION",
+      "section": "64.604(c)(5)(iii)(D)(3)",
+      "scenarios": ["VRS-SOA-PASS-001", "VRS-SOA-FAIL-001"],
+      "requires": ["speed-of-answer-compliance-data"],
+      "doesNotProve": ["actual-fund-submission"]
+    },
+    {
+      "id": "PART64-604-AUTOMATED-RECORDS",
+      "section": "64.604(c)(5)(iii)(D)(4)",
+      "scenarios": ["VRS-CDR-001", "VRS-SOA-PASS-001"],
+      "requires": ["automated-electronic-capture", "standardized-electronic-format", "no-human-intervention-during-session-or-conversation-timing"],
+      "doesNotProve": ["production-system-controls"]
+    },
+    {
+      "id": "PART64-604-CDR-RETENTION",
+      "section": "64.604(c)(5)(iii)(D)(7)",
+      "scenarios": ["VRS-CDR-001"],
+      "requires": ["electronic-retention-years>=5", "easily-retrievable"],
+      "doesNotProve": ["production-retention-compliance"]
+    },
+    {
+      "id": "PART64-604-IVCS-CDR",
+      "section": "64.604(c)(5)(iii)(D)(9)",
+      "scenarios": ["VRS-IVCS-CDR-001"],
+      "requires": ["video-conference-identified", "requesting-vrs-user-identified-synthetically"],
+      "doesNotProve": ["platform-compliance", "ivcs-compensability"]
+    }
+  ]
+}
