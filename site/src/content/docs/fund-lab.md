@@ -117,7 +117,7 @@ The evidence bundle records:
 - independent ending balances; and
 - a canonical scenario-manifest hash.
 
-That means the test does not depend on a moving `latest` image or assume that a matching Docker Hub release tag exists.
+That means the test does not depend on a moving external `latest` image or assume that a matching Docker Hub release tag exists. Fineract's upstream Compose file still expects `fineract:latest`, so CI aliases the exact locally built image to that name only after provenance has been captured.
 
 ## Accounting closure is a negative control
 
