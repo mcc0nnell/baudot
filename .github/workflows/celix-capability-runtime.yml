@@ -89,8 +89,17 @@ jobs:
             local executable="$1"
             local log="$2"
             local status=0
+            local deploy_dir
+            local executable_name
 
-            timeout --signal=TERM --kill-after=2s 3s "${executable}" > "${log}" 2>&1 || status=$?
+            deploy_dir="$(dirname "${executable}")"
+            executable_name="$(basename "${executable}")"
+
+            (
+              cd "${deploy_dir}"
+              timeout --signal=TERM --kill-after=2s 3s "./${executable_name}"
+            ) > "${log}" 2>&1 || status=$?
+
             if [[ "${status}" -ne 0 && "${status}" -ne 124 ]]; then
               cat "${log}"
               return "${status}"
