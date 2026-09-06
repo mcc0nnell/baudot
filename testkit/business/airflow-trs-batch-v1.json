@@ -1,0 +1,109 @@
+{
+  "schema": "baudot.airflow-trs-batch@1",
+  "airflow": {
+    "version": "3.3.1",
+    "releaseCommit": "3adbbe1c58e4532df1964cb7794805e763816ee8",
+    "repository": "apache/airflow",
+    "role": "scheduled-batch-orchestration"
+  },
+  "authority": {
+    "airflowIsSystemOfRecord": false,
+    "dagSuccessProvesSourceCorrectness": false,
+    "dagSuccessApprovesClaim": false,
+    "dagSuccessAuthorizesPayment": false,
+    "dagSuccessClosesFundPeriod": false,
+    "dagSuccessCertifiesRegulatoryReport": false,
+    "dagSuccessCreatesAccessibilityVerdict": false
+  },
+  "executionBoundary": {
+    "requestTimeIntegrationOwner": "camel",
+    "scheduledBatchOwner": "airflow",
+    "businessDecisionOwner": "external-domain-policy",
+    "taskOutputsAreEvidenceCandidatesOnly": true
+  },
+  "dags": [
+    {
+      "dagId": "cdr_daily_projection",
+      "schedule": "0 2 * * *",
+      "catchup": true,
+      "maxActiveRuns": 1,
+      "tasks": [
+        {"taskId": "read_cdr_partition", "dependsOn": [], "output": "cdr_partition_ref"},
+        {"taskId": "validate_cdr_contract", "dependsOn": ["read_cdr_partition"], "output": "cdr_validation_ref"},
+        {"taskId": "write_reporting_projection", "dependsOn": ["validate_cdr_contract"], "output": "cdr_daily_projection_ref"},
+        {"taskId": "reconcile_projection_counts", "dependsOn": ["write_reporting_projection"], "output": "cdr_projection_reconciliation_ref"}
+      ]
+    },
+    {
+      "dagId": "fund_daily_reconciliation",
+      "schedule": "30 2 * * *",
+      "catchup": true,
+      "maxActiveRuns": 1,
+      "tasks": [
+        {"taskId": "read_fund_journal_state", "dependsOn": [], "output": "fund_journal_state_ref"},
+        {"taskId": "read_expected_folded_state", "dependsOn": [], "output": "fund_expected_state_ref"},
+        {"taskId": "reconcile_fund_state", "dependsOn": ["read_fund_journal_state", "read_expected_folded_state"], "output": "fund_reconciliation_evidence_ref"},
+        {"taskId": "publish_reconciliation_summary", "dependsOn": ["reconcile_fund_state"], "output": "fund_daily_summary_ref"}
+      ]
+    },
+    {
+      "dagId": "equipment_inventory_reconciliation",
+      "schedule": "0 3 * * *",
+      "catchup": true,
+      "maxActiveRuns": 1,
+      "tasks": [
+        {"taskId": "read_ofbiz_inventory_projection", "dependsOn": [], "output": "equipment_inventory_ref"},
+        {"taskId": "read_shipment_return_projection", "dependsOn": [], "output": "shipment_return_ref"},
+        {"taskId": "reconcile_inventory_movements", "dependsOn": ["read_ofbiz_inventory_projection", "read_shipment_return_projection"], "output": "equipment_reconciliation_evidence_ref"}
+      ]
+    },
+    {
+      "dagId": "policy_audit_rollup",
+      "schedule": "15 3 * * *",
+      "catchup": true,
+      "maxActiveRuns": 1,
+      "tasks": [
+        {"taskId": "read_policy_decision_events", "dependsOn": [], "output": "policy_event_partition_ref"},
+        {"taskId": "aggregate_policy_counts", "dependsOn": ["read_policy_decision_events"], "output": "policy_daily_projection_ref"}
+      ]
+    },
+    {
+      "dagId": "fund_monthly_close_candidate",
+      "schedule": "0 4 1 * *",
+      "catchup": true,
+      "maxActiveRuns": 1,
+      "tasks": [
+        {"taskId": "collect_monthly_reconciliation", "dependsOn": [], "output": "monthly_reconciliation_bundle_ref"},
+        {"taskId": "validate_monthly_completeness", "dependsOn": ["collect_monthly_reconciliation"], "output": "monthly_completeness_ref"},
+        {"taskId": "emit_close_candidate", "dependsOn": ["validate_monthly_completeness"], "output": "fund_close_candidate_ref"}
+      ]
+    },
+    {
+      "dagId": "synthetic_five_year_replay",
+      "schedule": null,
+      "catchup": false,
+      "maxActiveRuns": 1,
+      "tasks": [
+        {"taskId": "load_frozen_corpus", "dependsOn": [], "output": "five_year_corpus_ref"},
+        {"taskId": "run_deterministic_replay", "dependsOn": ["load_frozen_corpus"], "output": "five_year_replay_ref"},
+        {"taskId": "compare_terminal_state", "dependsOn": ["run_deterministic_replay"], "output": "five_year_reconciliation_ref"}
+      ]
+    }
+  ],
+  "forbiddenTaskOutputs": [
+    "claimApproved",
+    "paymentAuthorized",
+    "fundPeriodClosed",
+    "regulatoryReportCertified",
+    "subscriberEligible",
+    "compensable",
+    "accessibilityReady"
+  ],
+  "claimBoundary": {
+    "productionAirflowCompatibilityClaimed": false,
+    "productionSchedulingReliabilityClaimed": false,
+    "financialCloseAuthorityClaimed": false,
+    "regulatoryReportingClaimed": false,
+    "paymentAuthorizationClaimed": false
+  }
+}
