@@ -1,0 +1,44 @@
+{
+  "schema": "baudot.ace-connect-lite-config-binding@1",
+  "source": {
+    "repository": "https://github.com/mitrefccace/aceconnectlite",
+    "commit": "da74e6450193be1456ce2cdf65dd5ffdf0e92f1e",
+    "configTemplate": "config.json_TEMPLATE",
+    "consumerFile": "server.js"
+  },
+  "observedConfiguration": {
+    "applicationPort": "http.port",
+    "vrsLookupEnabled": "vrscheck.verify",
+    "vrsLookupUrl": "vrscheck.url",
+    "vrsLookupPort": "vrscheck.port"
+  },
+  "baudotLabBinding": {
+    "vrscheck": {
+      "verify": "yes",
+      "url": "http://127.0.0.1",
+      "port": 8801
+    },
+    "adapter": "AceConnectLiteVrsVerifyAdapter",
+    "adapterUpstream": "http://127.0.0.1:8800",
+    "providerInstances": [
+      {
+        "fixtureId": "provider-a",
+        "xspid": "XSPID-A",
+        "cteSessionId": "provider-a-session",
+        "suggestedHttpPort": 8810
+      },
+      {
+        "fixtureId": "provider-b",
+        "xspid": "XSPID-B",
+        "cteSessionId": "provider-b-session",
+        "suggestedHttpPort": 8820
+      }
+    ]
+  },
+  "boundary": [
+    "The vrscheck keys and application HTTP port are source-observed configuration seams.",
+    "The loopback addresses, ports 8800/8801/8810/8820, provider identities, and session bindings are Baudot test choices.",
+    "ACE's vrscheck call is a VRS classification lookup; the logical SIP route remains a separate CTE/AllCallQuery result.",
+    "This file contains no production credentials or provider configuration."
+  ]
+}
