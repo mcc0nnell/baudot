@@ -24,6 +24,8 @@ jobs:
           cache: maven
       - name: Run reference reducer, block, and transport tests
         run: python -m unittest discover -s tests -p "test_*.py"
+      - name: Validate live T.140 readiness gate regressions
+        run: python -m unittest scripts.test_live_t140_readiness_gate
       - name: Syntax-check external Elixip runner
         run: bash -n scripts/run-elixip-oracle-scenario.sh
       - name: Validate portable testkit contracts and presentation vectors
