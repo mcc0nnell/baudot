@@ -1,0 +1,78 @@
+name: trs-fund-fineract-live
+
+on:
+  pull_request:
+    paths:
+      - "testkit/fund/**"
+      - "interop/fineract/**"
+      - "scripts/run_fineract_fund_lane.py"
+      - ".github/workflows/trs-fund-fineract-live.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-ledger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      FINERACT_RELEASE: "1.15.0"
+      FINERACT_RELEASE_COMMIT: "d5636847ac556c30b437254c353f05526d172b97"
+      FINERACT_IMAGE_TAG: "d5636847a"
+
+    steps:
+      - name: Check out Baudot
+        uses: actions/checkout@v5
+
+      - name: Check out pinned Apache Fineract release
+        uses: actions/checkout@v5
+        with:
+          repository: apache/fineract
+          ref: ${{ env.FINERACT_RELEASE_COMMIT }}
+          path: .fineract-upstream
+
+      - name: Pin the Fineract container to the release commit
+        run: |
+          docker pull "apache/fineract:${FINERACT_IMAGE_TAG}"
+          docker tag "apache/fineract:${FINERACT_IMAGE_TAG}" fineract:latest
+
+      - name: Start Fineract test stack
+        working-directory: .fineract-upstream
+        run: |
+          mkdir -p build/fineract/logs
+          docker compose up -d
+          docker compose ps
+
+      - name: Execute synthetic Fund ledger lane
+        env:
+          FINERACT_BASE_URL: https://localhost:8443/fineract-provider/api/v1
+          FINERACT_USERNAME: mifos
+          FINERACT_PASSWORD: password
+          FINERACT_TENANT: default
+          FINERACT_INSECURE_TLS: "1"
+          FINERACT_WAIT_SECONDS: "300"
+          TRS_FUND_EVIDENCE_DIR: artifacts/trs-fund-fineract
+        run: python scripts/run_fineract_fund_lane.py
+
+      - name: Capture Fineract logs
+        if: always()
+        working-directory: .fineract-upstream
+        run: |
+          mkdir -p ../artifacts/trs-fund-fineract
+          docker compose ps > ../artifacts/trs-fund-fineract/docker-compose-ps.txt || true
+          docker compose logs --no-color > ../artifacts/trs-fund-fineract/docker-compose.log || true
+
+      - name: Upload Fund evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trs-fund-fineract-live-${{ github.run_id }}
+          path: artifacts/trs-fund-fineract
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop Fineract test stack
+        if: always()
+        working-directory: .fineract-upstream
+        run: docker compose down -v --remove-orphans
