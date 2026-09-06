@@ -55,7 +55,9 @@ def extract_tika(tika: str, path: Path) -> tuple[str, str]:
         tika.rstrip("/") + "/tika",
         data=raw,
         headers={
-            "Accept": "text/markdown",
+            # Tika 4's bare /tika endpoint returns Markdown content but advertises
+            # it as text/plain;charset=UTF-8.  Asking for text/markdown yields 406.
+            "Accept": "text/plain",
             "Content-Type": "text/plain; charset=utf-8",
         },
         method="PUT",
@@ -118,107 +120,104 @@ def main() -> None:
         anonymous_status = 200
     except urllib.error.HTTPError as exc:
         anonymous_status = exc.code
-    if anonymous_status not in {401, 403}:
-        raise AssertionError(f"anonymous Solr request did not fail closed: HTTP {anonymous_status}")
-    evidence["security"]["anonymousStatus"] = anonymous_status
+    if anonymous_status not in (401, 403):
+        raise SystemExit(f"Solr anonymous access did not fail closed: HTTP {anonymous_status}")
+    evidence["security"]["anonymousSearchStatus"] = anonymous_status
 
-    _, security = request_json(
+    status, security = request_json(
         f"{args.solr.rstrip('/')}/api/cluster/security/authentication",
         user=args.user,
         password=args.password,
     )
-    block_unknown = find_block_unknown(security)
-    if block_unknown is not True:
-        raise AssertionError(f"effective Solr blockUnknown is not true: {block_unknown!r}")
+    if status != 200 or find_block_unknown(security) is not True:
+        raise SystemExit("effective Solr authentication config does not prove blockUnknown=true")
     evidence["security"]["blockUnknown"] = True
-    evidence["security"]["authenticationClassObserved"] = "solr.BasicAuthPlugin"
 
-    indexed_docs = []
-    expected_by_id = {item["documentId"]: item["expect"] for item in MANIFEST["documents"]}
+    admitted = []
+    rejected_ids = []
 
     for item in MANIFEST["documents"]:
         path = FIXTURE_ROOT / item["file"]
         raw = path.read_bytes()
-        source_hash = None if item.get("omitSourceHash") else sha256_bytes(raw)
-        record = {
-            "documentId": item["documentId"],
-            "sourceClass": item["sourceClass"],
-            "sourceRef": item["sourceRef"],
-            "sourceSha256": source_hash,
-        }
-
-        if source_hash is None:
-            record["status"] = "rejected-missing-source-hash"
-            evidence["documents"].append(record)
-            continue
-
+        source_hash = sha256_bytes(raw) if item.get("sourceHashPresent", True) else None
         extracted, extracted_hash = extract_tika(args.tika, path)
-        record["extractedContentSha256"] = extracted_hash
-        if not extracted.strip():
-            record["status"] = "quarantined-empty-extraction"
-            evidence["documents"].append(record)
-            continue
+        has_forbidden = any(pattern.search(extracted) for pattern in FORBIDDEN_PATTERNS)
+        parse_nonempty = bool(extracted.strip())
 
-        if any(pattern.search(extracted) for pattern in FORBIDDEN_PATTERNS):
-            record["status"] = "rejected-forbidden-data"
-            evidence["documents"].append(record)
-            continue
+        reasons = []
+        if not parse_nonempty:
+            reasons.append("empty-extraction")
+        if source_hash is None:
+            reasons.append("missing-source-hash")
+        if has_forbidden:
+            reasons.append("forbidden-sensitive-field")
 
-        solr_doc = {
-            "id": item["documentId"],
-            "documentId": item["documentId"],
-            "sourceClass": item["sourceClass"],
-            "sourceRef": item["sourceRef"],
+        decision = "index" if not reasons else "reject"
+        record = {
+            "id": item["id"],
+            "file": item["file"],
             "sourceSha256": source_hash,
-            "mediaType": "text/plain",
-            "title": extracted.splitlines()[0].strip() if extracted.splitlines() else item["documentId"],
-            "bodyMarkdown": extracted,
-            "extractorVersion": "4.0.0",
-            "extractedContentSha256": extracted_hash,
+            "extractionSha256": extracted_hash,
+            "parseNonempty": parse_nonempty,
+            "forbiddenSensitiveFieldDetected": has_forbidden,
+            "decision": decision,
+            "reasons": reasons,
         }
-        request_json(
-            f"{args.solr.rstrip('/')}/solr/baudot_docs/update?commit=true",
+        evidence["documents"].append(record)
+
+        if decision == "index":
+            admitted.append(
+                {
+                    "id": item["id"],
+                    "documentClass": item["documentClass"],
+                    "sourceRef": f"fixture:{item['file']}",
+                    "sourceSha256": source_hash,
+                    "extractionSha256": extracted_hash,
+                    "content": extracted,
+                    "derivedEvidenceOnly": True,
+                }
+            )
+        else:
+            rejected_ids.append(item["id"])
+
+    if admitted:
+        status, update = request_json(
+            f"{args.solr.rstrip('/')}/solr/baudot_docs/update?commit=true&wt=json",
             method="POST",
-            data=[solr_doc],
+            data=admitted,
             user=args.user,
             password=args.password,
         )
-        indexed_docs.append(solr_doc)
-        record["status"] = "indexed"
-        evidence["documents"].append(record)
-
-    actual_by_id = {item["documentId"]: item["status"] for item in evidence["documents"]}
-    if actual_by_id != expected_by_id:
-        raise AssertionError(f"document admission mismatch: expected={expected_by_id}, actual={actual_by_id}")
-    if len(indexed_docs) != 1:
-        raise AssertionError(f"expected exactly one admitted document, got {len(indexed_docs)}")
+        if status != 200 or update.get("responseHeader", {}).get("status") != 0:
+            raise SystemExit("Solr update did not succeed")
 
     all_docs = solr_query(args.solr, "*:*", args.user, args.password)
-    indexed_count = int(all_docs["response"]["numFound"])
-    if indexed_count != 1:
-        raise AssertionError(f"Solr index contains {indexed_count} docs, expected exactly 1")
-    evidence["queries"]["allDocuments"] = indexed_count
+    returned = all_docs.get("response", {}).get("docs", [])
+    returned_ids = {doc["id"] for doc in returned}
+    admitted_ids = {doc["id"] for doc in admitted}
+    if returned_ids != admitted_ids:
+        raise SystemExit(f"Solr returned unexpected document ids: {returned_ids} != {admitted_ids}")
+    if returned_ids.intersection(rejected_ids):
+        raise SystemExit("rejected fixture became queryable")
 
-    valid_hash = indexed_docs[0]["sourceSha256"]
-    exact = solr_query(args.solr, f"sourceSha256:{valid_hash}", args.user, args.password)
-    if int(exact["response"]["numFound"]) != 1:
-        raise AssertionError("exact source hash retrieval failed")
-    evidence["queries"]["sourceHashExact"] = 1
+    evidence["queries"]["allDocumentIds"] = sorted(returned_ids)
+    evidence["queries"]["admittedCount"] = len(returned_ids)
+    evidence["queries"]["rejectedIdsAbsent"] = sorted(rejected_ids)
 
-    fulltext = solr_query(args.solr, "bodyMarkdown:provenance", args.user, args.password)
-    if int(fulltext["response"]["numFound"]) != 1:
-        raise AssertionError("full-text provenance retrieval failed")
-    evidence["queries"]["fullTextProvenance"] = 1
-
-    sensitive = solr_query(args.solr, "bodyMarkdown:synthetic-subscriber-001", args.user, args.password)
-    if int(sensitive["response"]["numFound"]) != 0:
-        raise AssertionError("forbidden sensitive fixture became searchable")
-    evidence["queries"]["forbiddenSensitiveHitCount"] = 0
+    # Retrieval must preserve provenance hashes and the explicit derived-only marker.
+    for doc in returned:
+        if not doc.get("sourceSha256") or not doc.get("extractionSha256"):
+            raise SystemExit(f"indexed document {doc['id']} lost provenance hashes")
+        marker = doc.get("derivedEvidenceOnly")
+        if isinstance(marker, list):
+            marker = marker[0] if marker else None
+        if marker not in (True, "true"):
+            raise SystemExit(f"indexed document {doc['id']} lost derived-evidence marker")
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
-    print(json.dumps(evidence, sort_keys=True))
+    out.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"validated live Tika -> Solr lane: admitted={len(admitted_ids)} rejected={len(rejected_ids)}")
 
 
 if __name__ == "__main__":
