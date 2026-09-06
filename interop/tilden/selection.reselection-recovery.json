@@ -1,0 +1,26 @@
+{
+  "version": "0.1",
+  "selectionId": "sel-reselection-recovery-0002",
+  "target": "tel:+12025550126",
+  "resolutionDigest": "sha256:resolution-reselection-recovery-0002",
+  "requestDigest": "sha256:request-reselection-recovery-0002",
+  "evaluatedAt": "2026-09-06T00:22:05Z",
+  "candidates": [
+    {
+      "uri": "sip:unavailable@127.0.0.1:5390;transport=udp",
+      "priority": 1,
+      "preferenceScore": 0,
+      "outcome": "failed",
+      "matchedPreferred": ["rtt", "transfer"]
+    },
+    {
+      "uri": "sip:provider-a@127.0.0.1:5310",
+      "priority": 2,
+      "preferenceScore": 0,
+      "outcome": "selected",
+      "matchedPreferred": ["rtt", "transfer"]
+    }
+  ],
+  "terminal": "selected",
+  "selectedEndpoint": "sip:provider-a@127.0.0.1:5310"
+}
