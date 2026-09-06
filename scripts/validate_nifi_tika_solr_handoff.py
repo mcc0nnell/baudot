@@ -50,12 +50,14 @@ def main() -> None:
     require("schema", profile["schema"] == "baudot.nifi-tika-solr-handoff@1")
 
     composition = profile["composition"]
-    require("common base pin", composition["commonBase"] == "65723f8c6f566f092ebdd4a3901cf8743ca5a0bc")
-    require("NiFi PR pin", composition["nifiPr"] == 121)
-    require("NiFi head pin", composition["nifiHead"] == "bf6ffa25423c9107ef3b1ca546bc14f7574116bf")
-    require("document PR pin", composition["documentPr"] == 129)
-    require("document head pin", composition["documentHead"] == "9df3f208cc126d070060f495295c1babbedf6cb6")
-    require("exact-head composition", composition["strategy"] == "ci-local-merge-of-exact-sibling-heads")
+    require("common base evidence", composition["commonBase"] == "65723f8c6f566f092ebdd4a3901cf8743ca5a0bc")
+    require("NiFi PR evidence", composition["nifiPr"] == 121)
+    require("NiFi qualified head evidence", composition["nifiQualifiedHead"] == "bf6ffa25423c9107ef3b1ca546bc14f7574116bf")
+    require("NiFi merge evidence", composition["nifiMergeCommit"] == "783b038c8b750af617a12e6befba287ce65b13c2")
+    require("document PR evidence", composition["documentPr"] == 129)
+    require("document qualified head evidence", composition["documentQualifiedHead"] == "9df3f208cc126d070060f495295c1babbedf6cb6")
+    require("document merge evidence", composition["documentMergeCommit"] == "134e7512dab2393cc9be5a307952a4e9f2857594")
+    require("converged composition", composition["strategy"] == "converged-repository-tree")
 
     pins = profile["runtimePins"]
     require("NiFi runtime pin", pins["nifi"] == "2.11.0")
@@ -94,7 +96,7 @@ def main() -> None:
 
     all_keys = set(walk_keys(profile))
     require("no authority promotion fields", all_keys.isdisjoint(FORBIDDEN_AUTHORITY))
-    print("Baudot NiFi -> Tika -> Solr handoff profile: PASS")
+    print("Baudot NiFi -> Tika -> Solr converged handoff profile: PASS")
 
 
 if __name__ == "__main__":
