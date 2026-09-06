@@ -3,15 +3,19 @@ from __future__ import annotations
 from decimal import Decimal
 import json
 from pathlib import Path
+import sys
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlparse
 import unittest
 
-from fineract_executor import ExecutionLedger, FineractExecutor, JsonResponse, load_contract
-from testkit.fund.runtime.fund_runtime import FundEvent, fold_events
-
-
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "interop" / "fineract"))
+
+from fineract_executor import ExecutionLedger, FineractExecutor, JsonResponse, load_contract  # noqa: E402
+from testkit.fund.runtime.fund_runtime import FundEvent, fold_events  # noqa: E402
+
+
 CONTRACT_PATH = ROOT / "interop" / "fineract" / "journal-contract-v1.json"
 FIVE_YEAR_PATH = ROOT / "testkit" / "fund" / "runtime" / "five-year-synthetic.json"
 
@@ -241,13 +245,13 @@ class FineractExecutorTests(unittest.TestCase):
             "TRANSACTION_REVERSED",
             "reverse-claim-1",
             target_transaction_id="claim-1",
-            effective_date="2026-08-01",
         )
 
         record = self.executor.execute_event(reversal, self.ledger)
 
         assert record is not None
         self.assertTrue(record.reconciled)
+        self.assertEqual(record.posting_date, claim_record.posting_date)
         self.assertEqual(record.expected_debit_account, "2100")
         self.assertEqual(record.expected_credit_account, "5100")
         reversal_post = next(
@@ -256,6 +260,27 @@ class FineractExecutorTests(unittest.TestCase):
             if call[0] == "POST" and f"/journalentries/{claim_record.fineract_transaction_id}?command=reverse" in call[1]
         )
         self.assertEqual(reversal_post[3]["Idempotency-Key"], "reverse-claim-1")
+
+    def test_reversal_rejects_effective_date_that_fineract_would_ignore(self):
+        claim = fund_event(
+            1,
+            "PROVIDER_CLAIM_APPROVED",
+            "claim-1",
+            entity_id="provider-a",
+            amount=Decimal("600.00"),
+            effective_date="2026-07-15",
+        )
+        self.executor.execute_event(claim, self.ledger)
+        reversal = fund_event(
+            2,
+            "TRANSACTION_REVERSED",
+            "reverse-claim-1",
+            target_transaction_id="claim-1",
+            effective_date="2026-08-01",
+        )
+
+        with self.assertRaisesRegex(ValueError, "original journal date"):
+            self.executor.execute_event(reversal, self.ledger)
 
     def test_accounting_closure_posts_explicit_closing_date(self):
         closure = fund_event(
