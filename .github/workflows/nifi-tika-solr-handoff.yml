@@ -5,6 +5,7 @@ on:
     paths:
       - 'testkit/business/nifi-tika-solr-handoff-v1.json'
       - 'scripts/validate_nifi_tika_solr_handoff.py'
+      - 'scripts/validate_nifi_tika_solr_handoff_negative.py'
       - 'scripts/run_nifi_tika_solr_handoff.py'
       - 'docs/nifi-tika-solr-handoff.md'
       - '.github/workflows/nifi-tika-solr-handoff.yml'
@@ -12,6 +13,7 @@ on:
     paths:
       - 'testkit/business/nifi-tika-solr-handoff-v1.json'
       - 'scripts/validate_nifi_tika_solr_handoff.py'
+      - 'scripts/validate_nifi_tika_solr_handoff_negative.py'
       - 'scripts/run_nifi_tika_solr_handoff.py'
       - 'docs/nifi-tika-solr-handoff.md'
       - '.github/workflows/nifi-tika-solr-handoff.yml'
@@ -43,8 +45,12 @@ jobs:
           python-version: '3.13'
       - name: Validate append-only handoff contract
         run: |
-          python -m py_compile scripts/validate_nifi_tika_solr_handoff.py scripts/run_nifi_tika_solr_handoff.py
+          python -m py_compile \
+            scripts/validate_nifi_tika_solr_handoff.py \
+            scripts/validate_nifi_tika_solr_handoff_negative.py \
+            scripts/run_nifi_tika_solr_handoff.py
           python scripts/validate_nifi_tika_solr_handoff.py
+          python scripts/validate_nifi_tika_solr_handoff_negative.py
       - name: Verify exact sibling head pins share the declared base
         run: |
           set -euo pipefail
