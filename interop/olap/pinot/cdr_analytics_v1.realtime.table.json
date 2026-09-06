@@ -1,0 +1,33 @@
+{
+  "tableName": "cdr_analytics_v1",
+  "tableType": "REALTIME",
+  "segmentsConfig": {
+    "timeColumnName": "eventTime",
+    "retentionTimeUnit": "DAYS",
+    "retentionTimeValue": "45",
+    "segmentPushType": "APPEND",
+    "replication": "1",
+    "replicasPerPartition": "1"
+  },
+  "tenants": {},
+  "tableIndexConfig": {
+    "loadMode": "MMAP",
+    "invertedIndexColumns": ["providerId", "serviceType", "outcome", "callId"],
+    "streamConfigs": {
+      "streamType": "kafka",
+      "stream.kafka.topic.name": "baudot.olap.cdr.v1",
+      "stream.kafka.decoder.class.name": "org.apache.pinot.plugin.stream.kafka.KafkaJSONMessageDecoder",
+      "stream.kafka.consumer.factory.class.name": "org.apache.pinot.plugin.stream.kafka40.KafkaConsumerFactory",
+      "stream.kafka.consumer.prop.auto.offset.reset": "smallest",
+      "stream.kafka.broker.list": "kafka:9092",
+      "realtime.segment.flush.threshold.rows": "5000",
+      "realtime.segment.flush.threshold.time": "1h"
+    }
+  },
+  "metadata": {
+    "customConfigs": {
+      "baudot.synthetic": "true",
+      "baudot.authority": "analytics-only"
+    }
+  }
+}
