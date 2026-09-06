@@ -1,0 +1,45 @@
+{
+  "schema": "baudot.ace-connect-lite-vrsverify-consumer@1",
+  "source": {
+    "umbrellaRepository": "https://github.com/mitrefccace/aceconnectlite-public",
+    "applicationRepository": "https://github.com/mitrefccace/aceconnectlite",
+    "applicationCommit": "da74e6450193be1456ce2cdf65dd5ffdf0e92f1e",
+    "file": "server.js"
+  },
+  "observedRequest": {
+    "method": "GET",
+    "path": "/vrsverify/",
+    "queryParameter": "vrsnum"
+  },
+  "observedResponseConsumption": {
+    "fields": [
+      "message",
+      "data[0].vrs"
+    ],
+    "successPredicate": "message === success",
+    "outboundEffect": "success selects the outbound-CA Asterisk context",
+    "incomingEffect": "data[0].vrs is compared with the source phone number when message is success"
+  },
+  "baudotFacade": {
+    "bind": "loopback-only",
+    "authentication": "none, matching the observed ACE request call site",
+    "successShape": {
+      "message": "success",
+      "data": [
+        {
+          "vrs": "<synthetic TN>"
+        }
+      ]
+    },
+    "failureShape": {
+      "message": "failure",
+      "data": []
+    },
+    "classificationRule": "success only for an iTRS CTE number that resolves to a logical VRS route"
+  },
+  "claimBoundary": [
+    "This captures the public ACE consumer contract, not the missing verifier service implementation.",
+    "No production iTRS, iconectiv, Neustar, or provider API is inferred.",
+    "The logical route remains a separate AllCallQuery result; the facade does not invent an ACE-consumed URI field."
+  ]
+}

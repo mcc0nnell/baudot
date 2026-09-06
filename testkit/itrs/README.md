@@ -1,35 +1,30 @@
 # iTRS mocks
 
-Deterministic fixtures and mock services for exercising iTRS-derived routing behavior without access to the live TRS Numbering Directory.
+Deterministic, clean-room fixtures and local services for exercising iTRS-derived routing behavior without access to the live TRS Numbering Directory.
 
-The suite models protocol behavior, not production authority. It is intentionally clean-room and contains no credentials, live subscriber data, provider configuration, or copied ACE Direct source.
+Nothing here is production authority. The suite contains no live subscriber data, provider configuration, proprietary Neustar/iconectiv schema, production credentials, or copied ACE Direct source.
 
-## Boundary
+## Two proving layers
 
-```text
-fixture
-  -> mock iTRS adapter
-  -> normalized routing observation
-  -> Tilden-style route
-  -> Baudot signaling probe
+### v1: resolution and service-discovery vectors
+
+`fixtures/itrs-resolution-v1.json` preserves the original Baudot routing vectors for downstream ENUM/SIP discovery behavior. These vectors remain useful as service-discovery observations; they are **not** treated as the persistence schema of the TRS Numbering Directory.
+
+Run:
+
+```bash
+bash scripts/run-itrs-mocks.sh
 ```
 
-The mocks exist so Baudot can prove signaling and route-consumption behavior independently of live iTRS infrastructure.
+Expected final line:
 
-## Covered cases
+```text
+iTRS mock probe: 8/8 PASS
+```
 
-- direct `E2U+sip` NAPTR result;
-- CNAME/alias forwarding before `E2U+sip` resolution;
-- multiple NAPTR records with deterministic priority/order selection;
-- downstream SIP NAPTR and SRV discovery metadata;
-- no route found;
-- malformed route data;
-- authoritative service unavailable; and
-- explicit fixture-driven latency.
+#### Public historical provenance
 
-## Public historical provenance
-
-The clean-room model now has revision-pinned public historical corroboration from the MITRE ACE Direct repositories. The donor catalog lives at:
+The clean-room v1 model has revision-pinned public historical corroboration from the MITRE ACE Direct repositories. The donor catalog lives at:
 
 ```text
 testkit/itrs/research/public-itrs-donors-v1.json
@@ -52,7 +47,7 @@ cbfc11e7660ed9d64c98d72336b3de3ea7b3aa33
   -> ordinary SIP NAPTR/SRV discovery in full mode
 ```
 
-That evidence corroborates the shape of four existing fixtures:
+That evidence corroborates the shape of four v1 fixtures:
 
 - `direct-e2u-sip`;
 - `alias-then-e2u-sip`;
@@ -74,88 +69,195 @@ python -m scripts.validate_itrs_public_provenance
 
 Historical code is not normative authority, a representation of current iTRS deployment behavior, a source of live routing data, or terminal verdict authority for Baudot. No donor code or production records are copied into the fixtures.
 
-## Fixture contract
+### v2: database-shaped CTE model
 
-`fixtures/itrs-resolution-v1.json` is the canonical mock vector set. Each case contains:
+`fixtures/itrs-db-v2.json` and `ItrsDirectoryRepository` model relationships supported by public FCC rules and the 2024 iTRS Statement of Work:
 
-- a synthetic NANP number;
-- synthetic DNS/ENUM observations;
-- an expected logical SIP route or expected failure;
-- optional final SIP service-discovery observations; and
-- an explanation of the invariant under test.
+- TN -> endpoint URI records;
+- VRS / IP Relay service type;
+- user type;
+- default-provider XSPID responsibility;
+- URD-valid state;
+- NPAC SPID / AltSPID / LastAltSPID porting observations;
+- separate provisioning and query views;
+- provisioning-to-query replication delay;
+- two-number AllCallQuery context;
+- unique query transaction IDs;
+- reverse validation by synthetic userid / IP / screen-name bindings; and
+- the per-TN URD-valid operation.
 
-All domains use `.invalid` and all numbers are synthetic documentation numbers. Nothing in this directory is suitable for production routing.
+The porting transition follows the public SOW invariant: when NPAC AltSPID/LastAltSPID indicates the gaining provider's XSPID, the gaining provider may provision the number; its first accepted provision transfers mock control and the losing provider loses write access.
 
-## Mock HTTP adapter
+The URD seam is separate from provider provisioning. Provider sessions cannot invoke the URD-valid operation, and provisioning never self-asserts URD validity.
 
-`ItrsMockServer` exposes a tiny local-only HTTP service:
+## Local CTE-style HTTP surface
+
+`ItrsCteMockServer` exposes Baudot-owned test endpoints on loopback:
 
 ```text
-GET /itrs/v1/query?number=2025550101
+GET /itrs/v2/session
+GET /itrs/v2/all-call-query
+GET /itrs/v2/reverse-query
+PUT /itrs/v2/provision
+PUT /itrs/v2/urd-valid
+GET /itrs/v2/record
 ```
 
-It returns deterministic JSON for the requested fixture. The HTTP surface is deliberately a test adapter; it is not a claim about the production TRS Numbering Administrator interface.
+The surface is intentionally REST/JSON-shaped because the public SOW expresses that design preference. Exact endpoint names, parameters, bearer tokens, and response bodies are **testkit contracts**, not claims about the production TRS Numbering Administrator API or the nonpublic iTRS Provisioning/Query Guides.
 
-## Run the fixture matrix
+### Synthetic session boundary
+
+The CTE uses three hard-coded **local test identities**:
+
+```text
+provider A session -> XSPID-A
+provider B session -> XSPID-B
+URD authority      -> URD-valid operation only
+```
+
+The tokens are not production credentials and authenticate only the loopback mock. The important invariant is structural: the server derives the provider XSPID from the authenticated session instead of trusting an `actorXspid` or `providerXspid` supplied by the caller.
+
+### Multi-URI policy
+
+The public model permits endpoint URI data, but this repository does not claim a production URI-selection algorithm. Baudot therefore defines an explicit deterministic **test policy**:
+
+> Preserve fixture order and select the first URI supported by the requested service.
+
+The `2025550109` fixture advertises three candidates:
+
+```text
+tel:+12025550109
+sip:2025550109@provider-b.invalid
+h323:2025550109@h323.provider-b.invalid
+```
+
+For VRS, the unsupported `tel:` candidate is skipped and the SIP URI is selected. This is a testkit rule, not an iconectiv/Neustar behavior claim.
+
+### Reverse query policy
+
+The CTE has synthetic reverse bindings for userid, IP address, and screen name. These exercise the public reverse-validation concept while avoiding any inference about production indexing or storage.
+
+A compatibility endpoint:
+
+```text
+GET /itrs/v1/query?number=...
+```
+
+remains unauthenticated and loopback-only so the v2 repository can feed the existing JAIN-SIP handoff probe without creating a second signaling oracle.
+
+## Run the CTE slice
 
 ```bash
-bash scripts/run-itrs-mocks.sh
+bash scripts/run-itrs-cte.sh
 ```
 
-The runner compiles Baudot, starts the mock on loopback, waits for `/health`, executes all eight smoke cases, and tears the server down. Set `ITRS_MOCK_PORT` to override port `8799`.
-
-Expected final line:
+The runner proves:
 
 ```text
-iTRS mock probe: 8/8 PASS
+provider session A / B        URD authority
+          \                       /
+           \                     /
+            v                   v
+          provider writes / URD / NPAC
+                    |
+                    v
+            provisioning view
+                    |
+             replication seam
+                    |
+                    v
+               query view
+                 /     \
+                v       v
+        AllCallQuery   reverse query
+                |
+         deterministic URI
+                |
+                v
+        existing JAIN-SIP probe
+                |
+                v
+          mock VRS peer
 ```
 
-## Run the SIP handoff proof
+The repository probe currently covers:
 
-```bash
-bash scripts/run-itrs-sip-handoff.sh
-```
+- provider-session isolation and unauthenticated rejection;
+- valid cross-provider VRS routing;
+- URD-invalid fail-closed behavior;
+- malformed route URI fail-closed behavior;
+- deterministic multi-URI selection;
+- userid/IP reverse-query fixtures;
+- non-default-provider provisioning denial;
+- gaining-provider provisioning based on synthetic NPAC XSPID evidence;
+- provisioning-to-query replication delay;
+- losing-provider write revocation after the gaining provider's first provision;
+- provider-session denial at the URD authority boundary;
+- URD creation of an inactive directory stub;
+- proof that provider provisioning cannot self-assert URD validity; and
+- record inspection of all URI candidates plus the selected route.
 
-The handoff probe performs the first executable iTRS-to-Baudot call slice:
+Expected repository result:
 
 ```text
-2025550101
-  -> mock iTRS query
-  -> sip:2025550101@vrs-a.example.invalid
-  -> JAIN-SIP INVITE
-  -> loopback mock VRS peer
-  -> 200 OK
-  -> ACK
+iTRS CTE probe: 13/13 PASS
 ```
 
-The logical SIP URI remains the SIP Request-URI. A separate loose Route header directs the packet to the loopback mock VRS peer. This is deliberate: the authoritative communications route and the immediate transport destination are not collapsed into one value.
-
-The probe succeeds only if it observes all of the following:
-
-- the iTRS mock returns the expected logical SIP URI;
-- the mock VRS peer receives the INVITE;
-- the INVITE Request-URI still equals the iTRS-derived logical SIP URI;
-- the caller receives `200 OK`; and
-- the mock VRS peer receives the resulting ACK.
-
-Expected final line:
+The same run then executes the existing JAIN-SIP handoff and expects:
 
 ```text
 iTRS -> Baudot -> JAIN-SIP handoff: PASS
 ```
 
-### What this proves
+## Two-provider ACE Connect Lite seam
 
-The handoff trial proves that Baudot can consume an iTRS-derived logical SIP route and establish a standards-shaped SIP transaction through JAIN-SIP while keeping service-discovery transport state separate from the logical Request-URI.
+The provider-fixture work defines ACE Connect Lite behind a provider-neutral SPI and records `/vrsverify/` as the historical number-lookup adapter seam.
 
-### What this does not prove
+`provider-fixtures/ace-connect-lite-dual-provider-v1.json` binds the CTE's synthetic `provider-a` and `provider-b` identities to that fixture vocabulary without making ACE normative iTRS truth. The intended topology is:
 
-It is not a live TRS Numbering Directory test, VRS provider interoperability certification, SIP/SDP media conformance test, emergency-call test, or evidence that any production provider accepts the synthetic signaling. Those belong in later controlled profiles and proving-ground scenarios.
+```text
+ACE Connect Lite A -> CTE provider-A session -> directory
+                                                |
+                                                v
+ACE Connect Lite B <- CTE provider-B session <- route decision
+```
 
-## Architectural rule
+ACE remains an implementation under test, never the authority for iTRS semantics.
 
-The mock suite preserves the same separation as Tilden and Baudot:
+## Architectural boundary
+
+```text
+URD validity ----\
+                  \
+NPAC porting ------> iTRS directory/query decision -> logical route
+                  /                                      |
+provider writes -/                                       v
+                                                        Tilden
+                                                          |
+                                                          v
+                                             SIP service discovery
+                                             NAPTR / SRV / transport
+                                                          |
+                                                          v
+                                                        Baudot
+```
 
 > Resolve the logical route first. Connect second.
 
-A fixture may contain host/port discovery observations for testing, but the stable handoff to Baudot is the logical SIP URI whenever one is available.
+DNS/ENUM/NAPTR/SRV remain downstream discovery evidence. The iTRS mock does not collapse them into directory persistence.
+
+## Claim limits
+
+This is a local clean-room proving ground. It is not:
+
+- a live TRS Numbering Directory test;
+- an implementation of the proprietary Neustar or iconectiv schema;
+- an implementation of the iTRS Provisioning Guide V4.0 or Query Guide V4.1;
+- a reconstruction of production authentication or authorization;
+- a claim about production multi-URI selection;
+- VRS provider interoperability certification;
+- production SIP/SDP media conformance;
+- emergency-call testing; or
+- evidence that any production provider accepts the synthetic signaling.
+
+See `fixtures/README-evidence.md` for the evidence boundary.
