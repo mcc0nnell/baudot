@@ -7,6 +7,8 @@ It currently presents two evidence-first proving lanes:
 - accessible real-time communications interoperability; and
 - the public-data-calibrated Synthetic TRS Fund Lab.
 
+The homepage, architecture, evidence, provenance, and Why Baudot pages share one rule across both lanes: implementation facts are evidence, not authority to make a broader claim.
+
 ## Local development
 
 ```bash
@@ -21,7 +23,9 @@ Build the static site with:
 npm run build
 ```
 
-The production configuration targets `https://mcc0nnell.github.io/baudot/`.
+The production configuration targets `https://mcc0nnell.github.io/baudot/` and the Fund Lab route is `/baudot/fund-lab/`.
+
+GitHub Pages deploys from `main`; pull-request site changes are build-checked first and become public after the corresponding change lands on `main` and the Pages workflow succeeds.
 
 ## Authority
 
