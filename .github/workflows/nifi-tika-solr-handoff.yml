@@ -1,0 +1,229 @@
+name: nifi-tika-solr-handoff
+
+on:
+  pull_request:
+    paths:
+      - 'testkit/business/nifi-tika-solr-handoff-v1.json'
+      - 'scripts/validate_nifi_tika_solr_handoff.py'
+      - 'scripts/run_nifi_tika_solr_handoff.py'
+      - 'docs/nifi-tika-solr-handoff.md'
+      - '.github/workflows/nifi-tika-solr-handoff.yml'
+  push:
+    paths:
+      - 'testkit/business/nifi-tika-solr-handoff-v1.json'
+      - 'scripts/validate_nifi_tika_solr_handoff.py'
+      - 'scripts/run_nifi_tika_solr_handoff.py'
+      - 'docs/nifi-tika-solr-handoff.md'
+      - '.github/workflows/nifi-tika-solr-handoff.yml'
+
+permissions:
+  contents: read
+
+env:
+  COMMON_BASE: '65723f8c6f566f092ebdd4a3901cf8743ca5a0bc'
+  NIFI_HEAD_SHA: 'bf6ffa25423c9107ef3b1ca546bc14f7574116bf'
+  DOCUMENT_HEAD_SHA: '9df3f208cc126d070060f495295c1babbedf6cb6'
+  NIFI_VERSION: '2.11.0'
+  TIKA_VERSION: '4.0.0'
+  SOLR_VERSION: '10.0.0'
+  NIFI_USER: 'baudotadmin'
+  NIFI_PASSWORD: 'synthetic-nifi-test-only'
+  SOLR_USER: 'solr'
+  SOLR_PASSWORD: 'SolrRocks'
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Validate append-only handoff contract
+        run: |
+          python -m py_compile scripts/validate_nifi_tika_solr_handoff.py scripts/run_nifi_tika_solr_handoff.py
+          python scripts/validate_nifi_tika_solr_handoff.py
+      - name: Verify exact sibling head pins share the declared base
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$NIFI_HEAD_SHA"
+          git fetch --no-tags origin "$DOCUMENT_HEAD_SHA"
+          git cat-file -e "$NIFI_HEAD_SHA^{commit}"
+          git cat-file -e "$DOCUMENT_HEAD_SHA^{commit}"
+          git merge-base --is-ancestor "$COMMON_BASE" "$NIFI_HEAD_SHA"
+          git merge-base --is-ancestor "$COMMON_BASE" "$DOCUMENT_HEAD_SHA"
+
+  live-handoff:
+    runs-on: ubuntu-24.04
+    needs: validate
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Compose exact green sibling trees in the CI worktree only
+        run: |
+          set -euo pipefail
+          git config user.name 'Baudot CI'
+          git config user.email 'baudot-ci@invalid.example'
+          git fetch --no-tags origin "$NIFI_HEAD_SHA"
+          git fetch --no-tags origin "$DOCUMENT_HEAD_SHA"
+          git merge --no-edit --no-ff "$NIFI_HEAD_SHA"
+          git merge --no-edit --no-ff "$DOCUMENT_HEAD_SHA"
+          python -m py_compile \
+            scripts/run_nifi_live.py \
+            scripts/run_tika_solr_live.py \
+            scripts/run_nifi_tika_solr_handoff.py
+
+      - name: Start pinned NiFi 2.11.0
+        run: |
+          set -euo pipefail
+          mkdir -p target/nifi-tika-solr-handoff/nifi
+          chmod 777 target/nifi-tika-solr-handoff/nifi
+          docker pull "apache/nifi:${NIFI_VERSION}"
+          docker run -d --name baudot-nifi \
+            -p 127.0.0.1:8443:8443 \
+            -e SINGLE_USER_CREDENTIALS_USERNAME="$NIFI_USER" \
+            -e SINGLE_USER_CREDENTIALS_PASSWORD="$NIFI_PASSWORD" \
+            -e NIFI_WEB_PROXY_HOST='127.0.0.1:8443' \
+            -v "$PWD/target/nifi-tika-solr-handoff/nifi:/data" \
+            "apache/nifi:${NIFI_VERSION}"
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -kfsS https://127.0.0.1:8443/nifi-api/authentication/configuration >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-nifi
+            exit 1
+          fi
+          docker inspect --format='{{.Image}}' baudot-nifi > target/nifi-tika-solr-handoff/nifi-image-id.txt
+
+      - name: Start pinned Tika 4.0.0
+        run: |
+          set -euo pipefail
+          docker pull "apache/tika:${TIKA_VERSION}"
+          docker run -d --name baudot-tika \
+            -p 127.0.0.1:9998:9998 \
+            "apache/tika:${TIKA_VERSION}"
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:9998/version > target/nifi-tika-solr-handoff/tika-version.txt; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-tika
+            exit 1
+          fi
+          docker inspect --format='{{.Image}}' baudot-tika > target/nifi-tika-solr-handoff/tika-image-id.txt
+
+      - name: Bootstrap pinned Solr 10.0.0 and fail-closed auth
+        run: |
+          set -euo pipefail
+          docker pull "solr:${SOLR_VERSION}"
+          docker volume create baudot-solr-data
+          docker run --rm --user root \
+            -v baudot-solr-data:/var/solr \
+            "solr:${SOLR_VERSION}" bash -c \
+            'mkdir -p /var/solr/data && chown -R solr:solr /var/solr'
+          docker run -d --name baudot-solr-bootstrap \
+            -p 127.0.0.1:8983:8983 \
+            -v baudot-solr-data:/var/solr \
+            "solr:${SOLR_VERSION}" solr-precreate baudot_docs
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS 'http://127.0.0.1:8983/solr/baudot_docs/select?q=*:*&wt=json' >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-solr-bootstrap
+            exit 1
+          fi
+          docker stop baudot-solr-bootstrap
+          docker rm baudot-solr-bootstrap
+          docker run --rm --user root \
+            -v baudot-solr-data:/var/solr \
+            -v "$PWD/interop/solr/security/basic-auth-security.json:/tmp/security.json:ro" \
+            "solr:${SOLR_VERSION}" bash -c \
+            'cp /tmp/security.json /var/solr/data/security.json && chown solr:solr /var/solr/data/security.json && chmod 640 /var/solr/data/security.json'
+          docker run -d --name baudot-solr \
+            -p 127.0.0.1:8983:8983 \
+            -v baudot-solr-data:/var/solr \
+            "solr:${SOLR_VERSION}" solr-fg --user-managed
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS -u "$SOLR_USER:$SOLR_PASSWORD" \
+              'http://127.0.0.1:8983/solr/baudot_docs/select?q=*:*&wt=json' >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-solr
+            exit 1
+          fi
+          docker inspect --format='{{.Image}}' baudot-solr > target/nifi-tika-solr-handoff/solr-image-id.txt
+
+      - name: Exercise provenance-preserving composed handoff
+        run: |
+          set -euo pipefail
+          umask 000
+          python scripts/run_nifi_tika_solr_handoff.py \
+            --nifi https://127.0.0.1:8443 \
+            --nifi-user "$NIFI_USER" \
+            --nifi-password "$NIFI_PASSWORD" \
+            --tika http://127.0.0.1:9998 \
+            --solr http://127.0.0.1:8983 \
+            --solr-user "$SOLR_USER" \
+            --solr-password "$SOLR_PASSWORD" \
+            --data-root target/nifi-tika-solr-handoff/nifi \
+            --out target/nifi-tika-solr-handoff/evidence.json
+
+      - name: Verify append-only evidence
+        run: |
+          set -euo pipefail
+          evidence=target/nifi-tika-solr-handoff/evidence.json
+          jq -e '.upstreamEnvelopeUnchanged == true' "$evidence" >/dev/null
+          jq -e '.rawBytesPreserved == true' "$evidence" >/dev/null
+          jq -e '.contentHashMatched == true' "$evidence" >/dev/null
+          jq -e '.indexRoundTripPreservedUpstream == true' "$evidence" >/dev/null
+          jq -e '.derived.derivedEvidenceOnly == true' "$evidence" >/dev/null
+          jq -e '.authority | [ .[] ] | all(. == false)' "$evidence" >/dev/null
+          jq -e '.upstream | keys | sort == ["contentSha256","correlationId","flowId","receivedAt","sourceObjectId","sourceSystem"]' "$evidence" >/dev/null
+          ! grep -Eq '"(documentId|sourceSha256)"' "$evidence"
+
+      - name: Capture service logs
+        if: always()
+        run: |
+          docker logs baudot-nifi > target/nifi-tika-solr-handoff/nifi-container.log 2>&1 || true
+          docker logs baudot-tika > target/nifi-tika-solr-handoff/tika-container.log 2>&1 || true
+          docker logs baudot-solr > target/nifi-tika-solr-handoff/solr-container.log 2>&1 || true
+
+      - name: Preserve bounded handoff evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nifi-tika-solr-handoff-evidence
+          path: target/nifi-tika-solr-handoff/
+          if-no-files-found: warn
+
+      - name: Stop live services
+        if: always()
+        run: |
+          docker rm -f baudot-nifi baudot-tika baudot-solr-bootstrap baudot-solr >/dev/null 2>&1 || true
+          docker volume rm baudot-solr-data >/dev/null 2>&1 || true
