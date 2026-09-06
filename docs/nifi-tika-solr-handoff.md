@@ -2,17 +2,19 @@
 
 This qualification slice composes the live NiFi bulk-ingest and Tika/Solr document-search lanes without making either plane authoritative for the other.
 
-## Composition pins
+## Converged composition evidence
 
-The CI lane deliberately composes the exact current sibling heads instead of merging their pull requests into the shared integration branch just to run a test:
+The two prerequisite lanes were qualified at exact heads and then merged into the shared integration tree:
 
 ```text
-common base     65723f8c6f566f092ebdd4a3901cf8743ca5a0bc
-NiFi #121       bf6ffa25423c9107ef3b1ca546bc14f7574116bf
-Tika/Solr #129  9df3f208cc126d070060f495295c1babbedf6cb6
+common base                65723f8c6f566f092ebdd4a3901cf8743ca5a0bc
+NiFi #121 qualified head   bf6ffa25423c9107ef3b1ca546bc14f7574116bf
+NiFi #121 merge commit     783b038c8b750af617a12e6befba287ce65b13c2
+Tika/Solr #129 head        9df3f208cc126d070060f495295c1babbedf6cb6
+Tika/Solr #129 merge       134e7512dab2393cc9be5a307952a4e9f2857594
 ```
 
-Those trees are merged only inside the Actions worktree. The repository branch topology remains unchanged. A separate closure workflow compares these declared pins with the current PR heads and fails if either sibling moves, so prior qualification cannot silently follow new code.
+The handoff workflow now runs directly against that converged repository tree. The former CI-local sibling fetch/merge machinery and stale-pin workflow have been removed. The exact qualified heads and merge commits remain in the profile as historical evidence.
 
 ## Handoff invariant
 
@@ -34,7 +36,7 @@ sourceObjectId  != documentId rewrite
 contentSha256   != sourceSha256 rewrite
 ```
 
-The NiFi-emitted provenance JSON is treated as an immutable input artifact. Its bytes are hashed before Tika parsing and checked again after Solr indexing. The original staged document bytes are likewise checked before and after downstream processing.
+The NiFi-emitted provenance JSON is an immutable input artifact. Its bytes are hashed before Tika parsing and checked again after Solr indexing. The original staged document bytes are likewise checked before and after downstream processing.
 
 ## Append-only downstream evidence
 
@@ -53,7 +55,7 @@ content
 derivedEvidenceOnly
 ```
 
-The source-content hash and extracted-content hash therefore remain distinct evidence anchors. Solr receives the six upstream NiFi fields unchanged alongside the derived fields. The qualification query reads the record back and verifies every upstream value survived the index round trip.
+The source-content hash and extracted-content hash remain distinct evidence anchors. Solr receives the six upstream NiFi fields unchanged alongside derived fields, and the qualification query proves every upstream value survives the index round trip.
 
 ## Replay and idempotency
 
@@ -69,9 +71,9 @@ The live runner enforces three replay rules:
 
 1. the Solr unique ID is derived only from the stable source identity tuple;
 2. replaying the exact same six-field envelope writes the same Solr ID and must still return exactly one record; and
-3. if that same source identity arrives with a different six-field observation envelope, the search lane rejects it before update rather than overwriting the original provenance or creating a second searchable source.
+3. if the same source identity arrives with a different six-field observation envelope, the search lane rejects it before update instead of overwriting provenance or creating a second searchable source.
 
-That third case is intentionally fail-closed. This slice does not claim an observation ledger. A future observation-history plane may preserve multiple receives/correlations, but it must be introduced explicitly rather than smuggled into general search semantics.
+That third case is intentionally fail-closed. This slice does not claim an observation ledger. Multiple receive/correlation observations require a separate explicit evidence plane.
 
 ## Live path
 
@@ -103,7 +105,7 @@ The cheap validation lane proves the handoff rejects:
 - a missing required upstream field; and
 - provenance aliases such as `documentId` added beside `sourceObjectId`.
 
-These cases are counter-evidence that the happy path is not merely accepting arbitrary downstream normalization.
+These cases provide counter-evidence that the happy path is not merely accepting arbitrary downstream normalization.
 
 ## Authority boundary
 
@@ -142,6 +144,8 @@ The Actions artifact retains:
 - divergent-observation rejection evidence; and
 - explicit non-authority flags.
 
-## Closure condition
+## Done boundary
 
-This slice is complete when the profile/negative qualification, stale-pin check, and live composed handoff are green for the exact #121/#129 heads above. Once #121 and #129 converge into the same repository tree, remove only the CI-local sibling merge machinery. Keep the six-field upstream envelope, stable source-evidence identity, replay gate, negative qualification, and authority boundaries unchanged.
+This slice is done when the converged-tree profile and negative qualification are green and the live NiFi -> Tika -> Solr workflow proves provenance preservation, fail-closed mutation handling, exact-replay idempotency, divergent-observation rejection, fail-closed Solr authentication, retained evidence, and explicit non-authority boundaries on the real repository tree.
+
+Ranger authorization, Shiro user/session authentication, iTRS authority, TRS business authority, compensability, and claim/payment decisions are separate composition boundaries. They do not reopen this handoff slice.
