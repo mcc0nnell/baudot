@@ -78,9 +78,9 @@
       "postingDate": "2026-09-05",
       "event": {
         "id": "EVT-GOV-LEDGER-REJECT-0001",
-        "type": "programAdministrationAccrued",
+        "type": "providerDisbursement",
         "amount": "1.00",
-        "memo": "Synthetic fully authorized correction expected to fail at the closed ledger boundary"
+        "memo": "Synthetic fully authorized payment expected to fail at the closed ledger boundary"
       },
       "authorizationFacts": {
         "eventAuthentic": true,
