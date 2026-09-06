@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Baudot</title>
+  <rect width="64" height="64" rx="12" fill="#0b171c"/>
+  <path d="M18 14h17c9 0 14 4 14 11 0 5-3 8-7 9 6 1 9 5 9 12 0 9-6 14-17 14H18V14zm10 9v8h7c3 0 5-1 5-4s-2-4-5-4h-7zm0 17v11h8c4 0 6-2 6-5 0-4-2-6-6-6h-8z" fill="#35c8e8"/>
+</svg>

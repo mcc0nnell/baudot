@@ -1,0 +1,40 @@
+:root {
+  --sl-color-accent-low: #062c38;
+  --sl-color-accent: #35c8e8;
+  --sl-color-accent-high: #b8f2ff;
+  --sl-color-white: #f7fbfc;
+  --sl-color-gray-1: #e4eef1;
+  --sl-color-gray-2: #bdcdd2;
+  --sl-color-gray-3: #7e949c;
+  --sl-color-gray-4: #4c626b;
+  --sl-color-gray-5: #293e46;
+  --sl-color-gray-6: #172b32;
+  --sl-color-black: #0b171c;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d9f6fb;
+  --sl-color-accent: #006d82;
+  --sl-color-accent-high: #003c49;
+}
+
+.hero h1 {
+  letter-spacing: -0.035em;
+}
+
+.sl-markdown-content code {
+  font-variant-ligatures: none;
+}
+
+.sl-markdown-content table {
+  font-size: 0.92rem;
+}
+
+.sl-markdown-content blockquote {
+  border-inline-start-width: 0.3rem;
+}
+
+:focus-visible {
+  outline: 3px solid var(--sl-color-accent-high);
+  outline-offset: 3px;
+}

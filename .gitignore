@@ -2,3 +2,6 @@ target/
 .idea/
 .vscode/
 *.iml
+site/node_modules/
+site/dist/
+site/.astro/
