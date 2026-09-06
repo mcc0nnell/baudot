@@ -30,7 +30,7 @@ No Shiro actor/session context, Ranger policy decision, iTRS business rule, prov
 
 ## PJSIP admission adapter
 
-`ICallAdmission` is now satisfied in the positive compositions by a Celix bundle linked to the pinned PJPROJECT `pjsip` target. The adapter calls PJSIP's native `pjsip_parse_msg()` parser against a complete synthetic INVITE fixture and accepts only a clean parsed INVITE request.
+`ICallAdmission` is satisfied in the positive compositions by a Celix bundle linked to the pinned PJPROJECT `pjsip` target. The adapter calls PJSIP's native `pjsip_parse_msg()` parser against a complete synthetic INVITE fixture and accepts only a clean parsed INVITE request.
 
 PJSIP's parser tables are initialized through the public `pjsip_endpt_create()` / `pjsip_endpt_destroy()` lifecycle. Endpoint creation constructs PJSIP's internal runtime managers, including its transport manager, but this adapter does not register or start a UDP/TCP transport, bind a listening socket, create an account or dialog, or initialize media/PJSUA2.
 
@@ -85,6 +85,30 @@ AuthorityBoundary       NOT_MODELED
 
 This preserves the distinction between a native signaling capability and an absent RTT capability without inferring authority from the remaining service.
 
+## Controlled PJSIP lifecycle
+
+A separate qualification executable creates a fresh Celix framework using `celix::createFramework()`, installs the already-built PJSIP admission bundle, and performs synchronous bundle lifecycle operations from the process thread.
+
+The required sequence is:
+
+```text
+active:
+  CallAdmission       PJSIP_PARSE_ACCEPTED
+  AuthorityBoundary   NOT_MODELED
+
+stopped:
+  CallAdmission       CAPABILITY_MISSING
+  AuthorityBoundary   NOT_MODELED
+
+restored:
+  CallAdmission       PJSIP_PARSE_ACCEPTED
+  AuthorityBoundary   NOT_MODELED
+```
+
+The stopped phase must have no registered `ICallAdmission` service. The restored phase must again preserve the exact pinned PJPROJECT identity. The lifecycle validator rejects authority or protocol-conformance verdicts in any phase.
+
+This proves a stronger runtime property than the static missing-RTT composition: the same native capability can disappear and reappear in one running Celix framework without another subsystem filling the gap or inferring authority from absence/presence.
+
 ## Core invariants
 
 ```text
@@ -104,12 +128,15 @@ fault injected and observed
 
 capability missing
 != authority inferred from another capability
+
+bundle restarted
+!= prior authority restored or recreated
 ```
 
 ## Why Celix belongs here
 
-Celix remains only the native modular runtime. PJSIP remains the native SIP implementation. Camel, NiFi, Kafka, Shiro, Ranger, Fineract, and the iTRS/Fund planes retain their own responsibilities. The service contract did not change when the synthetic admission provider was replaced with the PJSIP-backed implementation.
+Celix remains only the native modular runtime. PJSIP remains the native SIP implementation. Camel, NiFi, Kafka, Shiro, Ranger, Fineract, and the iTRS/Fund planes retain their own responsibilities. The service contract does not change when a synthetic provider is replaced, stopped, or restored.
 
-## Promotion threshold
+## Next threshold
 
-The next useful slice is controlled runtime lifecycle evidence: stop or remove the PJSIP admission bundle, observe `CAPABILITY_MISSING`, restart or reinstall it, and observe the native capability return. That lifecycle must not manufacture authentication, authorization, protocol-conformance, TRS business-authority, or regulatory-compliance verdicts.
+Move one real admission decision from the existing native PJSIP UAS seam behind `ICallAdmission` while retaining `PJSIP_PARSE_ACCEPTED` as parser evidence only. The next provider should distinguish native parser success from the UAS's own signaling-admission decision, and both must remain separate from Shiro authentication, Ranger authorization, iTRS business authority, and regulatory compliance.
