@@ -1,0 +1,166 @@
+name: tika-solr-document-plane
+
+on:
+  pull_request:
+    paths:
+      - 'testkit/business/tika-solr-document-plane-v1.json'
+      - 'testkit/documents/live/**'
+      - 'interop/solr/security/**'
+      - 'scripts/validate_tika_solr_document_plane.py'
+      - 'scripts/run_tika_solr_live.py'
+      - 'docs/tika-solr-document-plane.md'
+      - '.github/workflows/tika-solr-document-plane.yml'
+  push:
+    paths:
+      - 'testkit/business/tika-solr-document-plane-v1.json'
+      - 'testkit/documents/live/**'
+      - 'interop/solr/security/**'
+      - 'scripts/validate_tika_solr_document_plane.py'
+      - 'scripts/run_tika_solr_live.py'
+      - 'docs/tika-solr-document-plane.md'
+      - '.github/workflows/tika-solr-document-plane.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Compile document-plane validators
+        run: python -m py_compile scripts/validate_tika_solr_document_plane.py scripts/run_tika_solr_live.py
+      - name: Validate Tika and Solr authority boundary
+        run: python scripts/validate_tika_solr_document_plane.py
+      - name: Verify pinned Tika source
+        run: |
+          git init --quiet target/tika-source
+          git -C target/tika-source remote add origin https://github.com/apache/tika.git
+          git -C target/tika-source fetch --quiet --depth=1 origin 514e1b3d8d29726d02ac6a12479d95f5db263379
+          test "$(git -C target/tika-source rev-parse FETCH_HEAD)" = "514e1b3d8d29726d02ac6a12479d95f5db263379"
+      - name: Verify pinned Solr source
+        run: |
+          git init --quiet target/solr-source
+          git -C target/solr-source remote add origin https://github.com/apache/solr.git
+          git -C target/solr-source fetch --quiet --depth=1 origin 6c6c48a6f78486130682ea9c1f7a2723af5a87be
+          test "$(git -C target/solr-source rev-parse FETCH_HEAD)" = "6c6c48a6f78486130682ea9c1f7a2723af5a87be"
+
+  live-tika-solr:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Start pinned Tika 4.0.0
+        run: |
+          mkdir -p target/tika-solr-live
+          docker network create baudot-docs
+          docker pull apache/tika:4.0.0
+          docker run -d --name baudot-tika --network baudot-docs \
+            -p 127.0.0.1:9998:9998 apache/tika:4.0.0
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:9998/version > target/tika-solr-live/tika-version.txt; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-tika
+            exit 1
+          fi
+          docker inspect --format='{{.Image}}' baudot-tika > target/tika-solr-live/tika-image-id.txt
+
+      - name: Bootstrap writable Solr 10.0.0 home and core before enabling auth
+        run: |
+          docker pull solr:10.0.0
+          docker volume create baudot-solr-data
+          docker run --rm --user root \
+            -v baudot-solr-data:/var/solr \
+            solr:10.0.0 bash -c \
+            'mkdir -p /var/solr/data && chown -R solr:solr /var/solr'
+          docker run -d --name baudot-solr-bootstrap --network baudot-docs \
+            -p 127.0.0.1:8983:8983 \
+            -v baudot-solr-data:/var/solr \
+            solr:10.0.0 solr-precreate baudot_docs
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS 'http://127.0.0.1:8983/solr/baudot_docs/select?q=*:*&wt=json' >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-solr-bootstrap
+            exit 1
+          fi
+          docker stop baudot-solr-bootstrap
+          docker rm baudot-solr-bootstrap
+
+      - name: Install fail-closed synthetic Solr security
+        run: |
+          docker run --rm --user root \
+            -v baudot-solr-data:/var/solr \
+            -v "$PWD/interop/solr/security/basic-auth-security.json:/tmp/security.json:ro" \
+            solr:10.0.0 bash -c \
+            'cp /tmp/security.json /var/solr/data/security.json && chown solr:solr /var/solr/data/security.json && chmod 640 /var/solr/data/security.json'
+          # Match the exact mode used by the pinned Solr 10 `solr-precreate` script:
+          # `exec solr-fg --user-managed`.  Generic `solr-foreground` defaults
+          # this image into SolrCloud and cannot reopen the precreated user-managed core.
+          docker run -d --name baudot-solr --network baudot-docs \
+            -p 127.0.0.1:8983:8983 \
+            -v baudot-solr-data:/var/solr \
+            solr:10.0.0 solr-fg --user-managed
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS -u solr:SolrRocks \
+              'http://127.0.0.1:8983/solr/baudot_docs/select?q=*:*&wt=json' >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-solr
+            exit 1
+          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            'http://127.0.0.1:8983/solr/baudot_docs/select?q=*:*&wt=json')
+          case "$code" in
+            401|403) ;;
+            *) echo "anonymous Solr request unexpectedly returned HTTP $code"; exit 1;;
+          esac
+          docker inspect --format='{{.Image}}' baudot-solr > target/tika-solr-live/solr-image-id.txt
+
+      - name: Parse, admit, index, and retrieve bounded fixtures
+        env:
+          BAUDOT_SOLR_PASSWORD: SolrRocks
+        run: |
+          python scripts/run_tika_solr_live.py \
+            --tika http://127.0.0.1:9998 \
+            --solr http://127.0.0.1:8983 \
+            --user solr \
+            --password "$BAUDOT_SOLR_PASSWORD" \
+            --out target/tika-solr-live/evidence.json
+
+      - name: Preserve bounded document-plane evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tika-solr-document-plane-evidence
+          path: target/tika-solr-live/
+          if-no-files-found: warn
+
+      - name: Stop live document services
+        if: always()
+        run: |
+          docker rm -f baudot-solr-bootstrap baudot-solr baudot-tika >/dev/null 2>&1 || true
+          docker volume rm baudot-solr-data >/dev/null 2>&1 || true
+          docker network rm baudot-docs >/dev/null 2>&1 || true

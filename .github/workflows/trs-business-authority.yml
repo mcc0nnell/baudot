@@ -1,0 +1,30 @@
+name: trs-business-authority
+
+on:
+  pull_request:
+    paths:
+      - "docs/adr/0006-apache-native-trs-business-stack.md"
+      - "testkit/business/**"
+      - "scripts/validate_trs_business_authority.py"
+      - ".github/workflows/trs-business-authority.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/adr/0006-apache-native-trs-business-stack.md"
+      - "testkit/business/**"
+      - "scripts/validate_trs_business_authority.py"
+      - ".github/workflows/trs-business-authority.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  authority-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate TRS business authority boundaries
+        run: python scripts/validate_trs_business_authority.py

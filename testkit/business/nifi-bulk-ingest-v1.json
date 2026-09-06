@@ -1,0 +1,77 @@
+{
+  "schema": "baudot.nifi-bulk-ingest@1",
+  "nifi": {
+    "version": "2.11.0",
+    "releaseCommit": "e296b299805a7e3ff4c99916b79cfba16c5e4870",
+    "registryStrategy": "git-flow-registry-client",
+    "nifiRegistryRequired": false
+  },
+  "flows": [
+    {
+      "id": "provider-roster-import",
+      "source": "provider-batch-file",
+      "target": "provider-staging",
+      "mode": "bulk",
+      "requiresSchemaValidation": true,
+      "invalidAction": "quarantine"
+    },
+    {
+      "id": "equipment-inventory-import",
+      "source": "equipment-distributor-batch-file",
+      "target": "ofbiz-staging",
+      "mode": "bulk",
+      "requiresSchemaValidation": true,
+      "invalidAction": "quarantine"
+    },
+    {
+      "id": "fund-contribution-import",
+      "source": "contribution-report-file",
+      "target": "fineract-intent-staging",
+      "mode": "bulk",
+      "requiresSchemaValidation": true,
+      "invalidAction": "quarantine"
+    },
+    {
+      "id": "cdr-backfill-import",
+      "source": "legacy-cdr-file",
+      "target": "kafka-cdr-staging",
+      "mode": "backfill",
+      "requiresSchemaValidation": true,
+      "invalidAction": "quarantine"
+    },
+    {
+      "id": "document-drop-ingest",
+      "source": "permitted-document-drop",
+      "target": "tika-extraction-staging",
+      "mode": "bulk",
+      "requiresSchemaValidation": false,
+      "invalidAction": "quarantine"
+    }
+  ],
+  "requiredEvidence": [
+    "sourceSystem",
+    "sourceObjectId",
+    "receivedAt",
+    "contentSha256",
+    "flowId",
+    "correlationId"
+  ],
+  "forbiddenPromotions": [
+    "subscriberEligible",
+    "providerCertified",
+    "itrsAuthorized",
+    "compensable",
+    "claimApproved",
+    "paymentAuthorized",
+    "fundPeriodClosed",
+    "sourceAuthoritative",
+    "accessibilityReady"
+  ],
+  "authority": {
+    "ingestionCompleteIsBusinessApproval": false,
+    "schemaValidIsSourceAuthoritative": false,
+    "deliveryToKafkaIsCallTruth": false,
+    "deliveryToFineractStagingIsLedgerPosting": false,
+    "deliveryToOFBizStagingIsEligibility": false
+  }
+}

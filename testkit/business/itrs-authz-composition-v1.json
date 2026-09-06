@@ -1,0 +1,149 @@
+{
+  "schema": "baudot.itrs-authz-composition@1",
+  "profile": "synthetic-clean-room",
+  "purpose": "Compose gateway authentication, application authentication, Ranger authorization, protocol validity, and TRS business authority without collapsing their decision domains.",
+  "declaredInputs": {
+    "gatewayAuthentication": "baudot.apisix-api-edge@1",
+    "applicationAuthentication": "baudot.shiro-user-session@1",
+    "rangerAuthorization": "baudot.ranger-itrs-pdp-contract@1",
+    "trsBusinessAuthority": "baudot.trs-business-authority-contract@1"
+  },
+  "decisionOrder": [
+    "gatewayAuthentication",
+    "applicationAuthentication",
+    "rangerAuthorization",
+    "protocolValidity",
+    "trsBusinessAuthority"
+  ],
+  "decisionValues": {
+    "gatewayAuthentication": ["ADMIT", "DENY"],
+    "applicationAuthentication": ["AUTHENTICATED", "DENY", "NOT_EVALUATED"],
+    "rangerAuthorization": ["ALLOW", "DENY", "NOT_EVALUATED"],
+    "protocolValidity": ["VALID", "INVALID", "NOT_EVALUATED"],
+    "trsBusinessAuthority": ["ALLOW", "DENY", "NOT_EVALUATED"]
+  },
+  "subjectHandoff": {
+    "gatewayCredentialForwarded": false,
+    "gatewayPrincipalDirectlyAssertedAsRangerSubject": false,
+    "rangerSubjectSource": "shiro.actorId",
+    "trustedApplicationServiceOnly": true,
+    "correlationIdMayCrossBoundaries": true
+  },
+  "authorityBoundary": {
+    "gatewayAuthenticationIsApplicationAuthentication": false,
+    "gatewayAuthenticationIsRangerAuthorization": false,
+    "applicationAuthenticationIsRangerAuthorization": false,
+    "rangerAuthorizationIsProtocolValidity": false,
+    "rangerAuthorizationIsTrsBusinessAuthority": false,
+    "protocolValidityIsTrsBusinessAuthority": false,
+    "downstreamDecisionAfterUpstreamDeny": "NOT_EVALUATED"
+  },
+  "operation": {
+    "class": "itrs.directory.query",
+    "resourceType": "telephone-number",
+    "resourceId": "synthetic-tn-001"
+  },
+  "cases": [
+    {
+      "id": "ITRS-COMP-001",
+      "description": "gateway denial stops before application authentication",
+      "correlationId": "corr-compose-001",
+      "gatewayAuthentication": "DENY",
+      "applicationAuthentication": "NOT_EVALUATED",
+      "rangerAuthorization": "NOT_EVALUATED",
+      "protocolValidity": "NOT_EVALUATED",
+      "trsBusinessAuthority": "NOT_EVALUATED",
+      "expectedExecute": false
+    },
+    {
+      "id": "ITRS-COMP-002",
+      "description": "gateway admission does not imply application authentication",
+      "correlationId": "corr-compose-002",
+      "gatewayAuthentication": "ADMIT",
+      "applicationAuthentication": "DENY",
+      "rangerAuthorization": "NOT_EVALUATED",
+      "protocolValidity": "NOT_EVALUATED",
+      "trsBusinessAuthority": "NOT_EVALUATED",
+      "expectedExecute": false
+    },
+    {
+      "id": "ITRS-COMP-003",
+      "description": "authenticated application actor remains subject to Ranger deny",
+      "correlationId": "corr-compose-003",
+      "gatewayAuthentication": "ADMIT",
+      "applicationAuthentication": "AUTHENTICATED",
+      "rangerAuthorization": "DENY",
+      "protocolValidity": "NOT_EVALUATED",
+      "trsBusinessAuthority": "NOT_EVALUATED",
+      "expectedExecute": false
+    },
+    {
+      "id": "ITRS-COMP-004",
+      "description": "Ranger allow cannot promote an invalid iTRS operation",
+      "correlationId": "corr-compose-004",
+      "gatewayAuthentication": "ADMIT",
+      "applicationAuthentication": "AUTHENTICATED",
+      "rangerAuthorization": "ALLOW",
+      "protocolValidity": "INVALID",
+      "trsBusinessAuthority": "NOT_EVALUATED",
+      "expectedExecute": false
+    },
+    {
+      "id": "ITRS-COMP-005",
+      "description": "valid protocol and Ranger allow still require independent TRS business authority",
+      "correlationId": "corr-compose-005",
+      "gatewayAuthentication": "ADMIT",
+      "applicationAuthentication": "AUTHENTICATED",
+      "rangerAuthorization": "ALLOW",
+      "protocolValidity": "VALID",
+      "trsBusinessAuthority": "DENY",
+      "expectedExecute": false
+    },
+    {
+      "id": "ITRS-COMP-006",
+      "description": "protected operation executes only after all five decisions succeed",
+      "correlationId": "corr-compose-006",
+      "gatewayAuthentication": "ADMIT",
+      "applicationAuthentication": "AUTHENTICATED",
+      "rangerAuthorization": "ALLOW",
+      "protocolValidity": "VALID",
+      "trsBusinessAuthority": "ALLOW",
+      "expectedExecute": true
+    }
+  ],
+  "evidence": {
+    "schema": "baudot.itrs-authz-composition-evidence@1",
+    "fields": [
+      "caseId",
+      "correlationId",
+      "gatewayAuthentication",
+      "applicationAuthentication",
+      "rangerAuthorization",
+      "protocolValidity",
+      "trsBusinessAuthority",
+      "rangerCalled",
+      "execute"
+    ],
+    "forbiddenFields": [
+      "authorizationHeader",
+      "accessToken",
+      "refreshToken",
+      "password",
+      "telephoneNumber",
+      "subscriberId"
+    ]
+  },
+  "claimBoundary": {
+    "syntheticFixturesOnly": true,
+    "productionGatewaySecurityClaimed": false,
+    "productionIdentityIntegrationClaimed": false,
+    "productionSessionSecurityClaimed": false,
+    "productionRangerCompatibilityClaimed": false,
+    "productionItrsCompatibilityClaimed": false,
+    "subscriberEligibilityClaimed": false,
+    "providerCertificationClaimed": false,
+    "compensabilityClaimed": false,
+    "fundAuthorityClaimed": false,
+    "productionTrsReadinessClaimed": false
+  }
+}

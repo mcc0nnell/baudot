@@ -1,0 +1,77 @@
+{
+  "schema": "baudot.nifi-tika-solr-handoff@1",
+  "composition": {
+    "commonBase": "65723f8c6f566f092ebdd4a3901cf8743ca5a0bc",
+    "nifiPr": 121,
+    "nifiQualifiedHead": "bf6ffa25423c9107ef3b1ca546bc14f7574116bf",
+    "nifiMergeCommit": "783b038c8b750af617a12e6befba287ce65b13c2",
+    "documentPr": 129,
+    "documentQualifiedHead": "9df3f208cc126d070060f495295c1babbedf6cb6",
+    "documentMergeCommit": "134e7512dab2393cc9be5a307952a4e9f2857594",
+    "strategy": "converged-repository-tree"
+  },
+  "runtimePins": {
+    "nifi": "2.11.0",
+    "tika": "4.0.0",
+    "solr": "10.0.0"
+  },
+  "sourceFixture": "testkit/documents/live/public-rule.txt",
+  "handoff": {
+    "flowId": "document-drop-ingest",
+    "rawBytesMustRemainIdentical": true,
+    "upstreamEnvelopeMustRemainByteIdentical": true,
+    "requiredUpstreamFields": [
+      "sourceSystem",
+      "sourceObjectId",
+      "receivedAt",
+      "contentSha256",
+      "flowId",
+      "correlationId"
+    ],
+    "derivedFieldsOnly": [
+      "id",
+      "sourceEvidenceId",
+      "indexRecordId",
+      "extractor",
+      "extractorVersion",
+      "parserHttpStatus",
+      "extractedContentSha256",
+      "indexVersion",
+      "indexedAt",
+      "content",
+      "derivedEvidenceOnly"
+    ],
+    "forbiddenRenames": {
+      "sourceObjectId": "documentId",
+      "contentSha256": "sourceSha256"
+    },
+    "appendOnly": true
+  },
+  "replay": {
+    "sourceIdentityFields": [
+      "sourceSystem",
+      "sourceObjectId",
+      "contentSha256"
+    ],
+    "indexIdDerivedOnlyFromSourceIdentity": true,
+    "exactEnvelopeReplayIsIdempotent": true,
+    "sameSourceDifferentEnvelopeRejectedFromSearch": true,
+    "observationLedgerClaimed": false
+  },
+  "authority": {
+    "nifiAcceptanceIsSourceAuthority": false,
+    "tikaParseSuccessIsSourceAuthenticity": false,
+    "solrIndexSuccessIsSourceAuthority": false,
+    "solrSearchHitIsRegulatoryInterpretation": false,
+    "solrSearchHitIsPolicyDecision": false,
+    "handoffSuccessIsCompensability": false,
+    "handoffSuccessIsClaimApproval": false
+  },
+  "claimBoundary": {
+    "productionPipelineClaimed": false,
+    "productionSearchSecurityClaimed": false,
+    "sourceAuthenticityClaimed": false,
+    "regulatoryInterpretationClaimed": false,
+    "protectedRecordSuitabilityClaimed": false
+  }
+}

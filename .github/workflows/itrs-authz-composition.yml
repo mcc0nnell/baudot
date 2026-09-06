@@ -1,0 +1,39 @@
+name: itrs-authz-composition
+
+on:
+  pull_request:
+    paths:
+      - "testkit/business/itrs-authz-composition-v1.json"
+      - "testkit/business/trs-business-authority-v1.json"
+      - "scripts/validate_itrs_authz_composition.py"
+      - ".github/workflows/itrs-authz-composition.yml"
+  push:
+    branches: [main]
+    paths:
+      - "testkit/business/itrs-authz-composition-v1.json"
+      - "testkit/business/trs-business-authority-v1.json"
+      - "scripts/validate_itrs_authz_composition.py"
+      - ".github/workflows/itrs-authz-composition.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  composition-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Compile composition validator
+        run: python -m py_compile scripts/validate_itrs_authz_composition.py
+      - name: Validate composed authority boundary
+        run: python scripts/validate_itrs_authz_composition.py
+      - name: Preserve bounded composition evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: itrs-authz-composition-evidence
+          path: target/itrs-authz-composition/
+          if-no-files-found: warn

@@ -1,0 +1,345 @@
+{
+  "schema": "baudot.trs-business-authority-contract@1",
+  "profile": "synthetic-clean-room",
+  "purpose": "Make Apache TRS business-role ownership and non-authority boundaries executable without making any infrastructure product canonical Baudot semantics.",
+  "roles": {
+    "shiro": {
+      "owns": [
+        "authenticated-subject",
+        "session-state",
+        "application-roles",
+        "coarse-application-permissions"
+      ],
+      "mustNotOwn": [
+        "trs-policy",
+        "itrs-protocol-validity",
+        "subscriber-eligibility",
+        "provider-certification",
+        "call-compensability"
+      ]
+    },
+    "ranger": {
+      "owns": [
+        "resource-action-context-policy-decision"
+      ],
+      "mustNotOwn": [
+        "identity-proofing",
+        "itrs-protocol-validity",
+        "route-truth",
+        "subscriber-eligibility",
+        "call-compensability",
+        "claim-approval",
+        "payment-authorization"
+      ]
+    },
+    "ofbiz": {
+      "owns": [
+        "equipment-catalog",
+        "inventory",
+        "fulfillment-order",
+        "shipment",
+        "return"
+      ],
+      "mustNotOwn": [
+        "subscriber-eligibility",
+        "provider-certification",
+        "call-compensability",
+        "fund-ledger"
+      ]
+    },
+    "kafka": {
+      "owns": [
+        "cdr-event-transport",
+        "business-event-transport",
+        "durable-event-replay"
+      ],
+      "mustNotOwn": [
+        "cdr-semantic-truth",
+        "route-authority",
+        "call-compensability",
+        "claim-approval",
+        "accessibility-readiness"
+      ]
+    },
+    "fineract": {
+      "owns": [
+        "trs-fund-ledger",
+        "journal-posting",
+        "financial-readback",
+        "reconciliation-state"
+      ],
+      "mustNotOwn": [
+        "provider-certification",
+        "reimbursement-rate-authority",
+        "call-compensability",
+        "claim-approval",
+        "payment-authorization",
+        "contributor-liability-authority"
+      ]
+    },
+    "tika": {
+      "owns": [
+        "document-extraction"
+      ],
+      "mustNotOwn": [
+        "source-authority",
+        "business-policy",
+        "communications-evidence-verdict"
+      ]
+    },
+    "solr": {
+      "owns": [
+        "document-retrieval-index"
+      ],
+      "mustNotOwn": [
+        "source-authority",
+        "business-policy",
+        "communications-evidence-verdict"
+      ]
+    },
+    "camel": {
+      "owns": [
+        "cross-domain-routing",
+        "transformation",
+        "correlation",
+        "retry",
+        "timeout",
+        "idempotency",
+        "connector-invocation"
+      ],
+      "mustNotOwn": [
+        "trs-policy-authority",
+        "route-selection-authority",
+        "protocol-validity",
+        "call-compensability",
+        "accessibility-readiness"
+      ]
+    },
+    "tilden": {
+      "owns": [
+        "route-selection-authority"
+      ],
+      "mustNotOwn": [
+        "baudot-terminal-verdict",
+        "fund-policy"
+      ]
+    },
+    "baudot": {
+      "owns": [
+        "communications-observation",
+        "bounded-evidence-reduction"
+      ],
+      "mustNotOwn": [
+        "business-authorization",
+        "subscriber-eligibility",
+        "fund-policy"
+      ]
+    }
+  },
+  "forbiddenPromotions": [
+    {
+      "from": "shiro.authenticated",
+      "to": "itrs.authorized"
+    },
+    {
+      "from": "ranger.allow",
+      "to": "itrs.protocol-valid"
+    },
+    {
+      "from": "ranger.allow",
+      "to": "route.correct"
+    },
+    {
+      "from": "ofbiz.shipment-complete",
+      "to": "subscriber.eligible"
+    },
+    {
+      "from": "kafka.cdr-persisted",
+      "to": "call.compensable"
+    },
+    {
+      "from": "kafka.cdr-persisted",
+      "to": "claim.approved"
+    },
+    {
+      "from": "fineract.journal-balanced",
+      "to": "claim.approved"
+    },
+    {
+      "from": "fineract.journal-balanced",
+      "to": "payment.authorized"
+    },
+    {
+      "from": "solr.document-retrieved",
+      "to": "source.authoritative"
+    },
+    {
+      "from": "camel.workflow-complete",
+      "to": "accessibility.ready"
+    }
+  ],
+  "itrsPolicy": {
+    "policyDecisionPoint": "ranger",
+    "identitySource": "shiro",
+    "protocolGate": "baudot-itrs-service",
+    "resources": [
+      "provider",
+      "subscriber",
+      "telephone-number",
+      "registration",
+      "routing-record",
+      "cdr"
+    ],
+    "actions": [
+      "query",
+      "create",
+      "update",
+      "assign",
+      "route",
+      "read-cdr"
+    ],
+    "requiredRequestContext": [
+      "subjectId",
+      "providerId",
+      "resourceType",
+      "resourceId",
+      "action",
+      "correlationId"
+    ],
+    "decisionValues": [
+      "ALLOW",
+      "DENY"
+    ],
+    "fixtures": [
+      {
+        "id": "ITRS-POLICY-001",
+        "description": "Authenticated provider operator, allowed same-provider query, protocol-valid request.",
+        "authenticated": true,
+        "subject": {
+          "subjectId": "user-provider-a-01",
+          "providerId": "provider-a",
+          "roles": [
+            "provider-operator"
+          ]
+        },
+        "request": {
+          "providerId": "provider-a",
+          "resourceType": "subscriber",
+          "resourceId": "synthetic-subscriber-001",
+          "action": "query",
+          "correlationId": "corr-policy-001"
+        },
+        "rangerDecision": "ALLOW",
+        "protocolValid": true,
+        "expectedExecute": true
+      },
+      {
+        "id": "ITRS-POLICY-002",
+        "description": "Authenticated provider operator denied cross-provider CDR access.",
+        "authenticated": true,
+        "subject": {
+          "subjectId": "user-provider-a-01",
+          "providerId": "provider-a",
+          "roles": [
+            "provider-operator"
+          ]
+        },
+        "request": {
+          "providerId": "provider-b",
+          "resourceType": "cdr",
+          "resourceId": "synthetic-cdr-002",
+          "action": "read-cdr",
+          "correlationId": "corr-policy-002"
+        },
+        "rangerDecision": "DENY",
+        "protocolValid": true,
+        "expectedExecute": false
+      },
+      {
+        "id": "ITRS-POLICY-003",
+        "description": "Ranger allows the requested resource/action, but malformed iTRS content still fails the independent protocol gate.",
+        "authenticated": true,
+        "subject": {
+          "subjectId": "user-provider-a-02",
+          "providerId": "provider-a",
+          "roles": [
+            "provider-operator"
+          ]
+        },
+        "request": {
+          "providerId": "provider-a",
+          "resourceType": "registration",
+          "resourceId": "synthetic-registration-003",
+          "action": "update",
+          "correlationId": "corr-policy-003"
+        },
+        "rangerDecision": "ALLOW",
+        "protocolValid": false,
+        "expectedExecute": false
+      },
+      {
+        "id": "ITRS-POLICY-004",
+        "description": "Unauthenticated request cannot execute even if a synthetic policy fixture says ALLOW.",
+        "authenticated": false,
+        "subject": {
+          "subjectId": "anonymous",
+          "providerId": "provider-a",
+          "roles": []
+        },
+        "request": {
+          "providerId": "provider-a",
+          "resourceType": "telephone-number",
+          "resourceId": "2025550101",
+          "action": "query",
+          "correlationId": "corr-policy-004"
+        },
+        "rangerDecision": "ALLOW",
+        "protocolValid": true,
+        "expectedExecute": false
+      }
+    ]
+  },
+  "crossDomainFlows": [
+    {
+      "id": "FLOW-IDENTITY-POLICY-ITRS",
+      "steps": [
+        "shiro.authenticated-subject",
+        "ranger.resource-action-context-policy-decision",
+        "baudot-itrs-service.protocol-gate",
+        "camel.connector-invocation",
+        "kafka.business-event-transport"
+      ]
+    },
+    {
+      "id": "FLOW-EQUIPMENT",
+      "steps": [
+        "external-eligibility-decision",
+        "ofbiz.fulfillment-order",
+        "ofbiz.shipment",
+        "kafka.business-event-transport"
+      ]
+    },
+    {
+      "id": "FLOW-CALL-TO-FUND",
+      "steps": [
+        "baudot.communications-observation",
+        "kafka.cdr-event-transport",
+        "external-compensability-decision",
+        "external-claim-approval",
+        "fineract.journal-posting",
+        "fineract.financial-readback"
+      ]
+    }
+  ],
+  "claimBoundary": {
+    "syntheticFixturesOnly": true,
+    "productionIdentityDataUsed": false,
+    "productionSubscriberDataUsed": false,
+    "productionCdrDataUsed": false,
+    "productionFundDataUsed": false,
+    "productionItrsCompatibilityClaimed": false,
+    "rangerWireCompatibilityClaimed": false,
+    "ofbizProductionSuitabilityClaimed": false,
+    "productionTrsReadinessClaimed": false
+  }
+}
