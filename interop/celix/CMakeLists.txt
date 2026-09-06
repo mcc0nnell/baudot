@@ -32,6 +32,7 @@ add_subdirectory(
 )
 
 set(BAUDOT_CELIX_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(BAUDOT_PJSIP_INTEROP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../pjsip")
 
 function(baudot_configure_bundle target)
   target_include_directories(${target} PRIVATE "${BAUDOT_CELIX_INCLUDE_DIR}")
@@ -57,6 +58,7 @@ add_celix_bundle(PjsipCallAdmissionBundle
   GROUP "baudot/celix-lab"
 )
 baudot_configure_bundle(PjsipCallAdmissionBundle)
+target_include_directories(PjsipCallAdmissionBundle PRIVATE "${BAUDOT_PJSIP_INTEROP_INCLUDE_DIR}")
 # pjproject's pjsip target keeps pjlib-util private even though public PJSIP
 # parser headers include pjlib-util/scanner.h. Make that compile-time/runtime
 # dependency explicit at the adapter seam instead of duplicating include paths.
