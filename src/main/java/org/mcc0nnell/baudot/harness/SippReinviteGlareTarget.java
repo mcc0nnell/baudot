@@ -89,6 +89,11 @@ public final class SippReinviteGlareTarget {
                 throw new IllegalStateException("SIPp glare JAIN target did not complete expected target-side state");
             }
         }
+
+        // The verdict and evidence are sealed before this point. Terminate the
+        // standalone process explicitly so JAIN SIP implementation threads
+        // cannot hold the bounded external gate open after success.
+        System.exit(0);
     }
 
     private static String env(String name, String fallback) {
