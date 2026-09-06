@@ -51,8 +51,8 @@ def main() -> None:
 
     require(journal["authority"] == "synthetic-accounting-adapter-only",
             "Fineract promoted into payment/program authority")
-    require(journal["fineractApiSurface"]["reversal"].endswith("/reversal"),
-            "canonical Fineract reversal surface missing")
+    require(journal["fineractApiSurface"]["reversal"] == "/api/v1/journalentries/{transactionId}?command=reverse",
+            "canonical Fineract 1.15 reversal surface missing")
     require("posting-after-accounting-closure-must-fail-or-use-an-authorized-open-date" in journal["invariants"],
             "canonical accounting-closure invariant missing")
 
