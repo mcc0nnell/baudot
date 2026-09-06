@@ -1,0 +1,71 @@
+{
+  "schema": "baudot.dual-ace-asterisk-sip@1",
+  "authority": "synthetic-clean-room",
+  "stackedOn": "PR #69",
+  "aceSource": {
+    "repository": "https://github.com/mitrefccace/aceconnectlite",
+    "commit": "da74e6450193be1456ce2cdf65dd5ffdf0e92f1e",
+    "modified": false
+  },
+  "asteriskFixture": {
+    "source": "Ubuntu 24.04 distro package",
+    "expectedMajor": 20,
+    "ownership": "Baudot-controlled configuration",
+    "instances": [
+      {
+        "id": "asterisk-a",
+        "amiPort": 5038,
+        "sipPort": 5068,
+        "providerSession": "provider-a",
+        "fromTn": "2025550101",
+        "jainSipProxyPort": 5092
+      },
+      {
+        "id": "asterisk-b",
+        "amiPort": 5039,
+        "sipPort": 5069,
+        "providerSession": "provider-b",
+        "fromTn": "2025550103",
+        "jainSipProxyPort": 5093
+      }
+    ]
+  },
+  "routingBoundary": {
+    "classification": "/vrsverify/ consumed by unmodified ACE Connect Lite",
+    "logicalRoute": "authenticated CTE AllCallQuery executed by Asterisk AGI",
+    "transport": "Asterisk PJSIP outbound_proxy to loopback JAIN-SIP evidence peer"
+  },
+  "probes": [
+    {
+      "name": "provider-a-to-provider-b-signaling",
+      "aceInstance": "ace-a",
+      "destinationTn": "2025550103",
+      "expectedRouteUri": "sip:2025550103@provider-b.invalid",
+      "expectedProxy": "sip:127.0.0.1:5092;lr",
+      "expectedSignaling": ["INVITE", "200", "ACK", "BYE", "200"]
+    },
+    {
+      "name": "provider-b-to-provider-a-signaling",
+      "aceInstance": "ace-b",
+      "destinationTn": "2025550101",
+      "expectedRouteUri": "sip:2025550101@vrs-a.example.invalid",
+      "expectedProxy": "sip:127.0.0.1:5093;lr",
+      "expectedSignaling": ["INVITE", "200", "ACK", "BYE", "200"]
+    },
+    {
+      "name": "provider-a-fail-closed",
+      "aceInstance": "ace-a",
+      "destinationTn": "2025550105",
+      "expectedAceContext": "from-phones",
+      "expectedRouteQuery": false,
+      "expectedSipInvite": false
+    }
+  ],
+  "claimBoundary": [
+    "The historical ACE application is unmodified and still owns the /vrsverify/-driven context decision.",
+    "The Asterisk configuration and AGI are Baudot-owned fixtures, not reconstructed ACE/FCC/provider dialplans.",
+    "The AGI consumes the Baudot CTE test API, not a production Numbering Administrator interface.",
+    "The JAIN-SIP peers are synthetic remote VRS gateways; this does not prove production provider interoperability or media/RTT conformance.",
+    "A passing run proves a signaling-level synthetic path from ACE through real Asterisk into a CTE-derived SIP Request-URI."
+  ]
+}

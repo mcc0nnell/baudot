@@ -4,6 +4,8 @@ Deterministic, clean-room fixtures and local services for exercising iTRS-derive
 
 Nothing here is production authority. The suite contains no live subscriber data, provider configuration, proprietary Neustar/iconectiv schema, production credentials, or copied ACE Direct source.
 
+For the full progression from deterministic fixtures through the dual-ACE/Asterisk signaling lab, see [`docs/itrs-vrs-interoperability-lab.md`](../../docs/itrs-vrs-interoperability-lab.md).
+
 ## Two proving layers
 
 ### v1: resolution and service-discovery vectors
@@ -209,20 +211,59 @@ The same run then executes the existing JAIN-SIP handoff and expects:
 iTRS -> Baudot -> JAIN-SIP handoff: PASS
 ```
 
-## Two-provider ACE Connect Lite seam
+## Two-provider ACE Connect Lite and Asterisk slices
 
-The provider-fixture work defines ACE Connect Lite behind a provider-neutral SPI and records `/vrsverify/` as the historical number-lookup adapter seam.
+The historical implementation fixture is pinned to public `mitrefccace/aceconnectlite` source at commit `da74e6450193be1456ce2cdf65dd5ffdf0e92f1e`.
 
-`provider-fixtures/ace-connect-lite-dual-provider-v1.json` binds the CTE's synthetic `provider-a` and `provider-b` identities to that fixture vocabulary without making ACE normative iTRS truth. The intended topology is:
+The source-observed `/vrsverify/?vrsnum=...` call is treated only as an ACE **classification seam**. Baudot's compatibility adapter returns the fields the historical consumer demonstrably reads; it does not invent a logical route field. AllCallQuery remains the route authority.
+
+The evidence ladder is:
 
 ```text
-ACE Connect Lite A -> CTE provider-A session -> directory
-                                                |
-                                                v
-ACE Connect Lite B <- CTE provider-B session <- route decision
+public-evidence iTRS CTE
+        |
+        +--> ACE /vrsverify/ compatibility adapter
+        |
+        +--> two pinned ACE Connect Lite runtimes
+                    |
+                    +--> real AMI
+                           |
+                           v
+                    controlled Asterisk A/B
+                           |
+                    authenticated AllCallQuery
+                           |
+                     exact logical URI
+                           |
+                     PJSIP + proxy
+                           |
+                           v
+                      JAIN-SIP peer
 ```
 
-ACE remains an implementation under test, never the authority for iTRS semantics.
+The dual-ACE runtime slice boots two isolated, unmodified ACE Connect Lite application instances and drives their real historical `outbound-call` handlers.
+
+The Asterisk slice replaces the AMI stubs with two controlled Asterisk instances. Its dialplan performs an authenticated AllCallQuery after ACE selects `outbound-CA`, then sends the exact returned logical SIP URI through PJSIP to a separate loopback JAIN-SIP evidence peer.
+
+Expected positive routes are:
+
+```text
+provider A -> 2025550103 -> sip:2025550103@provider-b.invalid
+provider B -> 2025550101 -> sip:2025550101@vrs-a.example.invalid
+```
+
+The `2025550105` negative control is URD-invalid and must remain on ACE's `from-phones` path without reaching the route AGI or JAIN-SIP peer.
+
+Target terminal verdicts are:
+
+```text
+Dual ACE Connect Lite runtime lab: 5/5 PASS
+Dual ACE -> Asterisk -> JAIN-SIP lab: 8/8 PASS
+```
+
+Those strings remain targets until actually emitted by completed workflows for the exact commit under evaluation. Queue state, expected output, syntax checks, or local compilation do not promote a runtime claim.
+
+ACE remains an implementation under test, never the authority for iTRS semantics or the terminal Baudot verdict.
 
 ## Architectural boundary
 
@@ -260,4 +301,6 @@ This is a local clean-room proving ground. It is not:
 - emergency-call testing; or
 - evidence that any production provider accepts the synthetic signaling.
 
-See `fixtures/README-evidence.md` for the evidence boundary.
+Even after a signaling workflow is independently verified, RTT/T.140/RFC 4103 media remains a separate evidence layer.
+
+See `fixtures/README-evidence.md` for the public-source boundary and [`docs/itrs-vrs-interoperability-lab.md`](../../docs/itrs-vrs-interoperability-lab.md) for the full evidence ladder and promotion rules.
