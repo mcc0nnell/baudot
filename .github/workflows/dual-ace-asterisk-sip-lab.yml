@@ -57,3 +57,15 @@ jobs:
 
       - name: Run ACE -> Asterisk -> JAIN-SIP evidence path
         run: bash scripts/run-dual-ace-asterisk-sip-lab.sh .lab/aceconnectlite
+
+      - name: Upload signaling evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dual-ace-asterisk-sip-evidence
+          if-no-files-found: warn
+          path: |
+            /tmp/baudot-dual-ace-asterisk/traces
+            /tmp/baudot-dual-ace-asterisk/logs
+            /tmp/baudot-dual-ace-asterisk/asterisk-a/etc
+            /tmp/baudot-dual-ace-asterisk/asterisk-b/etc
