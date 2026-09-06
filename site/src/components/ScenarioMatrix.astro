@@ -1,0 +1,49 @@
+---
+import { readFileSync, readdirSync } from 'node:fs';
+
+const directory = new URL('../../../testkit/scenarios/', import.meta.url);
+const scenarios = readdirSync(directory)
+  .filter((name) => name.endsWith('.json'))
+  .map((name) => JSON.parse(readFileSync(new URL(name, directory), 'utf8')))
+  .sort((a, b) => a.id.localeCompare(b.id));
+
+const statusClass = (status) => `status status-${String(status).toLowerCase()}`;
+---
+
+<div class="matrix-wrap">
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>Scenario</th>
+        <th>Status</th>
+        <th>Objective</th>
+        <th>Before proven</th>
+        <th>Claim exclusions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {scenarios.map((scenario) => (
+        <tr>
+          <td><code>{scenario.id}</code></td>
+          <td><span class={statusClass(scenario.status)}>{scenario.status}</span></td>
+          <td>{scenario.objective}</td>
+          <td>{scenario.requiredBeforeProven?.length ?? 0}</td>
+          <td>{scenario.claimBoundary?.doesNotEstablish?.length ?? 0}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="source-note">Generated at build time from <code>testkit/scenarios/*.json</code>.</p>
+</div>
+
+<style>
+  .matrix-wrap { margin:1.5rem 0 2rem; overflow-x:auto; }
+  .matrix { width:100%; min-width:58rem; border-collapse:collapse; font-size:.82rem; }
+  .matrix th, .matrix td { padding:.7rem .75rem; border-bottom:1px solid var(--sl-color-gray-5); vertical-align:top; text-align:left; }
+  .matrix th { color:var(--sl-color-gray-2); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; }
+  .matrix td:nth-child(1), .matrix td:nth-child(2), .matrix td:nth-child(4), .matrix td:nth-child(5) { white-space:nowrap; }
+  .status { display:inline-block; padding:.15rem .42rem; border-radius:999px; border:1px solid var(--sl-color-gray-5); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; }
+  .status-runnable { border-color:color-mix(in srgb,#67bd8a 70%,var(--sl-color-gray-5)); color:#86d5a5; }
+  .status-planned { color:var(--sl-color-gray-3); }
+  .source-note { margin:.65rem 0 0; color:var(--sl-color-gray-3); font-size:.72rem; }
+</style>
