@@ -79,6 +79,7 @@ class FundState:
     last_seq: int = 0
     transaction_effects: Mapping[str, FundEffect] = field(default_factory=dict)
     transaction_types: Mapping[str, EventType] = field(default_factory=dict)
+    transaction_dates: Mapping[str, str] = field(default_factory=dict)
     reversed_transactions: frozenset[str] = frozenset()
 
 
@@ -144,6 +145,17 @@ def validate_event(state: FundState, event: FundEvent) -> None:
             raise ValueError("target transaction does not exist or has no financial effect")
         if state.transaction_types.get(target) == "TRANSACTION_REVERSED":
             raise ValueError("a reversal cannot target another reversal")
+        target_date = state.transaction_dates.get(target)
+        if target_date is None:
+            raise ValueError("target transaction has no accounting effective date")
+        if state.closed_through and target_date <= state.closed_through:
+            raise ValueError(
+                "target transaction is in a closed accounting period; use a compensating adjustment on an authorized open date"
+            )
+        if event.effective_date != target_date:
+            raise ValueError(
+                "TRANSACTION_REVERSED effective_date must equal target transaction date because Fineract reverses on the original journal date"
+            )
 
     if event.event_type in ADJUSTMENT_EVENT_TYPES:
         target = event.target_transaction_id
@@ -223,6 +235,7 @@ def apply_event(state: FundState, event: FundEvent) -> FundState:
 
     effects = dict(next_state.transaction_effects)
     types = dict(next_state.transaction_types)
+    dates = dict(next_state.transaction_dates)
     reversed_transactions = set(next_state.reversed_transactions)
 
     if event.event_type == "TRANSACTION_REVERSED":
@@ -234,10 +247,12 @@ def apply_event(state: FundState, event: FundEvent) -> FundState:
         reversed_transactions.add(target)
         effects[event.transaction_id] = reversal_effect
         types[event.transaction_id] = event.event_type
+        dates[event.transaction_id] = event.effective_date
         return replace(
             next_state,
             transaction_effects=effects,
             transaction_types=types,
+            transaction_dates=dates,
             reversed_transactions=frozenset(reversed_transactions),
         )
 
@@ -246,7 +261,8 @@ def apply_event(state: FundState, event: FundEvent) -> FundState:
         next_state = _apply_effect(next_state, effect)
         effects[event.transaction_id] = effect
         types[event.transaction_id] = event.event_type
-        return replace(next_state, transaction_effects=effects, transaction_types=types)
+        dates[event.transaction_id] = event.effective_date
+        return replace(next_state, transaction_effects=effects, transaction_types=types, transaction_dates=dates)
 
     return next_state
 
