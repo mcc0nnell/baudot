@@ -57,7 +57,10 @@ add_celix_bundle(PjsipCallAdmissionBundle
   GROUP "baudot/celix-lab"
 )
 baudot_configure_bundle(PjsipCallAdmissionBundle)
-target_link_libraries(PjsipCallAdmissionBundle PRIVATE pjsip)
+# pjproject's pjsip target keeps pjlib-util private even though public PJSIP
+# parser headers include pjlib-util/scanner.h. Make that compile-time/runtime
+# dependency explicit at the adapter seam instead of duplicating include paths.
+target_link_libraries(PjsipCallAdmissionBundle PRIVATE pjsip pjlib-util)
 
 add_celix_bundle(FaultInjectedCallAdmissionBundle
   SOURCES src/fault_injected_call_admission_bundle.cc
