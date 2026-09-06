@@ -1,0 +1,49 @@
+name: mcp-readonly-evidence-tools
+
+on:
+  pull_request:
+    paths:
+      - 'testkit/mcp/**'
+      - 'scripts/validate_mcp_readonly_tools.py'
+      - 'interop/mcp/camel-readonly/**'
+      - 'docs/mcp-readonly-evidence-tools.md'
+      - '.github/workflows/mcp-readonly-evidence-tools.yml'
+  push:
+    paths:
+      - 'testkit/mcp/**'
+      - 'scripts/validate_mcp_readonly_tools.py'
+      - 'interop/mcp/camel-readonly/**'
+      - 'docs/mcp-readonly-evidence-tools.md'
+      - '.github/workflows/mcp-readonly-evidence-tools.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Validate neutral read-only MCP contract
+        run: python scripts/validate_mcp_readonly_tools.py
+      - name: Verify pinned Camel release source
+        run: |
+          git init --quiet target/camel-source
+          git -C target/camel-source remote add origin https://github.com/apache/camel.git
+          git -C target/camel-source fetch --quiet --depth=1 origin 1a54683f4becad3b32df42507e709526d8563f35
+          test "$(git -C target/camel-source rev-parse FETCH_HEAD)" = "1a54683f4becad3b32df42507e709526d8563f35"
+
+  camel-mcp-live:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Run released Camel 4.22 MCP qualification lane
+        run: mvn -B -ntp -f interop/mcp/camel-readonly/pom.xml test

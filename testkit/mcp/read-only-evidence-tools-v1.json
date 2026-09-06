@@ -1,0 +1,74 @@
+{
+  "schema": "baudot.mcp-readonly-evidence-tools@1",
+  "implementationLane": {
+    "project": "apache-camel",
+    "version": "4.22.0",
+    "releaseTag": "camel-4.22.0",
+    "releaseCommit": "1a54683f4becad3b32df42507e709526d8563f35",
+    "mcpModule": "camel-mcp-server",
+    "toolModule": "camel-ai-tool",
+    "supportLevel": "preview",
+    "transport": "streamable-http"
+  },
+  "futureReferenceAdapter": {
+    "project": "apache-juneau",
+    "releasedMcpRuntimeRequiredBeforeQualification": true,
+    "snapshotIsNormativeDependency": false
+  },
+  "tagAllowlist": ["baudot-evidence-readonly"],
+  "tools": [
+    {
+      "name": "inspect_dialog",
+      "fixture": "inspect_dialog.json",
+      "input": ["runId"],
+      "annotations": {"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false}
+    },
+    {
+      "name": "observe_sip_trace",
+      "fixture": "observe_sip_trace.json",
+      "input": ["runId"],
+      "annotations": {"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false}
+    },
+    {
+      "name": "compare_sdp",
+      "fixture": "compare_sdp.json",
+      "input": ["runId"],
+      "annotations": {"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false}
+    },
+    {
+      "name": "export_evidence",
+      "fixture": "export_evidence.json",
+      "input": ["runId"],
+      "annotations": {"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false}
+    }
+  ],
+  "forbiddenMutationTools": [
+    "originate_call",
+    "inject_rtt",
+    "mutate_sip",
+    "dial_destination",
+    "inject_media",
+    "terminate_live_call"
+  ],
+  "equivalenceBoundary": {
+    "directFixtureAndMcpResultMustMatchExactly": true,
+    "correlationIdMustBePreserved": true,
+    "evidenceRefsMustBePreserved": true,
+    "mcpObjectIsCanonicalBaudotSemantics": false,
+    "toolCompletionIsAccessibilityVerdict": false
+  },
+  "deploymentBoundary": {
+    "syntheticCiUsesProductionCredentials": false,
+    "productionAuthenticationRequired": true,
+    "protectedMutationRequiresRangerDecision": true,
+    "toolHintsAreAuthorization": false
+  },
+  "authorityBoundary": {
+    "mcpToolListedIsAuthorized": false,
+    "mcpToolCallSuccessIsProtocolValidity": false,
+    "inspectDialogIsDialogAuthority": false,
+    "compareSdpIsMediaUsability": false,
+    "observeSipTraceIsAccessibilityReady": false,
+    "exportEvidenceCreatesNewEvidenceTruth": false
+  }
+}
