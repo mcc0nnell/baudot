@@ -256,14 +256,15 @@ recv_pid=""
 rm -f "$READY"
 
 failure_stage="raw-arrival-reconstruct"
-set +e
-python3 "$ROOT/scripts/tty_rtp_udp.py" reconstruct \
+if python3 "$ROOT/scripts/tty_rtp_udp.py" reconstruct \
   "$CASE/post-route.rtpseq" \
   "$CASE/raw-arrival-order.wav" \
   >"$CASE/raw-reconstruct.json" \
-  2>"$CASE/raw-reconstruct.stderr.txt"
-RAW_EXIT=$?
-set -e
+  2>"$CASE/raw-reconstruct.stderr.txt"; then
+  RAW_EXIT=0
+else
+  RAW_EXIT=$?
+fi
 printf '%s\n' "$RAW_EXIT" >"$CASE/raw-reconstruct.exit-code.txt"
 if (( RAW_EXIT == 0 )); then
   echo "arrival-order reconstruction unexpectedly accepted reordered RTP" >&2
