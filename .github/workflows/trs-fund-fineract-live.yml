@@ -71,13 +71,15 @@ jobs:
           repository: apache/fineract
           ref: d5636847ac556c30b437254c353f05526d172b97
           path: .lab/fineract
-          fetch-depth: 1
+          fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
 
       - name: Verify Fineract source identity
         working-directory: .lab/fineract
         run: |
           test "$(git rev-parse HEAD)" = "$FINERACT_COMMIT"
+          test "$(git rev-list -n 1 "$FINERACT_RELEASE")" = "$FINERACT_COMMIT"
           printf '%s\n' "$FINERACT_COMMIT" > ../../build/evidence/fineract-source-commit.txt
           printf '%s\n' "$FINERACT_RELEASE" > ../../build/evidence/fineract-release.txt
 
