@@ -39,8 +39,13 @@ def sha256_bytes(data: bytes) -> str:
 
 
 def prepare_root(root: Path) -> None:
-    if root.exists():
-        shutil.rmtree(root)
+    # Keep the bind-mount directory itself intact while clearing prior evidence.
+    root.mkdir(parents=True, exist_ok=True)
+    for child in root.iterdir():
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
     for relative in ("input/document", "staged/document", "staged/envelope", "quarantine/document"):
         path = root / relative
         path.mkdir(parents=True, exist_ok=True)
