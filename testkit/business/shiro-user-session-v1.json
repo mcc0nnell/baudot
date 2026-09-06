@@ -1,0 +1,199 @@
+{
+  "schema": "baudot.shiro-user-session@1",
+  "shiro": {
+    "version": "3.0.1",
+    "releaseTag": "shiro-root-3.0.1",
+    "releaseCommit": "3dcc3fc2a8ddae21ea76a8c55637aa165f368357",
+    "repository": "apache/shiro",
+    "role": "application-user-authentication-and-session-context"
+  },
+  "subjectContext": {
+    "fields": [
+      "actorId",
+      "actorType",
+      "tenantId",
+      "providerId",
+      "roles",
+      "sessionId",
+      "authenticatedAt",
+      "authenticationStrength"
+    ],
+    "forbiddenFields": [
+      "password",
+      "passwordHash",
+      "accessToken",
+      "refreshToken",
+      "telephoneNumber",
+      "subscriberName",
+      "subscriberAddress",
+      "eligibilityApproved",
+      "identityVerified",
+      "compensable",
+      "claimApproved",
+      "paymentAuthorized"
+    ]
+  },
+  "actorTypes": [
+    "provider-user",
+    "operator",
+    "service-account"
+  ],
+  "authenticationStrength": [
+    "authenticated",
+    "remembered"
+  ],
+  "rangerHandoff": {
+    "trustedServiceOnly": true,
+    "requiresAuthenticatedSubjectForProtectedOperation": true,
+    "rememberedSubjectMayAuthorizeProtectedOperation": false,
+    "forwardedFields": [
+      "actorId",
+      "actorType",
+      "tenantId",
+      "providerId",
+      "roles",
+      "sessionId"
+    ]
+  },
+  "authorityBoundary": {
+    "shiroAuthenticationIsRangerAuthorization": false,
+    "shiroRoleIsItrsAuthorization": false,
+    "shiroSessionIsSubscriberEligibility": false,
+    "shiroAuthenticationIsUrdIdentityVerification": false,
+    "shiroAuthenticationIsProtocolValidity": false,
+    "shiroAuthenticationIsCompensability": false,
+    "shiroAuthenticationIsClaimApproval": false,
+    "shiroAuthenticationIsPaymentAuthorization": false
+  },
+  "cases": [
+    {
+      "id": "SHIRO-001",
+      "description": "valid provider operator login",
+      "credentialsValid": true,
+      "remembered": false,
+      "sessionActive": true,
+      "trustedService": true,
+      "rangerDecision": "ALLOW",
+      "protocolValid": true,
+      "expect": {
+        "authenticated": true,
+        "rangerMayBeCalled": true,
+        "operationMayExecute": true
+      }
+    },
+    {
+      "id": "SHIRO-002",
+      "description": "invalid credentials never establish a protected subject",
+      "credentialsValid": false,
+      "remembered": false,
+      "sessionActive": false,
+      "trustedService": true,
+      "rangerDecision": "ALLOW",
+      "protocolValid": true,
+      "expect": {
+        "authenticated": false,
+        "rangerMayBeCalled": false,
+        "operationMayExecute": false
+      }
+    },
+    {
+      "id": "SHIRO-003",
+      "description": "expired session fails closed before policy",
+      "credentialsValid": true,
+      "remembered": false,
+      "sessionActive": false,
+      "trustedService": true,
+      "rangerDecision": "ALLOW",
+      "protocolValid": true,
+      "expect": {
+        "authenticated": false,
+        "rangerMayBeCalled": false,
+        "operationMayExecute": false
+      }
+    },
+    {
+      "id": "SHIRO-004",
+      "description": "authenticated subject still cannot bypass Ranger deny",
+      "credentialsValid": true,
+      "remembered": false,
+      "sessionActive": true,
+      "trustedService": true,
+      "rangerDecision": "DENY",
+      "protocolValid": true,
+      "expect": {
+        "authenticated": true,
+        "rangerMayBeCalled": true,
+        "operationMayExecute": false
+      }
+    },
+    {
+      "id": "SHIRO-005",
+      "description": "remembered principal is not strong authentication for protected TRS actions",
+      "credentialsValid": false,
+      "remembered": true,
+      "sessionActive": true,
+      "trustedService": true,
+      "rangerDecision": "ALLOW",
+      "protocolValid": true,
+      "expect": {
+        "authenticated": false,
+        "rangerMayBeCalled": false,
+        "operationMayExecute": false
+      }
+    },
+    {
+      "id": "SHIRO-006",
+      "description": "untrusted caller cannot assert another subject to Ranger",
+      "credentialsValid": true,
+      "remembered": false,
+      "sessionActive": true,
+      "trustedService": false,
+      "rangerDecision": "ALLOW",
+      "protocolValid": true,
+      "expect": {
+        "authenticated": true,
+        "rangerMayBeCalled": false,
+        "operationMayExecute": false
+      }
+    },
+    {
+      "id": "SHIRO-007",
+      "description": "logout invalidates the subject session",
+      "credentialsValid": true,
+      "remembered": false,
+      "sessionActive": false,
+      "trustedService": true,
+      "rangerDecision": "ALLOW",
+      "protocolValid": true,
+      "expect": {
+        "authenticated": false,
+        "rangerMayBeCalled": false,
+        "operationMayExecute": false
+      }
+    },
+    {
+      "id": "SHIRO-008",
+      "description": "authentication and Ranger allow still cannot bypass protocol validation",
+      "credentialsValid": true,
+      "remembered": false,
+      "sessionActive": true,
+      "trustedService": true,
+      "rangerDecision": "ALLOW",
+      "protocolValid": false,
+      "expect": {
+        "authenticated": true,
+        "rangerMayBeCalled": true,
+        "operationMayExecute": false
+      }
+    }
+  ],
+  "claimBoundary": {
+    "productionIdentityProviderIntegrationClaimed": false,
+    "productionSessionSecurityClaimed": false,
+    "mfaConformanceClaimed": false,
+    "urdIdentityVerificationClaimed": false,
+    "itrSAuthorizationClaimed": false,
+    "subscriberEligibilityClaimed": false,
+    "providerCertificationClaimed": false
+  }
+}
