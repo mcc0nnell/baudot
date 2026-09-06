@@ -28,6 +28,7 @@
     ],
     "derivedFieldsOnly": [
       "id",
+      "sourceEvidenceId",
       "indexRecordId",
       "extractor",
       "extractorVersion",
@@ -43,6 +44,17 @@
       "contentSha256": "sourceSha256"
     },
     "appendOnly": true
+  },
+  "replay": {
+    "sourceIdentityFields": [
+      "sourceSystem",
+      "sourceObjectId",
+      "contentSha256"
+    ],
+    "indexIdDerivedOnlyFromSourceIdentity": true,
+    "exactEnvelopeReplayIsIdempotent": true,
+    "sameSourceDifferentEnvelopeRejectedFromSearch": true,
+    "observationLedgerClaimed": false
   },
   "authority": {
     "nifiAcceptanceIsSourceAuthority": false,
