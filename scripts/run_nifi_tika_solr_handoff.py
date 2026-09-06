@@ -32,14 +32,35 @@ REQUIRED_UPSTREAM = [
     "flowId",
     "correlationId",
 ]
+SOURCE_IDENTITY = ["sourceSystem", "sourceObjectId", "contentSha256"]
 
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def source_evidence_id(upstream: dict[str, object]) -> str:
+    material = "|".join(str(upstream[field]) for field in SOURCE_IDENTITY).encode()
+    return "source-" + sha256_bytes(material)[:32]
+
+
+def ensure_replay_compatible(existing: dict[str, object], candidate: dict[str, object]) -> None:
+    for field in SOURCE_IDENTITY:
+        if str(scalar(existing.get(field))) != str(candidate[field]):
+            raise RuntimeError(f"source identity collision on {field}")
+    changed = [
+        field
+        for field in REQUIRED_UPSTREAM
+        if str(scalar(existing.get(field))) != str(candidate[field])
+    ]
+    if changed:
+        raise RuntimeError(
+            "same source evidence arrived with a different observation envelope: "
+            + ",".join(changed)
+        )
+
+
 def prepare_root(root: Path) -> None:
-    # Keep the bind-mount directory itself intact while clearing prior evidence.
     root.mkdir(parents=True, exist_ok=True)
     for child in root.iterdir():
         if child.is_dir() and not child.is_symlink():
@@ -176,8 +197,6 @@ def build_document_handoff(client: NiFiClient, group_id: str, bundles: dict) -> 
     connect(client, group_id, get_file, hasher, "success", "document-read-to-hash")
     connect(client, group_id, hasher, evidence, "success", "document-hash-to-evidence")
     connect(client, group_id, hasher, quarantine, "failure", "document-hash-failure-quarantine")
-    # Two connections on the same relationship deliberately clone the FlowFile: one
-    # keeps the original bytes, one turns only the six upstream attributes into JSON.
     connect(client, group_id, evidence, raw_stage, "success", "document-evidence-to-raw-staging")
     connect(client, group_id, evidence, attributes_json, "success", "document-evidence-to-envelope")
     connect(client, group_id, attributes_json, rename, "success", "document-envelope-to-rename")
@@ -279,12 +298,12 @@ def main() -> None:
     if extracted is None or not extracted.strip() or extracted_sha is None:
         raise RuntimeError("Tika did not produce a non-empty extraction for the admitted handoff")
 
-    index_record_id = "handoff-" + sha256_bytes(
-        f"{upstream['correlationId']}|{upstream['contentSha256']}".encode()
-    )[:32]
+    source_id = source_evidence_id(upstream)
+    index_record_id = source_id
     indexed_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     indexed = {
         "id": index_record_id,
+        "sourceEvidenceId": source_id,
         "indexRecordId": index_record_id,
         **upstream,
         "extractor": "apache-tika",
@@ -296,6 +315,14 @@ def main() -> None:
         "content": extracted,
         "derivedEvidenceOnly": True,
     }
+
+    existing_result = solr_query(args.solr, f'id:"{index_record_id}"', args.solr_user, args.solr_password)
+    existing_docs = existing_result.get("response", {}).get("docs", [])
+    if len(existing_docs) > 1:
+        raise RuntimeError("source evidence identity already resolves to multiple Solr records")
+    if existing_docs:
+        ensure_replay_compatible(existing_docs[0], upstream)
+
     status, update = request_json(
         f"{args.solr.rstrip('/')}/solr/baudot_docs/update?commit=true&wt=json",
         method="POST",
@@ -314,11 +341,40 @@ def main() -> None:
     for field in REQUIRED_UPSTREAM:
         if str(scalar(returned.get(field))) != str(upstream[field]):
             raise RuntimeError(f"Solr round trip changed upstream field {field}")
+    if str(scalar(returned.get("sourceEvidenceId"))) != source_id:
+        raise RuntimeError("Solr round trip lost stable source evidence id")
     if str(scalar(returned.get("extractedContentSha256"))) != extracted_sha:
         raise RuntimeError("Solr round trip lost extracted-content hash")
     marker = scalar(returned.get("derivedEvidenceOnly"))
     if marker not in (True, "true"):
         raise RuntimeError("Solr round trip lost derived-evidence marker")
+
+    replay_status, replay_update = request_json(
+        f"{args.solr.rstrip('/')}/solr/baudot_docs/update?commit=true&wt=json",
+        method="POST",
+        data=[indexed],
+        user=args.solr_user,
+        password=args.solr_password,
+    )
+    if replay_status != 200 or replay_update.get("responseHeader", {}).get("status") != 0:
+        raise RuntimeError("exact replay update did not succeed")
+    replay_result = solr_query(args.solr, f'id:"{index_record_id}"', args.solr_user, args.solr_password)
+    replay_docs = replay_result.get("response", {}).get("docs", [])
+    if len(replay_docs) != 1:
+        raise RuntimeError(f"exact replay forked source evidence into {len(replay_docs)} records")
+
+    divergent = dict(upstream)
+    divergent["receivedAt"] = str(upstream["receivedAt"]) + "-reobserved"
+    divergent["correlationId"] = str(upstream["correlationId"]) + "-reobserved"
+    if source_evidence_id(divergent) != source_id:
+        raise RuntimeError("observation-only changes altered stable source identity")
+    divergent_rejected = False
+    try:
+        ensure_replay_compatible(returned, divergent)
+    except RuntimeError:
+        divergent_rejected = True
+    if not divergent_rejected:
+        raise RuntimeError("same source with divergent observation envelope was not rejected")
 
     raw_after = raw_path.read_bytes()
     envelope_after = envelope_path.read_bytes()
@@ -342,10 +398,18 @@ def main() -> None:
             "extractorVersion": "4.0.0",
             "parserHttpStatus": parser_status,
             "extractedContentSha256": extracted_sha,
+            "sourceEvidenceId": source_id,
             "indexRecordId": index_record_id,
             "indexVersion": "solr-10.0.0/baudot_docs",
             "indexedAt": indexed_at,
             "derivedEvidenceOnly": True,
+        },
+        "replay": {
+            "sourceIdentityFields": SOURCE_IDENTITY,
+            "exactReplayRecordCount": len(replay_docs),
+            "exactReplayIdempotent": True,
+            "sameSourceDifferentEnvelopeRejected": divergent_rejected,
+            "observationLedgerClaimed": False,
         },
         "indexRoundTripPreservedUpstream": True,
         "security": {
@@ -365,7 +429,7 @@ def main() -> None:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print("validated live NiFi -> Tika -> Solr provenance-preserving handoff")
+    print("validated live NiFi -> Tika -> Solr provenance-preserving replay-safe handoff")
 
 
 if __name__ == "__main__":
