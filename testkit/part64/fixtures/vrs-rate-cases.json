@@ -1,0 +1,145 @@
+{
+  "schema": "baudot.vrs-rate-cases@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "cases": [
+    {
+      "scenario": "VRS-RATE-SMALL-1000000",
+      "fundYear": "2026-27",
+      "monthlyConversationMinutesForRateClassification": 1000000,
+      "externallyEstablishedCompensableMinutes": 1000000,
+      "videoTextMinutes": 0,
+      "expected": {
+        "providerClass": "small",
+        "smallRateMinutes": 1000000,
+        "largeTier1Minutes": 0,
+        "largeTier2Minutes": 0,
+        "baseCompensationUsd": "8610000.00",
+        "videoTextAdditiveUsd": "0.00",
+        "exogenousAdjustmentUsd": "0.00",
+        "calculatedCompensationUsd": "8610000.00",
+        "payableFundClaimCreated": false
+      }
+    },
+    {
+      "scenario": "VRS-RATE-LARGE-1000001",
+      "fundYear": "2026-27",
+      "monthlyConversationMinutesForRateClassification": 1000001,
+      "externallyEstablishedCompensableMinutes": 1000001,
+      "videoTextMinutes": 0,
+      "expected": {
+        "providerClass": "large",
+        "smallRateMinutes": 0,
+        "largeTier1Minutes": 1000000,
+        "largeTier2Minutes": 1,
+        "baseCompensationUsd": "6960004.35",
+        "videoTextAdditiveUsd": "0.00",
+        "exogenousAdjustmentUsd": "0.00",
+        "calculatedCompensationUsd": "6960004.35",
+        "payableFundClaimCreated": false
+      }
+    },
+    {
+      "scenario": "VRS-RATE-LARGE-1250000",
+      "fundYear": "2026-27",
+      "monthlyConversationMinutesForRateClassification": 1250000,
+      "externallyEstablishedCompensableMinutes": 1250000,
+      "videoTextMinutes": 0,
+      "expected": {
+        "providerClass": "large",
+        "largeTier1Minutes": 1000000,
+        "largeTier2Minutes": 250000,
+        "baseCompensationUsd": "8047500.00",
+        "videoTextAdditiveUsd": "0.00",
+        "calculatedCompensationUsd": "8047500.00",
+        "payableFundClaimCreated": false
+      }
+    },
+    {
+      "scenario": "VRS-RATE-VIDEO-TEXT-1000",
+      "fundYear": "2026-27",
+      "monthlyConversationMinutesForRateClassification": 1000,
+      "externallyEstablishedCompensableMinutes": 1000,
+      "videoTextMinutes": 1000,
+      "expected": {
+        "providerClass": "small",
+        "baseCompensationUsd": "8610.00",
+        "videoTextAdditiveUsd": "220.00",
+        "calculatedCompensationUsd": "8830.00",
+        "payableFundClaimCreated": false
+      }
+    },
+    {
+      "scenario": "VRS-RATE-VIDEO-TEXT-PARTIAL",
+      "fundYear": "2026-27",
+      "monthlyConversationMinutesForRateClassification": 1000,
+      "externallyEstablishedCompensableMinutes": 1000,
+      "videoTextMinutes": 250,
+      "expected": {
+        "providerClass": "small",
+        "baseCompensationUsd": "8610.00",
+        "videoTextAdditiveUsd": "55.00",
+        "calculatedCompensationUsd": "8665.00",
+        "payableFundClaimCreated": false
+      }
+    },
+    {
+      "scenario": "VRS-RATE-EXOGENOUS-APPROVED",
+      "fundYear": "2026-27",
+      "monthlyConversationMinutesForRateClassification": 1000,
+      "externallyEstablishedCompensableMinutes": 1000,
+      "videoTextMinutes": 0,
+      "exogenous": {
+        "commissionApprovedOnOrBeforeJune30": true,
+        "wellDocumented": true,
+        "allowableCategory": true,
+        "beyondProviderControlOrNewRequirement": true,
+        "notFactoredIntoFormula": true,
+        "unrecoveredCostConditionMet": true,
+        "approvedClaimUsd": "120000.00",
+        "projectedFundYearMinutes": 6000000
+      },
+      "expected": {
+        "exogenousRateUsdPerMinute": "0.02",
+        "baseCompensationUsd": "8610.00",
+        "exogenousAdjustmentUsd": "20.00",
+        "calculatedCompensationUsd": "8630.00",
+        "payableFundClaimCreated": false
+      }
+    },
+    {
+      "scenario": "VRS-RATE-EXOGENOUS-NOT-APPROVED",
+      "fundYear": "2026-27",
+      "monthlyConversationMinutesForRateClassification": 1000,
+      "externallyEstablishedCompensableMinutes": 1000,
+      "videoTextMinutes": 0,
+      "exogenous": {
+        "commissionApprovedOnOrBeforeJune30": false,
+        "wellDocumented": true,
+        "allowableCategory": true,
+        "beyondProviderControlOrNewRequirement": true,
+        "notFactoredIntoFormula": true,
+        "unrecoveredCostConditionMet": true,
+        "approvedClaimUsd": "120000.00",
+        "projectedFundYearMinutes": 6000000
+      },
+      "expected": {
+        "exogenousRateUsdPerMinute": "0.00",
+        "exogenousAdjustmentUsd": "0.00",
+        "calculatedCompensationUsd": "8610.00",
+        "payableFundClaimCreated": false
+      }
+    },
+    {
+      "scenario": "VRS-RATE-NO-COMPENSABILITY-001",
+      "fundYear": "2026-27",
+      "monthlyConversationMinutesForRateClassification": 1000,
+      "externallyEstablishedCompensableMinutes": null,
+      "videoTextMinutes": 0,
+      "expected": {
+        "rateCalculationAllowed": false,
+        "reason": "missing-terminal-compensability-input",
+        "payableFundClaimCreated": false
+      }
+    }
+  ]
+}
