@@ -1,0 +1,169 @@
+name: tty-wiretap-lab
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SPANDSP_COMMIT: 8f1e1646bdec99eac5fd2cd92c35563f736b9b89
+  MINIMODEM_COMMIT: bb2f34cf5148f101563aa926e201d306edbacbd3
+  ORACLE_PREFIX: ${{ github.workspace }}/target/oracles/prefix
+
+jobs:
+  routed-tty:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Baudot
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned SpanDSP
+        uses: actions/checkout@v4
+        with:
+          repository: freeswitch/spandsp
+          ref: ${{ env.SPANDSP_COMMIT }}
+          path: target/oracles/spandsp-src
+
+      - name: Checkout pinned minimodem
+        uses: actions/checkout@v4
+        with:
+          repository: kamalmostafa/minimodem
+          ref: ${{ env.MINIMODEM_COMMIT }}
+          path: target/oracles/minimodem-src
+
+      - name: Verify external source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C target/oracles/spandsp-src rev-parse HEAD)" = "$SPANDSP_COMMIT"
+          test "$(git -C target/oracles/minimodem-src rev-parse HEAD)" = "$MINIMODEM_COMMIT"
+
+      - name: Install build and network prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            build-essential \
+            curl \
+            iproute2 \
+            libfftw3-dev \
+            libjpeg-dev \
+            libsndfile1-dev \
+            libtiff-dev \
+            libtool \
+            pkg-config \
+            wireguard-tools
+          sudo modprobe wireguard
+
+      - name: Build pinned SpanDSP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target/oracles/spandsp-src
+          ./autogen.sh
+          ./configure --prefix="$ORACLE_PREFIX"
+          make -j2
+          make install
+
+      - name: Build pinned minimodem
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target/oracles/minimodem-src
+          autoreconf -i
+          ./configure \
+            --prefix="$ORACLE_PREFIX" \
+            --without-alsa \
+            --without-pulseaudio \
+            --without-sndio
+          make -j2
+          make install
+
+      - name: Export pinned oracle toolchain
+        shell: bash
+        run: |
+          echo "$ORACLE_PREFIX/bin" >> "$GITHUB_PATH"
+          echo "PKG_CONFIG_PATH=$ORACLE_PREFIX/lib/pkgconfig:$ORACLE_PREFIX/lib64/pkgconfig" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$ORACLE_PREFIX/lib:$ORACLE_PREFIX/lib64" >> "$GITHUB_ENV"
+
+      - name: Build prerequisite TTY evidence
+        shell: bash
+        env:
+          BAUDOT_SPANDSP_SOURCE_COMMIT: ${{ env.SPANDSP_COMMIT }}
+          BAUDOT_MINIMODEM_SOURCE_COMMIT: ${{ env.MINIMODEM_COMMIT }}
+        run: |
+          bash scripts/run-tty-v18-cross-oracle.sh
+          bash scripts/run-tty-v18-pcmu-rtp.sh
+
+      - name: Install and verify Sandia Wiretap v0.9.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=0.9.0
+          asset="wiretap_${version}_linux_amd64.tar.gz"
+          base="https://github.com/sandialabs/wiretap/releases/download/v${version}"
+          mkdir -p /tmp/baudot-wiretap
+          cd /tmp/baudot-wiretap
+          curl -fsSLO "$base/checksums.txt"
+          curl -fsSLO "$base/$asset"
+          grep -E "[[:space:]]${asset}$" checksums.txt | sha256sum -c -
+          mkdir extracted
+          tar -xzf "$asset" -C extracted
+          binary=$(find extracted -type f -name wiretap -print -quit)
+          test -n "$binary"
+          sudo install -m 0755 "$binary" /usr/local/bin/wiretap
+          wiretap --version
+
+      - name: BAUDOT-TTY-003/004 live Wiretap UDP proof
+        shell: bash
+        run: |
+          sudo -E env \
+            PATH="$PATH" \
+            LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+            PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+            BAUDOT_MINIMODEM_BIN="$ORACLE_PREFIX/bin/minimodem" \
+            bash scripts/wiretap/tty-v18-routed-lab.sh
+
+      - name: BAUDOT-TTY-005 live Wiretap jitter/reorder recovery
+        shell: bash
+        run: |
+          sudo -E env \
+            PATH="$PATH" \
+            LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+            PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+            bash scripts/wiretap/tty-v18-jitter-routed-lab.sh
+
+      - name: Verify routed TTY evidence manifests
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          manifests=(
+            target/evidence-routed/tty-v18-wiretap/**/bundle.manifest.sha256
+            target/evidence-routed/tty-v18-jitter/**/bundle.manifest.sha256
+          )
+          if (( ${#manifests[@]} < 2 )); then
+            echo "Expected both routed TTY evidence bundle manifests" >&2
+            exit 1
+          fi
+          for manifest in "${manifests[@]}"; do
+            (cd "$(dirname "$manifest")" && sha256sum -c bundle.manifest.sha256)
+          done
+
+      - name: Preserve routed TTY evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-tty-wiretap-evidence
+          path: |
+            target/evidence-routed/tty-v18-wiretap
+            target/evidence-routed/tty-v18-jitter
+          if-no-files-found: warn
