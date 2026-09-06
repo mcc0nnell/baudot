@@ -86,6 +86,7 @@ def prepare_data(root: Path) -> dict[str, dict[str, object]]:
         "provider-invalid.csv": ("provider", "quarantine/provider"),
         "cdr-valid.json": ("cdr", "accepted/cdr"),
         "cdr-invalid.json": ("cdr", "quarantine/cdr"),
+        "cdr-malformed.json": ("cdr", "quarantine/cdr"),
     }
     expected: dict[str, dict[str, object]] = {}
     for filename, (kind, destination) in mapping.items():
@@ -267,7 +268,7 @@ def build_lane(client, group_id, bundles, *, kind: str, y: int) -> dict:
             auto_terminate=[],
         )
         # NiFi 2.11 ValidateJson has a distinct `failure` relationship for input that
-        # cannot be read as JSON.  Both invalid-schema and parser-failure records are
+        # cannot be read as JSON. Both invalid-schema and parser-failure records are
         # quarantine evidence; neither is silently dropped or treated as a valid CDR.
         quarantine_relationships = ["invalid", "failure"]
 
@@ -343,6 +344,7 @@ def validate_outputs(root: Path, expected) -> list[dict]:
     forbidden = [
         root / "accepted/provider/provider-invalid.csv",
         root / "accepted/cdr/cdr-invalid.json",
+        root / "accepted/cdr/cdr-malformed.json",
         root / "quarantine/provider/provider-valid.csv",
         root / "quarantine/cdr/cdr-valid.json",
     ]
@@ -385,7 +387,7 @@ def main() -> None:
         "requiredEvidenceAttributes": REQUIRED_EVIDENCE,
         "stagedFiles": staged_files,
         "accepted": ["provider-valid.csv", "cdr-valid.json"],
-        "quarantined": ["provider-invalid.csv", "cdr-invalid.json"],
+        "quarantined": ["provider-invalid.csv", "cdr-invalid.json", "cdr-malformed.json"],
         "authority": {
             "ingestionCompleteIsBusinessApproval": False,
             "schemaValidIsSourceAuthoritative": False,
@@ -397,7 +399,7 @@ def main() -> None:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
-    print("validated live NiFi bulk ingest: accepted=2 quarantined=2")
+    print("validated live NiFi bulk ingest: accepted=2 quarantined=3")
 
 
 if __name__ == "__main__":
