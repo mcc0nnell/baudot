@@ -32,6 +32,8 @@ No Shiro actor/session context, Ranger policy decision, iTRS business rule, prov
 
 `ICallAdmission` is now satisfied in the positive compositions by a Celix bundle linked to the pinned PJPROJECT `pjsip` target. The adapter calls PJSIP's native `pjsip_parse_msg()` parser against a complete synthetic INVITE fixture and accepts only a clean parsed INVITE request.
 
+PJSIP's parser tables are initialized through the public `pjsip_endpt_create()` / `pjsip_endpt_destroy()` lifecycle. Endpoint creation constructs PJSIP's internal runtime managers, including its transport manager, but this adapter does not register or start a UDP/TCP transport, bind a listening socket, create an account or dialog, or initialize media/PJSUA2.
+
 That observation is intentionally narrow:
 
 ```text
@@ -43,7 +45,7 @@ PJSIP_PARSE_ACCEPTED
 != TRS business authority established
 ```
 
-The adapter does not start a transport, account, media stack, dialog, or PJSUA2 endpoint. It proves only that an existing native Baudot dependency can satisfy the Celix capability contract without moving any authority boundary into Celix.
+The endpoint exists only to establish the supported PJSIP parser/runtime lifecycle. The adapter proves that an existing native Baudot dependency can satisfy the Celix capability contract without moving any authority boundary into Celix.
 
 ## Three compositions
 
