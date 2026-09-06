@@ -102,6 +102,8 @@ Java does not parse the implementation-generated RTP and does not compare it to 
 
 [ADR-0002](docs/adr/0002-pjsip-native-rtt-media-oracle.md) admits PJSIP/PJPROJECT 2.17 as an external native RTT media oracle at exact commit `5a457451fa2712ba18e12b01738e8ff3af2b26fd`. The accepted profile remains external and ephemeral; the linked qualification executable is not distributed as a Baudot artifact.
 
+[ADR-0003](docs/adr/0003-linphone-native-rtt-candidate.md) proposes the Linphone SDK as the next independent native RTT implementation candidate. It pins an exact clean upstream source profile and a public-API-only Baudot driver, but it does **not** admit Linphone as an oracle until live implementation-generated wire traffic is independently reduced to the expected T.140 behavior.
+
 See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model.
 
 ## Interoperability ensemble
@@ -111,6 +113,7 @@ See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed 
 - **JAIN SIP** — primary glass-box signaling instrument;
 - **Elixip** — first externally installed independent SIP/call-state oracle;
 - **PJSIP/PJPROJECT 2.17** — accepted external native RTT media oracle under ADR-0002, not a replacement for JAIN SIP or Elixip;
+- **Linphone SDK** — proposed second independent native RTT implementation candidate under ADR-0003; source-admitted for qualification, not yet an oracle;
 - **Apache OpenMeetings** — integration specimen and scenario donor, not the second independent SIP stack;
 - **ACE Direct** — historical production donor corpus; and
 - **Wiretap** — external network/evidence substrate, never verdict authority.
@@ -121,11 +124,13 @@ The Elixip external-oracle lane is documented in [`interop/elixip/`](interop/eli
 
 The PJSIP native-media lane is documented in [`interop/pjsip/`](interop/pjsip/). It separately qualifies native outbound text generation, incoming native text endpoint behavior, and participation as the replacement native-media endpoint in a controlled `BAUDOT-INTEROP-004` positive arm. In all three profiles, PJSIP supplies implementation behavior while Baudot's independent reference retains semantic readiness authority.
 
+The Linphone candidate lane is documented in [`interop/linphone/`](interop/linphone/). Its admission workflow verifies the exact pinned `BelledonneCommunications/linphone-sdk` source identity and the public/native RFC 4103/T.140 implementation surfaces that justify a live qualification. The candidate driver stays at the public Liblinphone API boundary and emits one deterministic application character; it neither constructs canonical RTP/T.140 packets nor owns the terminal readiness verdict.
+
 ## Status and claim boundary
 
 Baudot is in active proving-ground development. Several scenarios are **runnable**, but runnable is not the same as proven or conformant.
 
-The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, or other implementation conformance. The native PJSIP handoff arm is evidence that the pinned implementation participated in one controlled replacement-leg flow whose live media was independently reduced before old-leg release; it is not a general conformance finding. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
+The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, Linphone, or other implementation conformance. The native PJSIP handoff arm is evidence that the pinned implementation participated in one controlled replacement-leg flow whose live media was independently reduced before old-leg release; it is not a general conformance finding. Linphone remains only a proposed candidate until ADR-0003's live wire-evidence requirements are satisfied. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
 
 ## Project name
 
