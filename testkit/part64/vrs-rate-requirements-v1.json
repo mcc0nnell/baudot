@@ -1,0 +1,59 @@
+{
+  "schema": "baudot.part64-vrs-rate-requirements@1",
+  "authority": {
+    "normativeRule": {
+      "citation": "47 CFR 64.643",
+      "source": "https://www.law.cornell.edu/cfr/text/47/64.643",
+      "period": "2023-07-01/2028-06-30"
+    },
+    "currentPublishedRates": {
+      "title": "Rolka Loube TRS Providers",
+      "source": "https://rolkaloube.com/programs/federal-itrs/trs-providers",
+      "use": "published 2026-27 VRS reimbursement amounts only; not normative authority for tier semantics"
+    }
+  },
+  "safety": {
+    "productionProviderMinutes": false,
+    "productionFundClaim": false,
+    "actualPaymentInstruction": false,
+    "actualExogenousCostClaim": false,
+    "claimsRateApprovalAuthority": false
+  },
+  "requirements": [
+    {
+      "id": "PART64-643-SMALL",
+      "citation": "64.643(a)(1), (b)",
+      "requirement": "For a provider handling one million conversation minutes or less in a month, all applicable VRS conversation minutes use the small-provider compensation amount for that Fund Year."
+    },
+    {
+      "id": "PART64-643-LARGE-TIER1",
+      "citation": "64.643(a)(2)(i), (b)",
+      "requirement": "For a provider handling more than one million conversation minutes in a month, the first 1,000,000 applicable conversation minutes use the large-provider Tier I amount."
+    },
+    {
+      "id": "PART64-643-LARGE-TIER2",
+      "citation": "64.643(a)(2)(ii), (b)",
+      "requirement": "For a provider handling more than one million conversation minutes in a month, applicable conversation minutes above 1,000,000 use the Tier II amount."
+    },
+    {
+      "id": "PART64-643-VIDEO-TEXT",
+      "citation": "64.643(a)(3), (b)",
+      "requirement": "Video-Text Service receives the applicable base compensation amount plus the Fund-Year Video-Text additive for each Video-Text conversation minute."
+    },
+    {
+      "id": "PART64-643-INFLATION",
+      "citation": "64.643(b)-(c)",
+      "requirement": "Each succeeding Fund Year's per-minute compensation amounts through June 30, 2028 are redetermined from the prior year's amounts using the annual Inflation Adjustment Factor."
+    },
+    {
+      "id": "PART64-643-EXOGENOUS",
+      "citation": "64.643(d)",
+      "requirement": "A provider-specific exogenous per-minute adjustment is added only for well-documented allowable claims approved by the Commission on or before June 30, calculated as approved claims divided by projected Fund-Year minutes."
+    }
+  ],
+  "authorityBoundary": [
+    "externally established compensable minutes are an input; the rate engine does not establish compensability",
+    "published rate tables do not override the CFR one-million-minute boundary",
+    "rate calculation does not create a payable Fund claim or accounting journal"
+  ]
+}
