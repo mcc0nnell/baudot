@@ -115,40 +115,72 @@ Java does not parse the implementation-generated RTP and does not compare it to 
 
 See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model.
 
-## iTRS mock vertical slice
+## iTRS / VRS interoperability lab
 
-`testkit/itrs/` adds a deterministic, clean-room proving ground for iTRS-derived routing behavior without requiring live TRS Numbering Directory access.
+`testkit/itrs/` is a layered, clean-room proving ground for iTRS-derived routing and provider interoperability behavior without live TRS Numbering Directory access.
 
-The first executable call-routing slice is:
+The architectural rule is consistent across the stack: **classification, route authority, transport selection, signaling success, and media readiness are separate facts.**
 
 ```text
-synthetic NANP number
-       |
-       v
-mock iTRS resolution
-       |
-       v
-logical SIP URI
-       |
-       v
-JAIN-SIP INVITE
-       |
-       v
-loopback mock VRS peer
-       |
-       +--> 200 OK
-       +--> ACK
+public routing evidence
+        |
+        v
+synthetic iTRS CTE
+URD / NPAC / provider state
+        |
+        +--> revision-pinned historical provenance
+        |
+        +--> ACE /vrsverify/ classification adapter
+        |
+        v
+pinned ACE Connect Lite A / B
+real historical outbound-call handlers
+        |
+        v
+real AMI Originate
+        |
+        v
+controlled Asterisk A / B
+        |
+        | authenticated AllCallQuery
+        v
+exact logical SIP URI
+        |
+        | PJSIP explicit URI
+        | separate outbound proxy
+        v
+JAIN-SIP evidence peer
 ```
 
-The trial preserves the iTRS-derived logical SIP URI as the SIP Request-URI while using a separate loose Route header for the immediate loopback transport destination. That keeps authoritative route identity separate from downstream service discovery and transport selection.
+The v1 fixture matrix covers direct `E2U+sip`, alias forwarding, NAPTR priority, SIP service discovery, no-route, malformed-authority, authority-unavailable, and deterministic-latency cases. Revision-pinned public ACE material corroborates selected historical routing shapes without becoming current or normative authority.
 
-The fixture matrix covers direct `E2U+sip`, alias forwarding, NAPTR priority, SIP service discovery, no-route, malformed-authority, authority-unavailable, and deterministic-latency cases. A clean-room validator independently recomputes ENUM owner derivation, alias traversal, NAPTR selection, `E2U+sip` validation, and synthetic SIP NAPTR/SRV discovery from the fixture data.
+The v2 CTE adds synthetic TN→URI records, service/user type, provider XSPID responsibility, URD-valid state, NPAC porting observations, provisioning/query replication, AllCallQuery context, transaction IDs, reverse validation, and explicit provider-session authority. It does not claim to reproduce a proprietary administrator schema or nonpublic interface guide.
 
-Public historical ACE Direct code now supplies revision-pinned provenance for the first four routing shapes while remaining non-normative. The remaining failure and latency cases are explicit Baudot resilience extensions. The provenance validator prevents historical donor code from becoming live authority or terminal verdict authority.
+The ACE compatibility layer is deliberately narrow. The pinned historical application consumes `GET /vrsverify/?vrsnum=...` and branches on `message === "success"`; Baudot reproduces only that observed consumer shape. `/vrsverify/` remains classification. **AllCallQuery remains logical-route authority.**
 
-Run the fixture matrix with `bash scripts/run-itrs-mocks.sh`, the provenance gate with `python -m scripts.validate_itrs_public_provenance`, and the JAIN-SIP handoff proof with `bash scripts/run-itrs-sip-handoff.sh`.
+The Asterisk slice preserves that separation after ACE selects its historical `outbound-CA` context. The controlled dialplan performs an authenticated AllCallQuery and sends the exact returned logical SIP URI through PJSIP while a separate loopback proxy determines the immediate transport destination.
 
-These are synthetic test fixtures. They do not claim live iTRS access, production VRS interoperability, or provider certification.
+Expected positive routes are:
+
+```text
+provider A -> 2025550103 -> sip:2025550103@provider-b.invalid
+provider B -> 2025550101 -> sip:2025550101@vrs-a.example.invalid
+```
+
+The synthetic `2025550105` negative control is URD-invalid and must remain on ACE's `from-phones` path without reaching the route AGI or JAIN-SIP peer.
+
+Target runtime verdicts include:
+
+```text
+Dual ACE Connect Lite runtime lab: 5/5 PASS
+Dual ACE -> Asterisk -> JAIN-SIP lab: 8/8 PASS
+```
+
+Those strings are evidence only when emitted by completed workflows for the exact commit being evaluated. Repository prose does not promote queued or expected results into verified interoperability claims.
+
+See [`docs/itrs-vrs-interoperability-lab.md`](docs/itrs-vrs-interoperability-lab.md) for the full evidence ladder and promotion rules.
+
+Even a verified Asterisk/JAIN-SIP signaling result would not establish RTT/media interoperability. T.140/RFC 4103 remains an independent evidence layer.
 
 ## Interoperability ensemble
 
