@@ -5,8 +5,11 @@ on:
   pull_request:
     paths:
       - "docs/live-fineract-trs-fund.md"
+      - "docs/live-fineract-settlement-batch.md"
       - "interop/fineract/journal-contract-v1.json"
+      - "testkit/part64/fixtures/settlement-batch-v1.json"
       - "scripts/run_live_fineract_trs_fund.py"
+      - "scripts/run_live_fineract_settlement_batch.py"
       - "scripts/validate_part64_fund_payment_settlement.py"
       - ".github/workflows/live-fineract-trs-fund.yml"
   push:
@@ -14,8 +17,11 @@ on:
       - main
     paths:
       - "docs/live-fineract-trs-fund.md"
+      - "docs/live-fineract-settlement-batch.md"
       - "interop/fineract/journal-contract-v1.json"
+      - "testkit/part64/fixtures/settlement-batch-v1.json"
       - "scripts/run_live_fineract_trs_fund.py"
+      - "scripts/run_live_fineract_settlement_batch.py"
       - "scripts/validate_part64_fund_payment_settlement.py"
       - ".github/workflows/live-fineract-trs-fund.yml"
 
@@ -41,7 +47,7 @@ jobs:
           python-version: "3.12"
 
       - name: Syntax-check live harness
-        run: python -m py_compile scripts/run_live_fineract_trs_fund.py scripts/validate_part64_fund_payment_settlement.py
+        run: python -m py_compile scripts/run_live_fineract_trs_fund.py scripts/run_live_fineract_settlement_batch.py scripts/validate_part64_fund_payment_settlement.py
 
       - name: Revalidate static payment contract
         run: python scripts/validate_part64_fund_payment_settlement.py
@@ -120,34 +126,61 @@ jobs:
           FINERACT_PINNED_IMAGE: ${{ env.FINERACT_IMAGE }}
         run: python scripts/run_live_fineract_trs_fund.py
 
+      - name: Run live TRS settlement batch close
+        env:
+          FINERACT_BASE_URL: https://localhost:8443/fineract-provider/api/v1
+          FINERACT_USERNAME: mifos
+          FINERACT_PASSWORD: password
+          FINERACT_TENANT: default
+          FINERACT_PINNED_VERSION: ${{ env.FINERACT_VERSION }}
+          FINERACT_PINNED_COMMIT: ${{ env.FINERACT_COMMIT }}
+          FINERACT_PINNED_IMAGE: ${{ env.FINERACT_IMAGE }}
+        run: python scripts/run_live_fineract_settlement_batch.py
+
       - name: Add platform provenance to evidence
         shell: bash
         run: |
           set -euo pipefail
-          out=target/evidence-external/LIVE-FINERACT-TRS/v1
-          cp target/fineract-source-pin.json "$out/source-pin.json"
-          cp target/fineract-image-build.json "$out/image-build.json"
-          cp target/fineract-image-git-properties.txt "$out/image-git-properties.txt"
-          cp target/fineract-actuator-info.json "$out/actuator-info.json"
+          for out in \
+            target/evidence-external/LIVE-FINERACT-TRS/v1 \
+            target/evidence-external/LIVE-FINERACT-TRS-BATCH/v1
+          do
+            cp target/fineract-source-pin.json "$out/source-pin.json"
+            cp target/fineract-image-build.json "$out/image-build.json"
+            cp target/fineract-image-git-properties.txt "$out/image-git-properties.txt"
+            cp target/fineract-actuator-info.json "$out/actuator-info.json"
+          done
 
       - name: Seal live evidence
         shell: bash
         run: |
           set -euo pipefail
-          out=target/evidence-external/LIVE-FINERACT-TRS/v1
-          (
-            cd "$out"
-            find . -maxdepth 1 -type f ! -name bundle.manifest.sha256 -printf '%f\n' | LC_ALL=C sort \
-              | xargs sha256sum > bundle.manifest.sha256
-            sha256sum -c bundle.manifest.sha256
-          )
+          for out in \
+            target/evidence-external/LIVE-FINERACT-TRS/v1 \
+            target/evidence-external/LIVE-FINERACT-TRS-BATCH/v1
+          do
+            (
+              cd "$out"
+              find . -maxdepth 1 -type f ! -name bundle.manifest.sha256 -printf '%f\n' | LC_ALL=C sort \
+                | xargs sha256sum > bundle.manifest.sha256
+              sha256sum -c bundle.manifest.sha256
+            )
+          done
 
-      - name: Preserve live evidence
+      - name: Preserve live single-event evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: baudot-live-fineract-trs-fund
           path: target/evidence-external/LIVE-FINERACT-TRS/v1
+          if-no-files-found: warn
+
+      - name: Preserve live settlement-batch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-live-fineract-trs-settlement-batch
+          path: target/evidence-external/LIVE-FINERACT-TRS-BATCH/v1
           if-no-files-found: warn
 
       - name: Diagnose Fineract on failure
