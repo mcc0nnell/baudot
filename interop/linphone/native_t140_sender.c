@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 /*
@@ -59,11 +58,11 @@ int main(int argc, char **argv) {
     const int connect_timeout_seconds = env_int("BAUDOT_LINPHONE_CONNECT_TIMEOUT", 20);
     const int settle_milliseconds = env_int("BAUDOT_LINPHONE_SETTLE_MS", 1200);
     LinphoneCore *core = NULL;
+    LinphoneTransports *transports = NULL;
     LinphoneCall *call = NULL;
     LinphoneCallParams *params = NULL;
     LinphoneChatRoom *chat_room = NULL;
     LinphoneChatMessage *message = NULL;
-    LinphoneSipTransports transports;
     int elapsed_ms = 0;
     int result = 1;
     int core_started = 0;
@@ -73,19 +72,24 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    memset(&transports, 0, sizeof(transports));
-    transports.udp_port = LC_SIP_TRANSPORT_RANDOM;
-    transports.tcp_port = LC_SIP_TRANSPORT_RANDOM;
-    transports.tls_port = LC_SIP_TRANSPORT_RANDOM;
-
     core = linphone_factory_create_core_3(linphone_factory_get(), NULL, NULL, NULL);
     if (core == NULL) {
         fprintf(stderr, "failed to create LinphoneCore\n");
         return 3;
     }
 
-    /* Configure the controlled transport before starting the modern Core. */
-    linphone_core_set_sip_transports(core, &transports);
+    transports = linphone_factory_create_transports(linphone_factory_get());
+    if (transports == NULL) {
+        fprintf(stderr, "failed to create Linphone transport configuration\n");
+        goto cleanup;
+    }
+    linphone_transports_set_udp_port(transports, LC_SIP_TRANSPORT_RANDOM);
+    linphone_transports_set_tcp_port(transports, LC_SIP_TRANSPORT_RANDOM);
+    linphone_transports_set_tls_port(transports, LC_SIP_TRANSPORT_RANDOM);
+    linphone_core_set_transports(core, transports);
+    linphone_transports_unref(transports);
+    transports = NULL;
+
     if (linphone_core_start(core) < 0) {
         fprintf(stderr, "failed to start LinphoneCore\n");
         goto cleanup;
@@ -191,6 +195,9 @@ cleanup:
             }
         }
         linphone_call_unref(call);
+    }
+    if (transports != NULL) {
+        linphone_transports_unref(transports);
     }
     if (core != NULL) {
         if (core_started) {
