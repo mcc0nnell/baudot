@@ -29,14 +29,16 @@ Composition creates a recurring failure mode: a weaker observation is promoted i
 Examples:
 
 ```text
-SIP 200 OK                  != usable session
-m=text negotiated           != RTT ready
-Tilden route resolved       != execution authorized
-Fineract journal posted     != claim approved
-two implementations agree  != protocol conformance
-Zoom transcript observed    != T.140 semantics
-REFER accepted              != replacement RTT ready
-Camel workflow completed    != accessibility ready
+SIP 200 OK                     != usable session
+m=text negotiated              != RTT ready
+Tilden route resolved          != execution authorized
+Fineract journal posted        != claim approved
+validated journal contract     != ledger posted
+calibrated public Fund model   != claim approved
+two implementations agree     != protocol conformance
+Zoom transcript observed       != T.140 semantics
+REFER accepted                 != replacement RTT ready
+Camel workflow completed       != accessibility ready
 ```
 
 The causal model makes those invalid promotions data rather than prose.
@@ -96,9 +98,17 @@ control plane
   can supply authorization/execution receipts
   cannot mint accessibility readiness
 
-ledger
+Fund calibration
+  can establish a bounded public/synthetic model
+  cannot approve a provider claim
+
+journal contract validator
+  can establish accounting shape
+  cannot assert that Fineract posted anything
+
+ledger execution observer
   can supply posting observations
-  cannot mint fund eligibility
+  cannot mint fund eligibility or approval
 ```
 
 ### Evidence reference
@@ -136,7 +146,7 @@ The terminal result is not a side effect of the workflow. It is the output of th
 
 ## Forbidden promotion catalog
 
-The first repository-level forbidden promotions are:
+The repository-level forbidden promotions currently include:
 
 ```text
 signaling.connected
@@ -162,6 +172,12 @@ refer.accepted
 
 workflow.completed
   -/-> accessibility.ready
+
+fund.public-model.calibrated
+  -/-> fund.claim.approved
+
+ledger.contract.validated
+  -/-> ledger.posted
 ```
 
 A forbidden promotion means the weaker fact is insufficient by itself. It may still participate in a stronger derivation with independent evidence.
@@ -227,6 +243,24 @@ fund.payable.confirmed
 
 A ledger posting cannot create its own upstream program authority.
 
+The current Fund proving ground is intentionally earlier in that chain:
+
+```text
+public-source calibration
+        |
+        v
+fund.public-model.calibrated
+        -/-> fund.claim.approved
+
+journal contract validation
+        |
+        v
+ledger.contract.validated
+        -/-> ledger.posted
+```
+
+That distinction matters because the repository currently validates public arithmetic, synthetic contributor assessments, and the Fineract journal contract, but does not yet execute Fineract. A positive `fund.payable.confirmed` proof therefore remains unavailable until a later lane preserves both independently authorized claim evidence and actual ledger execution evidence.
+
 ### Implementation agreement
 
 ```text
@@ -267,13 +301,13 @@ It checks that:
 3. every evidence path stays within the declared evidence root;
 4. every evidence file exists and matches its SHA-256 digest;
 5. expected claims are derivable from only the declared source facts; and
-6. forbidden claims remain underivable.
+6. forbidden claims are known and remain underivable.
 
 The verifier recomputes the derivation. A manifest does not get to declare its own proof steps as truth.
 
-## First live binding: BAUDOT-INTEROP-004
+## Live binding: BAUDOT-INTEROP-004
 
-The live JAIN SIP REFER/RTT handoff now emits:
+The live JAIN SIP REFER/RTT handoff emits:
 
 ```text
 target/evidence/BAUDOT-INTEROP-004/
@@ -334,6 +368,52 @@ producer
 
 Failures remain distinguishable.
 
+## Bounded Fund binding
+
+The public TRS Fund validator now emits:
+
+```text
+target/evidence/TRS-FUND-PUBLIC-MODEL/
+  validation.json
+  causal-proof.json
+```
+
+`validation.json` records content hashes for the public calibration fixture, contributor-assessment fixture, and Fineract journal contract. It records two facts:
+
+```text
+fund.public-model.calibrated
+ledger.contract.validated
+```
+
+and also records:
+
+```text
+liveFineractExecution=false
+```
+
+The paired causal proof is deliberately negative:
+
+```text
+fund.public-model.calibrated
+  -/-> fund.claim.approved
+
+ledger.contract.validated
+  -/-> ledger.posted
+```
+
+This makes the Fund lane useful before live execution exists: CI proves that successful calibration and schema/accounting validation cannot silently promote themselves into business approval or execution facts.
+
+When a live/pinned Fineract adapter later exists, the positive proof target is already defined:
+
+```text
+fund.claim.approved
++
+ledger.posted
+        |
+        v
+fund.payable.confirmed
+```
+
 ## Relationship to scenario reducers
 
 The meta-contract does not replace existing reducers.
@@ -354,7 +434,7 @@ causal proof manifest
 repository-wide derivation rules
 ```
 
-The PJSIP/JAIN/reference reducers still own SIP, RTP, RFC 4103, T.140, route, fund, or other domain-specific interpretation. The causal layer checks the **shape of promotion across domains**.
+The PJSIP/JAIN/reference reducers still own SIP, RTP, RFC 4103, T.140, route, Fund, or other domain-specific interpretation. The causal layer checks the **shape of promotion across domains**.
 
 ## Executable fixtures
 
@@ -368,9 +448,19 @@ The PJSIP/JAIN/reference reducers still own SIP, RTP, RFC 4103, T.140, route, fu
 - forbidden-promotion safety; and
 - positive and negative forward-chaining fixtures.
 
-`python scripts/validate_causal_proof_manifest.py --self-test` validates the portable-manifest verifier with both a positive and a negative replacement-leg proof.
+The current contract has:
 
-Both run in the dedicated `causal-proof-contract` GitHub Actions job.
+```text
+17 evidence-bearing source facts
+8 acyclic derivation rules
+10 forbidden promotions
+5 positive derivation fixtures
+10 negative derivation fixtures
+```
+
+`python scripts/validate_causal_proof_manifest.py --self-test` exercises both positive and negative replacement-leg proofs plus digest tampering, authority mismatch, evidence-root escape, and unknown-claim rejection.
+
+The causal contract workflow runs the meta-contract checks and portable-verifier self-test. The TRS Fund workflow separately generates and validates the bounded Fund proof.
 
 ## Relationship to repository convergence
 
@@ -403,6 +493,9 @@ The design intuition is geometric rather than rhetorical: later claims should be
 ```bash
 python scripts/validate_causal_proof_contract.py
 python scripts/validate_causal_proof_manifest.py --self-test
+python scripts/validate_trs_fund_public_model.py
+python scripts/validate_causal_proof_manifest.py \
+  target/evidence/TRS-FUND-PUBLIC-MODEL/causal-proof.json
 ```
 
 For a live `BAUDOT-INTEROP-004` run:
@@ -423,7 +516,8 @@ It does not establish:
 - SIP, SDP, RFC 4103, T.140, REFER, WebRTC, VRS, or other protocol conformance;
 - production accessibility readiness;
 - production routing authority;
-- production TRS Fund authority; or
+- production TRS Fund authority;
+- live Fineract execution when no execution evidence exists; or
 - correctness of evidence that a scenario-specific reducer has not independently validated.
 
 Its claim is narrower: Baudot can make its cross-domain evidence-to-claim dependency discipline explicit, acyclic, deterministic, content-addressed, portable, and executable.
