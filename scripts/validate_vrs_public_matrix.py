@@ -91,11 +91,11 @@ def validate_matrix() -> dict:
         non_empty_string(authority.get("title"), f"matrix: authority {authority_id} title")
         url = non_empty_string(authority.get("url"), f"matrix: authority {authority_id} url")
         if not url.startswith("https://"):
-            raise ValueError(f"matrix: authority {authority_id} must use an HTTPS source URL")
+            raise ValueError(f"matrix: authority {authority_id} must use HTTPS")
 
     missing_authorities = REQUIRED_AUTHORITIES - authority_ids
     if missing_authorities:
-        raise ValueError(f"matrix: missing required authorities {sorted(missing_authorities)}")
+        raise ValueError(f"matrix: missing authorities {sorted(missing_authorities)}")
 
     boundary = matrix.get("versionBoundary")
     if not isinstance(boundary, dict):
@@ -103,7 +103,7 @@ def validate_matrix() -> dict:
     if boundary.get("regulatoryProviderProfile") != "TWG-6-1.0":
         raise ValueError("matrix: regulatory provider profile must remain TWG-6-1.0")
     if boundary.get("newerRatifiedIndustryProviderProfile") != "TWG-6-2.0":
-        raise ValueError("matrix: newer industry profile must remain separately identified as TWG-6-2.0")
+        raise ValueError("matrix: newer industry profile must remain TWG-6-2.0")
     if boundary.get("rueProfile") != "RFC 9248":
         raise ValueError("matrix: RUE profile must remain RFC 9248")
 
@@ -121,7 +121,7 @@ def validate_matrix() -> dict:
         non_empty_string(row.get("family"), f"matrix: row {row_id} family")
         state = non_empty_string(row.get("status"), f"matrix: row {row_id} status")
         if state not in ALLOWED_ROW_STATES:
-            raise ValueError(f"matrix: row {row_id} has unsupported research state {state}")
+            raise ValueError(f"matrix: unsupported research state {state} for {row_id}")
         non_empty_string(row.get("objective"), f"matrix: row {row_id} objective")
         row_authorities = set(non_empty_string_list(row.get("authority"), f"matrix: row {row_id} authority"))
         unknown = row_authorities - authority_ids
@@ -136,7 +136,7 @@ def validate_matrix() -> dict:
             if VRS_DIR.resolve() not in fixture_path.parents:
                 raise ValueError(f"matrix: row {row_id} fixture escapes testkit/vrs")
             if not fixture_path.is_file():
-                raise ValueError(f"matrix: row {row_id} fixture does not exist: {fixture}")
+                raise ValueError(f"matrix: row {row_id} fixture missing: {fixture}")
 
     missing_rows = REQUIRED_ROWS - row_ids
     extra_rows = row_ids - REQUIRED_ROWS
@@ -148,7 +148,7 @@ def validate_matrix() -> dict:
     emergency = next(row for row in rows if row["id"] == "RUE-EMERG-001")
     safety_rule = non_empty_string(emergency.get("safetyRule"), "matrix: RUE-EMERG-001 safetyRule")
     if "No public Baudot test originates a real emergency call" not in safety_rule:
-        raise ValueError("matrix: emergency row must preserve the offline/no-real-call safety boundary")
+        raise ValueError("matrix: emergency row must preserve no-real-call boundary")
 
     print(f"✓ VRS matrix: {len(rows)} rows / {len(authority_ids)} authorities")
     return matrix
@@ -157,34 +157,41 @@ def validate_matrix() -> dict:
 def validate_provider_list() -> None:
     fixture = load_object(PROVIDER_LIST_PATH)
     if fixture.get("synthetic") is not True:
-        raise ValueError("provider list: fixture must remain explicitly synthetic")
-    if fixture.get("sourceShape") != "RFC 9248 ProviderList":
-        raise ValueError("provider list: sourceShape drift")
+        raise ValueError("provider list: fixture must remain synthetic")
+    if fixture.get("sourceShape") != "RFC 9248 ProviderList normative OpenAPI":
+        raise ValueError("provider list: must identify the normative RFC 9248 OpenAPI shape")
 
     providers = fixture.get("providers")
     if not isinstance(providers, list) or len(providers) < 2:
-        raise ValueError("provider list: at least two synthetic providers are required")
+        raise ValueError("provider list: at least two synthetic providers required")
 
     names: set[str] = set()
     entry_points: set[str] = set()
     for index, provider in enumerate(providers):
         if not isinstance(provider, dict):
             raise ValueError(f"provider list: provider {index} must be an object")
+        if "entryPoint" in provider:
+            raise ValueError(
+                "provider list: illustrative entryPoint field is forbidden; "
+                "RFC 9248 Section 9.3.1 normative OpenAPI requires providerEntryPoint"
+            )
         name = non_empty_string(provider.get("name"), f"provider list: provider {index} name")
         entry_point = non_empty_string(
-            provider.get("entryPoint"), f"provider list: provider {index} entryPoint"
+            provider.get("providerEntryPoint"),
+            f"provider list: provider {index} providerEntryPoint",
         )
         if name in names or entry_point in entry_points:
-            raise ValueError("provider list: duplicate provider name or entryPoint")
+            raise ValueError("provider list: duplicate provider name or providerEntryPoint")
         names.add(name)
         entry_points.add(entry_point)
-        if not entry_point.endswith(".example"):
+        domain = entry_point.split("/", 1)[0]
+        if not domain.endswith(".example"):
             raise ValueError(f"provider list: non-reserved fixture domain {entry_point}")
 
     if {DEFAULT_PROVIDER, DIAL_AROUND_PROVIDER} - entry_points:
         raise ValueError("provider list: dial-around fixture providers must be present")
 
-    print(f"✓ synthetic ProviderList: {len(providers)} reserved-domain entries")
+    print(f"✓ synthetic ProviderList: {len(providers)} normative providerEntryPoint entries")
 
 
 def parse_sip_fixture(path: Path) -> tuple[str, dict[str, str]]:
@@ -210,26 +217,25 @@ def validate_dial_around_fixture() -> None:
 
     to_value = non_empty_string(headers.get("to"), "dial-around fixture: To")
     if f"<{expected_uri}>" not in to_value:
-        raise ValueError("dial-around fixture: To must preserve the called number and selected provider")
+        raise ValueError("dial-around fixture: To must preserve called number and selected provider")
 
     from_value = non_empty_string(headers.get("from"), "dial-around fixture: From")
     if f"@{DEFAULT_PROVIDER};user=phone" not in from_value:
-        raise ValueError("dial-around fixture: From must remain associated with the default provider")
+        raise ValueError("dial-around fixture: From must remain associated with default provider")
     if DIAL_AROUND_PROVIDER in from_value:
-        raise ValueError("dial-around fixture: selected provider must not rewrite the source identity fixture")
+        raise ValueError("dial-around fixture: selected provider must not rewrite source identity")
 
     via_value = non_empty_string(headers.get("via"), "dial-around fixture: Via")
     if not re.match(r"^SIP/2\.0/TLS\s+", via_value, flags=re.IGNORECASE):
-        raise ValueError("dial-around fixture: transport fixture must use TLS")
+        raise ValueError("dial-around fixture: static transport fixture must use TLS")
 
     content_length = non_empty_string(headers.get("content-length"), "dial-around fixture: Content-Length")
     if content_length != "0":
         raise ValueError("dial-around fixture: SDP/media must remain out of scope")
-
     if "content-type" in headers:
-        raise ValueError("dial-around fixture: signaling-only fixture must not add a media body")
+        raise ValueError("dial-around fixture: signaling-only fixture must not add media")
 
-    print("✓ one-stage dial-around fixture: selected route preserved / media deliberately unclaimed")
+    print("✓ one-stage dial-around fixture: selected route preserved / media unclaimed")
 
 
 def main() -> int:
