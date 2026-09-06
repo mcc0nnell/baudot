@@ -48,6 +48,28 @@ baudot-testkit
 
 The first cross-project research integration is with ACE Omni: Omni can execute controlled communications experiments while Baudot owns the portable accessibility behavior and test vocabulary.
 
+## Synthetic TRS Fund proving ground
+
+Baudot also carries a public-data-calibrated **synthetic end-to-end TRS Fund proving ground**. This is not a generic banking demo and not a reconstruction of the Fund administrator's production systems.
+
+The Fund lane composes the financial lifecycle as explicit, testable boundaries:
+
+```text
+public policy / program-year inputs
+        -> contributor assessments / billing / collections
+        -> Fund receivables and cash
+        -> provider claims / approvals / payables
+        -> disbursements
+        -> adjustments / recoveries / true-ups
+        -> reconciliation and preserved audit evidence
+```
+
+**Apache Fineract is the financial kernel, not the TRS policy engine.** Baudot owns the synthetic Fund domain, scenario fixtures, program invariants, and independent reconciliation; Fineract is exercised as an external general-ledger implementation. Accounting acceptance never substitutes for provider eligibility, contributor liability, payment authorization, routing authority, or accessibility readiness.
+
+The first executable slice reproduces public Fund arithmetic, models synthetic contributor assessments and receipts, defines claims/payments/assessments/receipts as a machine-readable journal contract, and establishes the path toward a replayable multi-program-year Fund test bench.
+
+See [`docs/trs-fund-public-ledger.md`](docs/trs-fund-public-ledger.md) for the lifecycle, public-source calibration, Fineract boundary, invariants, and claim limits.
+
 ## Current proving ground
 
 Baudot currently uses JAIN SIP as a glass-box signaling instrument and Sandia Wiretap as an external controlled-network substrate.
