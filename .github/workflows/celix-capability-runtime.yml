@@ -84,12 +84,31 @@ jobs:
       - name: Run runtime compositions
         run: |
           mkdir -p build/celix-evidence
-          printf 'stop 0\n' | build/celix/deploy/baudot_celix_good/baudot_celix_good \
-            > build/celix-evidence/good.log
-          printf 'stop 0\n' | build/celix/deploy/baudot_celix_fault_injected/baudot_celix_fault_injected \
-            > build/celix-evidence/fault-injected.log
-          printf 'stop 0\n' | build/celix/deploy/baudot_celix_missing_rtt/baudot_celix_missing_rtt \
-            > build/celix-evidence/missing-rtt.log
+
+          run_profile() {
+            local executable="$1"
+            local log="$2"
+            local status=0
+
+            timeout --signal=TERM --kill-after=2s 3s "${executable}" > "${log}" 2>&1 || status=$?
+            if [[ "${status}" -ne 0 && "${status}" -ne 124 ]]; then
+              cat "${log}"
+              return "${status}"
+            fi
+
+            if ! grep -q '"type":"baudot.celix.observation"' "${log}"; then
+              cat "${log}"
+              echo "No Baudot Celix observations were emitted by ${executable}" >&2
+              return 1
+            fi
+          }
+
+          run_profile build/celix/deploy/baudot_celix_good/baudot_celix_good \
+            build/celix-evidence/good.log
+          run_profile build/celix/deploy/baudot_celix_fault_injected/baudot_celix_fault_injected \
+            build/celix-evidence/fault-injected.log
+          run_profile build/celix/deploy/baudot_celix_missing_rtt/baudot_celix_missing_rtt \
+            build/celix-evidence/missing-rtt.log
 
       - name: Validate evidence boundaries
         run: |
