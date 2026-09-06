@@ -1,7 +1,35 @@
 cmake_minimum_required(VERSION 3.19)
-project(baudot_celix_capability_runtime LANGUAGES CXX)
+project(baudot_celix_capability_runtime LANGUAGES C CXX)
 
 find_package(Celix 2.4.0 REQUIRED)
+
+if(NOT PJSIP_SOURCE_DIR)
+  message(FATAL_ERROR "Set PJSIP_SOURCE_DIR to the pinned clean pjsip/pjproject 2.17 checkout")
+endif()
+
+# Keep the PJSIP dependency closure narrow and static. The Celix adapter uses
+# only the native SIP parser; it does not start transports, media, or a UA.
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(PJ_SKIP_EXPERIMENTAL_NOTICE ON CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_VIDEO OFF CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_SRTP OFF CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_RESAMPLE none CACHE STRING "" FORCE)
+set(PJMEDIA_WITH_SPEEX_AEC OFF CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_WEBRTC_AEC OFF CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_WEBRTC_AEC3 OFF CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_GSM_CODEC OFF CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_SPEEX_CODEC OFF CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_ILBC_CODEC OFF CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_G7221_CODEC OFF CACHE BOOL "" FORCE)
+set(PJMEDIA_WITH_OPUS_CODEC OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(
+  "${PJSIP_SOURCE_DIR}"
+  "${CMAKE_BINARY_DIR}/pjproject"
+  EXCLUDE_FROM_ALL
+)
 
 set(BAUDOT_CELIX_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -20,15 +48,16 @@ add_celix_bundle(EvidenceEmitterBundle
 )
 baudot_configure_bundle(EvidenceEmitterBundle)
 
-add_celix_bundle(GoodCallAdmissionBundle
-  SOURCES src/good_call_admission_bundle.cc
-  SYMBOLIC_NAME "Baudot_GoodCallAdmission"
-  NAME "Baudot Good Call Admission"
-  FILENAME "baudot_good_call_admission"
+add_celix_bundle(PjsipCallAdmissionBundle
+  SOURCES src/pjsip_call_admission_bundle.cc
+  SYMBOLIC_NAME "Baudot_PjsipCallAdmission"
+  NAME "Baudot PJSIP Call Admission"
+  FILENAME "baudot_pjsip_call_admission"
   VERSION "0.1.0"
   GROUP "baudot/celix-lab"
 )
-baudot_configure_bundle(GoodCallAdmissionBundle)
+baudot_configure_bundle(PjsipCallAdmissionBundle)
+target_link_libraries(PjsipCallAdmissionBundle PRIVATE pjsip)
 
 add_celix_bundle(FaultInjectedCallAdmissionBundle
   SOURCES src/fault_injected_call_admission_bundle.cc
@@ -77,12 +106,10 @@ baudot_add_probe(GoodCompositionProbeBundle BAUDOT_PROFILE_GOOD)
 baudot_add_probe(FaultInjectedCompositionProbeBundle BAUDOT_PROFILE_FAULT_INJECTED)
 baudot_add_probe(MissingRttCompositionProbeBundle BAUDOT_PROFILE_MISSING_RTT)
 
-# Bundle order is deliberate. Providers are active before the probe, and the
-# shell is started last so CI can issue `stop 0` only after evidence is emitted.
 add_celix_container(baudot_celix_good
   BUNDLES
     EvidenceEmitterBundle
-    GoodCallAdmissionBundle
+    PjsipCallAdmissionBundle
     GoodRealtimeTextBundle
     GoodCompositionProbeBundle
     Celix::shell
@@ -102,7 +129,7 @@ add_celix_container(baudot_celix_fault_injected
 add_celix_container(baudot_celix_missing_rtt
   BUNDLES
     EvidenceEmitterBundle
-    GoodCallAdmissionBundle
+    PjsipCallAdmissionBundle
     MissingRttCompositionProbeBundle
     Celix::shell
     Celix::shell_tui
