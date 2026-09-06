@@ -3,10 +3,12 @@
   "composition": {
     "commonBase": "65723f8c6f566f092ebdd4a3901cf8743ca5a0bc",
     "nifiPr": 121,
-    "nifiHead": "bf6ffa25423c9107ef3b1ca546bc14f7574116bf",
+    "nifiQualifiedHead": "bf6ffa25423c9107ef3b1ca546bc14f7574116bf",
+    "nifiMergeCommit": "783b038c8b750af617a12e6befba287ce65b13c2",
     "documentPr": 129,
-    "documentHead": "9df3f208cc126d070060f495295c1babbedf6cb6",
-    "strategy": "ci-local-merge-of-exact-sibling-heads"
+    "documentQualifiedHead": "9df3f208cc126d070060f495295c1babbedf6cb6",
+    "documentMergeCommit": "134e7512dab2393cc9be5a307952a4e9f2857594",
+    "strategy": "converged-repository-tree"
   },
   "runtimePins": {
     "nifi": "2.11.0",
