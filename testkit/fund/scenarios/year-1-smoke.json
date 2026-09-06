@@ -1,0 +1,65 @@
+{
+  "schema": "baudot.trs-fund-scenario@1",
+  "scenarioId": "fund-year-1-smoke",
+  "description": "Minimal end-to-end synthetic Fund flow with an idempotent command retry.",
+  "commands": [
+    {
+      "idempotencyKey": "assessment-CONTRIB-A-2026-07",
+      "type": "CONTRIBUTOR_ASSESSED",
+      "effectiveDate": "2026-07-01",
+      "amount": "2400.00",
+      "actorId": "synthetic-assessment-model",
+      "authorityRef": "DA-26-646-fixture"
+    },
+    {
+      "idempotencyKey": "receipt-CONTRIB-A-2026-07",
+      "type": "CONTRIBUTOR_RECEIPT",
+      "effectiveDate": "2026-07-10",
+      "amount": "2400.00",
+      "actorId": "synthetic-receipt-model",
+      "authorityRef": "assessment-CONTRIB-A-2026-07"
+    },
+    {
+      "idempotencyKey": "receipt-CONTRIB-A-2026-07",
+      "type": "CONTRIBUTOR_RECEIPT",
+      "effectiveDate": "2026-07-10",
+      "amount": "2400.00",
+      "actorId": "synthetic-retry-client",
+      "authorityRef": "assessment-CONTRIB-A-2026-07"
+    },
+    {
+      "idempotencyKey": "claim-PROVIDER-X-2026-07",
+      "type": "PROVIDER_CLAIM_APPROVED",
+      "effectiveDate": "2026-07-31",
+      "amount": "1650.00",
+      "actorId": "synthetic-claim-reducer",
+      "authorityRef": "synthetic-provider-claim-PROVIDER-X"
+    },
+    {
+      "idempotencyKey": "payment-PROVIDER-X-2026-08",
+      "type": "PROVIDER_DISBURSED",
+      "effectiveDate": "2026-08-05",
+      "amount": "1650.00",
+      "actorId": "synthetic-payment-authorization",
+      "authorityRef": "claim-PROVIDER-X-2026-07"
+    }
+  ],
+  "expected": {
+    "acceptedEvents": 4,
+    "idempotentReplays": 1,
+    "finalState": {
+      "cash": "750.00",
+      "contributorReceivable": "0.00",
+      "providerPayable": "0.00",
+      "contributionRevenue": "2400.00",
+      "providerCompensationExpense": "1650.00",
+      "lastSeq": 4
+    }
+  },
+  "claimBoundary": {
+    "syntheticOnly": true,
+    "noProductionContributorData": true,
+    "noProductionProviderData": true,
+    "noFineractPostingInThisScenario": true
+  }
+}
