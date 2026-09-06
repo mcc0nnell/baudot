@@ -4,17 +4,23 @@ on:
   push:
     paths:
       - "interop/sipp/**"
+      - "scripts/run-sipp-reinvite-glare.sh"
+      - "scripts/validate_sipp_reinvite_glare.py"
+      - "src/main/java/org/mcc0nnell/baudot/harness/SippReinviteGlareTarget.java"
       - ".github/workflows/sipp-hostile-admission.yml"
   pull_request:
     paths:
       - "interop/sipp/**"
+      - "scripts/run-sipp-reinvite-glare.sh"
+      - "scripts/validate_sipp_reinvite_glare.py"
+      - "src/main/java/org/mcc0nnell/baudot/harness/SippReinviteGlareTarget.java"
       - ".github/workflows/sipp-hostile-admission.yml"
 
 permissions:
   contents: read
 
 jobs:
-  admit-sipp-stimulus:
+  sipp-hostile:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Baudot
@@ -40,16 +46,53 @@ jobs:
       - name: Validate hostile scenario contract
         run: python interop/sipp/validate_scenario_catalog.py
 
-      - name: Seal static evidence
+      - name: Install minimal SIPp build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            cmake \
+            g++ \
+            gcc \
+            libncurses-dev \
+            libpugixml-dev \
+            ninja-build
+
+      - name: Build exact SIPp stimulus executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S /tmp/sipp -B /tmp/sipp-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUSE_PCAP=0 \
+            -DUSE_GSL=0 \
+            -DUSE_SCTP=0 \
+            -DUSE_SYSTEM_PUGIXML=ON
+          cmake --build /tmp/sipp-build --parallel 2
+          /tmp/sipp-build/sipp -v | tee evidence/sipp-hostile/sipp-version.txt
+          sha256sum /tmp/sipp-build/sipp | tee evidence/sipp-hostile/sipp-executable.sha256
+
+      - name: Execute live re-INVITE glare pressure
+        env:
+          SIPP_BIN: /tmp/sipp-build/sipp
+        run: bash scripts/run-sipp-reinvite-glare.sh
+
+      - name: Seal static admission evidence
         shell: bash
         run: |
           set -euo pipefail
           sha256sum \
             interop/sipp/README.md \
             interop/sipp/scenario-catalog.json \
+            interop/sipp/scenarios/reinvite-glare-uac.xml \
             interop/sipp/sipp_candidate_admission.py \
             interop/sipp/validate_scenario_catalog.py \
+            scripts/run-sipp-reinvite-glare.sh \
+            scripts/validate_sipp_reinvite_glare.py \
+            src/main/java/org/mcc0nnell/baudot/harness/SippReinviteGlareTarget.java \
             evidence/sipp-hostile/source-admission.json \
+            evidence/sipp-hostile/sipp-version.txt \
+            evidence/sipp-hostile/sipp-executable.sha256 \
             > evidence/sipp-hostile/SHA256SUMS
           cat evidence/sipp-hostile/SHA256SUMS
 
@@ -58,4 +101,11 @@ jobs:
         with:
           name: sipp-hostile-source-admission
           path: evidence/sipp-hostile/
+          if-no-files-found: error
+
+      - name: Upload live glare evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sipp-hostile-004-live-glare
+          path: target/evidence/BAUDOT-INTEROP-003/sipp-hostile-004-jain-v1/
           if-no-files-found: error
