@@ -1,0 +1,84 @@
+{
+  "suite": "baudot-itrs-resolution-v1",
+  "status": "mock",
+  "sourceModel": "clean-room behavioral model of iTRS ENUM-style routing",
+  "notes": [
+    "All numbers and domains are synthetic.",
+    "No fixture represents a live TRS Numbering Directory record.",
+    "The logical SIP URI is the Tilden-to-Baudot handoff; DNS service discovery is retained as evidence, not identity."
+  ],
+  "cases": [
+    {
+      "id": "direct-e2u-sip",
+      "number": "2025550101",
+      "enumQuery": "1.0.1.0.5.5.5.2.0.2.1.itrs.invalid",
+      "authoritativeRecords": [{"type":"NAPTR","order":10,"preference":10,"service":"E2U+sip","replacement":"sip:2025550101@vrs-a.example.invalid"}],
+      "expected": {"result":"route","logicalSipUri":"sip:2025550101@vrs-a.example.invalid"},
+      "invariant": "A direct E2U+sip result becomes the logical route without requiring provider-specific interpretation."
+    },
+    {
+      "id": "alias-then-e2u-sip",
+      "number": "2025550102",
+      "enumQuery": "2.0.1.0.5.5.5.2.0.2.1.itrs.invalid",
+      "authoritativeRecords": [
+        {"type":"CNAME","target":"ported-0102.provider-b.itrs.invalid"},
+        {"owner":"ported-0102.provider-b.itrs.invalid","type":"NAPTR","order":10,"preference":10,"service":"E2U+sip","replacement":"sip:2025550102@vrs-b.example.invalid"}
+      ],
+      "expected": {"result":"route","logicalSipUri":"sip:2025550102@vrs-b.example.invalid"},
+      "invariant": "An authoritative alias/forwarding hop is followed before extracting the logical SIP route."
+    },
+    {
+      "id": "naptr-priority-selection",
+      "number": "2025550103",
+      "enumQuery": "3.0.1.0.5.5.5.2.0.2.1.itrs.invalid",
+      "authoritativeRecords": [
+        {"type":"NAPTR","order":20,"preference":10,"service":"E2U+sip","replacement":"sip:2025550103@secondary.example.invalid"},
+        {"type":"NAPTR","order":10,"preference":20,"service":"E2U+sip","replacement":"sip:2025550103@primary.example.invalid"}
+      ],
+      "expected": {"result":"route","logicalSipUri":"sip:2025550103@primary.example.invalid"},
+      "invariant": "NAPTR order is evaluated before preference so the lowest-order eligible route wins."
+    },
+    {
+      "id": "sip-service-discovery",
+      "number": "2025550104",
+      "enumQuery": "4.0.1.0.5.5.5.2.0.2.1.itrs.invalid",
+      "authoritativeRecords": [{"type":"NAPTR","order":10,"preference":10,"service":"E2U+sip","replacement":"sip:2025550104@edge.example.invalid"}],
+      "serviceDiscovery": [
+        {"owner":"edge.example.invalid","type":"NAPTR","order":10,"preference":10,"service":"SIP+D2T","replacement":"_sip._tcp.edge.example.invalid"},
+        {"owner":"_sip._tcp.edge.example.invalid","type":"SRV","priority":10,"weight":0,"port":5070,"target":"sip1.edge.example.invalid"}
+      ],
+      "expected": {"result":"route","logicalSipUri":"sip:2025550104@edge.example.invalid","connectTarget":"sip1.edge.example.invalid:5070"},
+      "invariant": "Tilden preserves the logical SIP URI while Baudot may use NAPTR/SRV immediately before connection."
+    },
+    {
+      "id": "no-route",
+      "number": "2025550105",
+      "enumQuery": "5.0.1.0.5.5.5.2.0.2.1.itrs.invalid",
+      "authoritativeRecords": [],
+      "expected": {"result":"not-found"},
+      "invariant": "Absence of an authoritative route is not converted into a guessed provider route."
+    },
+    {
+      "id": "malformed-e2u-sip",
+      "number": "2025550106",
+      "enumQuery": "6.0.1.0.5.5.5.2.0.2.1.itrs.invalid",
+      "authoritativeRecords": [{"type":"NAPTR","order":10,"preference":10,"service":"E2U+sip","replacement":"not-a-sip-uri"}],
+      "expected": {"result":"invalid-authoritative-response"},
+      "invariant": "Malformed authoritative data fails closed instead of becoming a signaling target."
+    },
+    {
+      "id": "directory-unavailable",
+      "number": "2025550107",
+      "expected": {"result":"authority-unavailable"},
+      "invariant": "An authority outage is distinct from a number that has no iTRS route."
+    },
+    {
+      "id": "slow-authority",
+      "number": "2025550108",
+      "latencyMs": 250,
+      "authoritativeRecords": [{"type":"NAPTR","order":10,"preference":10,"service":"E2U+sip","replacement":"sip:2025550108@slow.example.invalid"}],
+      "expected": {"result":"route","logicalSipUri":"sip:2025550108@slow.example.invalid"},
+      "invariant": "Call setup logic can exercise latency and timeout policy deterministically."
+    }
+  ]
+}
