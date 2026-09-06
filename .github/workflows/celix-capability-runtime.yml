@@ -1,0 +1,136 @@
+name: celix-capability-runtime
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/celix-capability-runtime.yml"
+      - "docs/celix-capability-runtime.md"
+      - "interop/celix/**"
+      - "scripts/validate_celix_capability_runtime.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/celix-capability-runtime.yml"
+      - "docs/celix-capability-runtime.md"
+      - "interop/celix/**"
+      - "scripts/validate_celix_capability_runtime.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CELIX_VERSION: "2.4.0"
+      CELIX_SHA512: "76FB2BA448028894841E7315F62E864A0913144A528B666106B4946A0044B45AF13629A558E627DE4EA6331788BAE482B63601AEE669E44BBC32435CC0B72FF0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            curl \
+            zip \
+            uuid-dev \
+            libjansson-dev \
+            libcurl4-openssl-dev \
+            libffi-dev \
+            libzip-dev \
+            libxml2-dev \
+            libczmq-dev \
+            rapidjson-dev
+
+      - name: Fetch and verify Apache Celix source release
+        run: |
+          archive="/tmp/celix-${CELIX_VERSION}.tar.gz"
+          curl -fsSL \
+            "https://archive.apache.org/dist/celix/celix-${CELIX_VERSION}/celix-${CELIX_VERSION}.tar.gz" \
+            -o "${archive}"
+          printf '%s  %s\n' "${CELIX_SHA512}" "${archive}" | sha512sum --check --strict
+          tar -xzf "${archive}" -C /tmp
+
+      - name: Build and install pinned Apache Celix
+        run: |
+          cmake \
+            -S "/tmp/celix-${CELIX_VERSION}" \
+            -B /tmp/celix-build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/tmp/celix-install \
+            -DBUILD_TESTING=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_REMOTE_SERVICE_ADMIN=OFF \
+            -DBUILD_CXX_REMOTE_SERVICE_ADMIN=OFF \
+            -DBUILD_SHELL=ON
+          cmake --build /tmp/celix-build --target install --parallel 2
+
+      - name: Build Baudot Celix capability containers
+        run: |
+          cmake \
+            -S interop/celix \
+            -B build/celix \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=/tmp/celix-install
+          cmake --build build/celix --parallel 2
+
+      - name: Run runtime compositions
+        run: |
+          mkdir -p build/celix-evidence
+
+          run_profile() {
+            local executable="$1"
+            local log="$2"
+            local status=0
+            local deploy_dir
+            local executable_name
+
+            deploy_dir="$(dirname "${executable}")"
+            executable_name="$(basename "${executable}")"
+
+            (
+              cd "${deploy_dir}"
+              timeout --signal=TERM --kill-after=2s 3s "./${executable_name}"
+            ) > "${log}" 2>&1 || status=$?
+
+            if [[ "${status}" -ne 0 && "${status}" -ne 124 ]]; then
+              cat "${log}"
+              return "${status}"
+            fi
+
+            if ! grep -q '"type":"baudot.celix.observation"' "${log}"; then
+              cat "${log}"
+              echo "No Baudot Celix observations were emitted by ${executable}" >&2
+              return 1
+            fi
+          }
+
+          run_profile build/celix/deploy/baudot_celix_good/baudot_celix_good \
+            build/celix-evidence/good.log
+          run_profile build/celix/deploy/baudot_celix_fault_injected/baudot_celix_fault_injected \
+            build/celix-evidence/fault-injected.log
+          run_profile build/celix/deploy/baudot_celix_missing_rtt/baudot_celix_missing_rtt \
+            build/celix-evidence/missing-rtt.log
+
+      - name: Validate evidence boundaries
+        run: |
+          python3 scripts/validate_celix_capability_runtime.py \
+            --good build/celix-evidence/good.log \
+            --fault-injected build/celix-evidence/fault-injected.log \
+            --missing-rtt build/celix-evidence/missing-rtt.log \
+            | tee build/celix-evidence/summary.json
+
+      - name: Preserve qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: celix-capability-runtime-evidence
+          path: build/celix-evidence
+          if-no-files-found: warn
