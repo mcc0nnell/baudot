@@ -1,0 +1,21 @@
+{
+  "fixture": "baudot.synthetic-rue-provider-list@1",
+  "sourceShape": "RFC 9248 ProviderList normative OpenAPI",
+  "synthetic": true,
+  "providers": [
+    {
+      "name": "Provider A",
+      "providerEntryPoint": "provider-a.example"
+    },
+    {
+      "name": "Provider B",
+      "providerEntryPoint": "provider-b.example"
+    },
+    {
+      "name": "Provider C",
+      "providerEntryPoint": "provider-c.example"
+    }
+  ],
+  "sourceNote": "RFC 9248 Figure 2 illustrates entryPoint, while the normative Section 9.3.1 OpenAPI schema requires providerEntryPoint. RFC 9248 states that the OpenAPI description takes precedence on conflict, so this fixture follows providerEntryPoint.",
+  "claimBoundary": "Reserved example domains and invented provider labels only. This fixture does not represent a production VRS provider directory or assert RFC 9248 deployment by any provider."
+}

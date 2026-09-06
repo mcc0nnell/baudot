@@ -1,0 +1,15 @@
+# Baudot-authored synthetic RFC 9248 two-stage dial-around fixture.
+# The call enters Provider B through its configured ASL front-door URI.
+# The ultimate called-party number is intentionally absent from this initial
+# INVITE because RFC 9248 two-stage dial-around supplies it after connection
+# by signing or DTMF. No SDP is included; this fixture proves no media state.
+
+INVITE sip:front-door@provider-b.example SIP/2.0
+Via: SIP/2.0/TLS rue.example;branch=z9hG4bK-baudot-rue-two-stage
+Max-Forwards: 70
+From: "Baudot RUE" <sip:+12025550101@provider-a.example;user=phone>;tag=baudot-rue-two-stage
+To: <sip:front-door@provider-b.example>
+Call-ID: baudot-rue-two-stage-001@example.invalid
+CSeq: 1 INVITE
+Contact: <sip:rue@rue.example;transport=tls>
+Content-Length: 0

@@ -1,0 +1,233 @@
+{
+  "schema": "baudot.vrs-public-interoperability-matrix@1",
+  "status": "research",
+  "generatedFromPublicSourcesOnly": true,
+  "accessed": "2026-09-05",
+  "purpose": "Translate public VRS provider and RUE interoperability requirements into clean-room Baudot test candidates without making provider or conformance claims.",
+  "authorities": [
+    {
+      "id": "us-47cfr-64.621",
+      "kind": "regulatory",
+      "title": "47 CFR 64.621 - Interoperability and portability",
+      "url": "https://www.law.cornell.edu/cfr/text/47/64.621",
+      "notes": "Codified VRS interoperability obligations and incorporation of the 2015 SIP Forum VRS Provider Interoperability Profile TWG-6-1.0."
+    },
+    {
+      "id": "sipforum-twg6-2.0",
+      "kind": "industry-profile",
+      "title": "SIP Forum VRS US Providers Profile TWG-6-2.0",
+      "url": "https://www.sipforum.org/download-category/vrs-task-group/",
+      "notes": "Ratified April 23, 2020. Kept distinct from the profile version incorporated into the codified rule."
+    },
+    {
+      "id": "ietf-rfc9248",
+      "kind": "standards-track",
+      "title": "RFC 9248 - Interoperability Profile for Relay User Equipment",
+      "url": "https://www.rfc-editor.org/rfc/rfc9248.html",
+      "notes": "Primary public authority for the RUE-facing registration, call, media, provisioning, dial-around, transfer, and emergency test rows below."
+    },
+    {
+      "id": "ietf-rum-2019-event",
+      "kind": "operational-history",
+      "title": "IETF 105 RUM history and 2019 VRS interoperability event material",
+      "url": "https://datatracker.ietf.org/meeting/105/materials/slides-105-rum-rum-history-background-00",
+      "notes": "Operational evidence of multi-provider SIP, point-to-point, and dial-around interoperability testing; not a conformance source."
+    },
+    {
+      "id": "mitre-national-test-lab-2024",
+      "kind": "operational-history",
+      "title": "MITRE Connects: Improving Telecommunications for the Deaf Community",
+      "url": "https://www.mitre.org/news-insights/impact-story/mitre-connects-improving-telecommunications-deaf-community",
+      "notes": "Operational evidence that FCC-sponsored interoperability and service-quality testing continues at large call volumes; not a public test specification."
+    }
+  ],
+  "versionBoundary": {
+    "regulatoryProviderProfile": "TWG-6-1.0",
+    "newerRatifiedIndustryProviderProfile": "TWG-6-2.0",
+    "rueProfile": "RFC 9248",
+    "rule": "Do not treat a newer industry profile as incorporated regulatory text unless the codified rule says so."
+  },
+  "rows": [
+    {
+      "id": "RUE-REG-001",
+      "family": "registration",
+      "status": "planned",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Register a synthetic RUE with a synthetic provider while preserving configured provider-domain, selected SIP transport, authentication outcome, outbound-flow state, and terminal registration result as separate evidence.",
+      "positiveFacts": [
+        "providerDomainPreserved",
+        "tlsPreferredDiscoveryObserved",
+        "registerSent",
+        "authenticationClassified",
+        "registrationAccepted"
+      ],
+      "negativeControls": [
+        "provider-domain drift fails before promotion",
+        "TLS preference missing is visible independently from registration success",
+        "authentication failure cannot become registered"
+      ],
+      "existingBaudotReuse": ["JAIN SIP signaling harness", "Wiretap evidence substrate"],
+      "doesNotEstablish": ["production provider registration", "RFC 9248 conformance", "SIP conformance", "TLS security of an external provider"]
+    },
+    {
+      "id": "RUE-DIAL-001",
+      "family": "dial-around",
+      "status": "fixture-ready",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Exercise one-stage dial-around in which a synthetic user on provider A selects provider B for the call and the selected provider domain survives into the actual Request-URI.",
+      "fixture": "testkit/vrs/fixtures/rue-one-stage-dial-around-invite.txt",
+      "positiveFacts": [
+        "calledNumberPreserved",
+        "selectedDialAroundProviderInRequestUri",
+        "toUriMatchesCalledNumberAndSelectedProvider",
+        "defaultProviderIdentityRemainsSourceIdentity",
+        "dialogEstablished"
+      ],
+      "negativeControls": [
+        "default-provider route substituted for selected provider is route-selection failure",
+        "called-number drift is target-correlation failure",
+        "dialog success does not imply media readiness"
+      ],
+      "existingBaudotReuse": ["provider-neutral routing model", "JAIN SIP", "Elixip", "PJSIP candidate endpoint lanes"],
+      "doesNotEstablish": ["live provider dial-around support", "production routing correctness", "VRS conformance", "media readiness"]
+    },
+    {
+      "id": "RUE-DIAL-002",
+      "family": "dial-around",
+      "status": "planned",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Keep two-stage dial-around distinct from one-stage routing by selecting a synthetic provider front-door URI and supplying the destination only in the subsequent interaction.",
+      "positiveFacts": ["frontDoorSelected", "frontDoorDialogEstablished", "destinationInputPhaseDistinct"],
+      "negativeControls": ["one-stage Request-URI semantics cannot be silently substituted for two-stage"],
+      "existingBaudotReuse": ["provider-neutral routing model", "JAIN SIP"],
+      "doesNotEstablish": ["CA availability", "production front-door behavior", "DTMF conformance"]
+    },
+    {
+      "id": "RUE-MIDCALL-001",
+      "family": "mid-call",
+      "status": "partially-runnable",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Reuse Baudot's re-INVITE and REFER evidence lanes as bounded RUE mid-call tests while retaining media freshness, replacement-dialog identity, accessibility readiness, and old-leg continuity as separate facts.",
+      "positiveFacts": ["reInviteObserved", "referObserved", "replacementTargetCorrelated", "oldLegReleaseOrdered"],
+      "existingBaudotReuse": ["BAUDOT-INTEROP-003", "BAUDOT-INTEROP-004"],
+      "doesNotEstablish": ["complete RFC 9248 mid-call conformance", "external provider REFER support", "production transfer interoperability"]
+    },
+    {
+      "id": "RUE-RTT-001",
+      "family": "real-time-text",
+      "status": "partially-runnable",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Qualify implementation-generated RFC 4103 T.140 with one current generation, two redundant generations, and independently measured transmission timing before deriving RTT readiness.",
+      "positiveFacts": [
+        "t140Negotiated",
+        "implementationGeneratedTextObserved",
+        "twoRedundantGenerationsObserved",
+        "transmissionIntervalMeasured",
+        "firstT140CharacterObserved",
+        "rttReady"
+      ],
+      "negativeControls": [
+        "negotiation without text remains not ready",
+        "RED payload type without valid redundant generations remains not redundancy-ready",
+        "timing is measured rather than inferred from configuration"
+      ],
+      "existingBaudotReuse": ["RFC 4103 reference", "RFC 2198 strict reducer", "PJSIP 2.17 native text lane", "Linphone candidate lane"],
+      "doesNotEstablish": ["full RFC 4103 conformance", "full RFC 2198 conformance", "production VRS RTT support"]
+    },
+    {
+      "id": "RUE-RTT-002",
+      "family": "real-time-text",
+      "status": "partially-runnable",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Exercise the RFC 4103 to RFC 8865 browser-WebRTC gateway boundary without duplicating redundant generations into the semantic stream.",
+      "positiveFacts": ["rfc4103InputObserved", "gatewayTerminationDeclared", "browserT140ChannelReady", "semanticTextPreserved"],
+      "existingBaudotReuse": ["BAUDOT federation gateway lanes", "Chromium t140 data-channel lane"],
+      "doesNotEstablish": ["end-to-end encryption across a media-terminating gateway", "full WebRTC conformance", "production provider gateway behavior"]
+    },
+    {
+      "id": "RUE-VIDEO-001",
+      "family": "video",
+      "status": "partially-runnable",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Negotiate H.264 as the mandatory-to-implement video codec, then advance evidence independently through RTP receipt, decoder input, decoded frames, and rendering.",
+      "positiveFacts": ["h264Negotiated", "videoRtpObserved", "decoderInputObserved", "videoDecoded", "videoRendered"],
+      "negativeControls": ["H.264 SDP agreement without RTP is not media-ready", "RTP receipt without decoder evidence is not decoded", "decode without presentation evidence is not rendered"],
+      "existingBaudotReuse": ["JAIN SIP H.264 SDP/RTP evidence lane"],
+      "doesNotEstablish": ["H.264 bitstream conformance", "decoder conformance", "production video quality"]
+    },
+    {
+      "id": "RUE-SEC-001",
+      "family": "media-security",
+      "status": "planned",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Observe SRTP/SRTCP negotiation and protected media transport as a transport-security fact without promoting it into an end-to-end decryption-authorization claim.",
+      "positiveFacts": ["srtpNegotiated", "protectedMediaObserved", "srtcpCapabilityClassified"],
+      "existingBaudotReuse": ["VRS E2EE trust-boundary model"],
+      "doesNotEstablish": ["E2EE", "participant authentication", "secure key distribution", "external provider security posture"]
+    },
+    {
+      "id": "RUE-ICE-001",
+      "family": "connectivity",
+      "status": "planned",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Exercise full ICE and preserve gathering, connectivity checks, selected candidate pair, and subsequent media receipt as separate observations.",
+      "positiveFacts": ["fullIceOffered", "candidatePairSelected", "iceReady", "mediaObservedAfterIce"],
+      "negativeControls": ["dialog establishment without ICE readiness remains not connection-ready", "selected pair without media remains transport-only evidence"],
+      "existingBaudotReuse": ["modality readiness contract", "Chromium ICE evidence lanes"],
+      "doesNotEstablish": ["NAT/SBC interoperability", "production TURN behavior", "WebRTC conformance"]
+    },
+    {
+      "id": "RUE-PROV-001",
+      "family": "provisioning",
+      "status": "fixture-ready",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Retrieve and reduce a deterministic synthetic provider list, allow explicit provider selection, and carry only the selected entry point into a subsequent configuration step.",
+      "fixture": "testkit/vrs/fixtures/provider-list-v1.json",
+      "positiveFacts": ["providerListParsed", "selectedProviderPreserved", "entryPointPreserved"],
+      "negativeControls": ["unknown provider selection fails closed", "duplicate or contradictory selection cannot silently choose a provider"],
+      "doesNotEstablish": ["existence of a public production provider list", "provider trust", "provider reachability", "account eligibility"]
+    },
+    {
+      "id": "RUE-OWNER-001",
+      "family": "subscriber-contact",
+      "status": "planned",
+      "authority": ["ietf-rfc9248", "us-47cfr-64.621"],
+      "objective": "Use synthetic owner/contact information to verify that identity/contact exchange can be carried and correlated without importing real subscriber address-book data.",
+      "positiveFacts": ["syntheticOwnerRecordBound", "ownerPurposeClassified", "contactRecordRoundTrip"],
+      "doesNotEstablish": ["real subscriber identity", "provider identity verification", "xCard implementation conformance"]
+    },
+    {
+      "id": "RUE-EMERG-001",
+      "family": "emergency",
+      "status": "planned-offline-only",
+      "authority": ["ietf-rfc9248"],
+      "objective": "Validate construction and reduction of synthetic emergency location/additional-data signaling entirely offline or in an expressly authorized isolated test environment.",
+      "positiveFacts": ["syntheticLocationClassified", "additionalDataBlocksPresent", "routingIntentClassified"],
+      "safetyRule": "No public Baudot test originates a real emergency call or probes a production emergency-routing endpoint.",
+      "doesNotEstablish": ["911 routing success", "PSAP behavior", "production LoST behavior", "emergency-service compliance"]
+    }
+  ],
+  "operationalContext": {
+    "2019InteropEvent": {
+      "reportedSipTests": "more than 1800",
+      "reportedEndpoints": 33,
+      "reportedCallFamilies": ["point-to-point", "VRS dial-around"],
+      "use": "matrix-shape evidence only"
+    },
+    "mitreNationalTestLab": {
+      "reportedTestCallsPerQuarter": "up to 24000",
+      "use": "evidence that repeatable interoperability/service-quality testing is an operational discipline"
+    }
+  },
+  "globalClaimBoundary": {
+    "doesNotEstablish": [
+      "current behavior of any named VRS provider",
+      "access to or behavior of the live TRS Numbering Directory",
+      "the contents of MITRE's non-public National Test Lab test suite",
+      "regulatory certification",
+      "RFC 9248 conformance",
+      "VRS Provider Interoperability Profile conformance",
+      "authorization to probe production provider infrastructure"
+    ]
+  }
+}

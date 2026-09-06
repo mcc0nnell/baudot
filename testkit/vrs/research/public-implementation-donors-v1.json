@@ -1,0 +1,139 @@
+{
+  "schema": "baudot.vrs-public-implementation-donors@1",
+  "status": "research",
+  "rule": "Historical implementation behavior may motivate scenarios but never supplies normative or terminal verdict authority.",
+  "donors": [
+    {
+      "id": "mitre-fcc-vatrp-desktop",
+      "repository": "mitrefccace/fcc-vatrp",
+      "revision": "9f82469ba8c591869c1e9ce9fc66b866ab5983a4",
+      "sourceClass": ["historical-test-tool", "historical-behavioral-donor"],
+      "paths": [
+        "README.md",
+        "VATRP.App/Services/ServiceManager.cs",
+        "VATRP.App/Services/MediaActionHandler.cs",
+        "VATRP.Core/Services/LinphoneService.cs",
+        "VATRP.LinphoneWrapper/LinphoneAPI.cs"
+      ],
+      "scenarioFamilies": ["RUE-PROV", "RUE-DIAL", "RUE-RTT", "RUE-EMERG", "RUE-OWNER"],
+      "observedSeams": [
+        "JSON provider-list retrieval and local fallback",
+        "explicit dial-around provider target construction",
+        "E.164 user=phone versus dialstring distinction",
+        "RTT enablement carried separately from route and video/audio policy",
+        "incoming RTT enablement intersects local and remote state",
+        "emergency geolocation and RUE-owner signaling hooks"
+      ],
+      "neverAuthorityFor": [
+        "RFC 9248 requirements",
+        "RFC 4103 packet correctness",
+        "T.140 semantics",
+        "contemporary VRS provider behavior",
+        "emergency-call conformance",
+        "terminal Baudot verdicts"
+      ]
+    },
+    {
+      "id": "mitre-fcc-vatrp-webrtc",
+      "repository": "mitrefccace/fcc-vatrp-webrtc",
+      "revision": "2aa96bb7306d0482da9ca4412a6cf520ded6a6cc",
+      "sourceClass": ["historical-test-tool", "compatibility-clue-only"],
+      "paths": [
+        "README.md",
+        "package.json",
+        "docs/vatrp_example_profile.json",
+        "jssip_custom/modules/jssip/lib-es5/RTCSession.js",
+        "reactSrc/janus/siptest.js"
+      ],
+      "scenarioFamilies": ["RUE-REG", "RUE-PROV", "RUE-EMERG", "RUE-GW"],
+      "observedSeams": [
+        "Electron/React RUE operability test tool using JsSIP and WebRTC",
+        "build copies custom JsSIP geolocation functionality",
+        "custom RTCSession locationBody is carried into initial request construction",
+        "sample profile separates provider domain, credentials, registration-location flag, and RTT server",
+        "Janus SIP bridge experiment exposes registration, ICE, media, and WebRTC state separately"
+      ],
+      "neverAuthorityFor": [
+        "current RFC 9248 ProviderConfig schema",
+        "normative SIP geolocation body construction",
+        "RFC 8865 RTT behavior",
+        "contemporary browser or Janus behavior",
+        "terminal Baudot verdicts"
+      ]
+    },
+    {
+      "id": "fcc-vtc-secure-linphone",
+      "repository": "FCC/vtc_secure_linphone",
+      "revision": "60f23ce7845cdaa13f442bb9fa8087336dbfd495",
+      "sourceClass": ["historical-behavioral-donor", "compatibility-clue-only"],
+      "paths": ["mediastreamer2"],
+      "linkedSources": [
+        {
+          "repository": "VTCSecureLLC/mediastreamer2",
+          "revision": "17d514f0e5c6adc46c791e75a626f91369baa37a"
+        }
+      ],
+      "scenarioFamilies": ["RUE-VIDEO", "RUE-SEC", "RUE-ICE", "RUE-RTT"],
+      "observedSeams": [
+        "FCC Linphone lineage pins a separate VTC Secure mediastreamer2 fork",
+        "media behavior must be attributed to the exact linked fork rather than modern upstream Linphone"
+      ],
+      "neverAuthorityFor": [
+        "modern Linphone behavior",
+        "RFC 4103 support until an exact implementation path is located",
+        "codec or security conformance from dependency presence",
+        "terminal Baudot verdicts"
+      ]
+    },
+    {
+      "id": "mitre-ace-direct",
+      "repository": "mitre-ace-direct/ace-direct",
+      "revision": "39c8f9ba73d889e743de56a2d49faf418b575c32",
+      "sourceClass": ["historical-behavioral-donor", "compatibility-clue-only"],
+      "paths": [
+        "README.md",
+        "mserver/routes/userver.js",
+        "acedirect/app/utils.js",
+        "acedirect/patches/itrslookup_test.txt"
+      ],
+      "scenarioFamilies": ["ITRS-RESOLVE", "RUE-DIAL"],
+      "observedSeams": [
+        "vrsverify exposes iTRS lookup behind an application adapter instead of collapsing lookup into SIP call state",
+        "iTRS mode and local-database mode are explicit alternatives",
+        "lookup failure is returned separately from successful route data",
+        "the repository ships an explicitly sanitized TESTING ONLY itrslookup replacement rather than embedding production lookup configuration in tests"
+      ],
+      "neverAuthorityFor": [
+        "current TRS Numbering Directory implementation",
+        "live iTRS records or provider configuration",
+        "current provider routing behavior",
+        "SIP or media readiness after route resolution",
+        "terminal Baudot verdicts"
+      ]
+    },
+    {
+      "id": "mitre-ace-asterisk-itrs",
+      "repository": "mitre-ace-direct/asterisk",
+      "revision": "cbfc11e7660ed9d64c98d72336b3de3ea7b3aa33",
+      "sourceClass": ["historical-behavioral-donor", "compatibility-clue-only"],
+      "paths": ["scripts/itrslookup.sh"],
+      "scenarioFamilies": ["ITRS-RESOLVE", "RUE-DIAL"],
+      "observedSeams": [
+        "simple mode separates authoritative iTRS SIP-URI resolution from downstream connection discovery",
+        "telephone digits are normalized and reversed into the historical .1.itrs.us lookup name",
+        "a CNAME hop may precede E2U+sip extraction",
+        "multiple authoritative NAPTR results are explicitly selected rather than treated as an unordered bag",
+        "full mode continues from the logical SIP URI into ordinary DNS NAPTR and SRV service discovery",
+        "provider and iTRS server values are placeholders in the public script rather than live production configuration"
+      ],
+      "neverAuthorityFor": [
+        "current iTRS wire protocol or data model",
+        "standards-correct NAPTR ordering solely from shell implementation behavior",
+        "live TRS Numbering Directory domains or records",
+        "current provider endpoints",
+        "SIP or accessibility readiness after resolution",
+        "terminal Baudot verdicts"
+      ]
+    }
+  ]
+}

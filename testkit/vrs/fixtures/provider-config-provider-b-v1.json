@@ -1,0 +1,15 @@
+{
+  "fixture": "baudot.synthetic-rue-provider-config@1",
+  "sourceShape": "RFC 9248 ProviderConfigurationData normative OpenAPI",
+  "synthetic": true,
+  "providerEntryPoint": "provider-b.example",
+  "dial-around": [
+    {
+      "language": "ase",
+      "front-door": "sip:front-door@provider-b.example",
+      "oneStage": "sip:one-stage@provider-b.example"
+    }
+  ],
+  "languageNote": "ase is the BCP 47 language subtag for American Sign Language; the fixture does not imply that any production provider advertises this exact configuration.",
+  "claimBoundary": "Reserved example domain and invented URIs only. This is configuration-shape evidence for deterministic tests, not a production ProviderConfig response or a claim of RFC 9248 deployment."
+}
