@@ -1,0 +1,61 @@
+{
+  "schema": "baudot.dual-ace-connect-lite-runtime@1",
+  "authority": "synthetic-clean-room",
+  "source": {
+    "repository": "https://github.com/mitrefccace/aceconnectlite",
+    "commit": "da74e6450193be1456ce2cdf65dd5ffdf0e92f1e",
+    "consumerFile": "server.js",
+    "configTemplate": "config.json_TEMPLATE"
+  },
+  "instances": [
+    {
+      "id": "ace-a",
+      "agent": "provider-a-agent",
+      "channel": "SIP/7001",
+      "httpPort": 8831,
+      "amiPort": 5038,
+      "vrscheckPort": 8801,
+      "syntheticProvider": "XSPID-A"
+    },
+    {
+      "id": "ace-b",
+      "agent": "provider-b-agent",
+      "channel": "SIP/7002",
+      "httpPort": 8832,
+      "amiPort": 5039,
+      "vrscheckPort": 8802,
+      "syntheticProvider": "XSPID-B"
+    }
+  ],
+  "sharedDirectory": {
+    "ctePort": 8800,
+    "model": "baudot.itrs-directory-fixture@2"
+  },
+  "probes": [
+    {
+      "name": "provider-a-to-provider-b-classification",
+      "aceInstance": "ace-a",
+      "destinationTn": "2025550103",
+      "expectedAmiContext": "outbound-CA"
+    },
+    {
+      "name": "provider-b-to-provider-a-classification",
+      "aceInstance": "ace-b",
+      "destinationTn": "2025550101",
+      "expectedAmiContext": "outbound-CA"
+    },
+    {
+      "name": "provider-a-fail-closed-classification",
+      "aceInstance": "ace-a",
+      "destinationTn": "2025550105",
+      "expectedAmiContext": "from-phones"
+    }
+  ],
+  "claimBoundary": [
+    "The lab executes the pinned historical ACE Connect Lite Node application without modifying server.js.",
+    "Synthetic agent verification and AMI peers exist only to make the public ACE application path deterministic.",
+    "An AMI Originate observation proves ACE call-context selection, not SIP call completion.",
+    "The AMI peer is a Baudot stub; no production Asterisk, provider, iTRS Numbering Directory, or subscriber data is used.",
+    "AllCallQuery remains the logical-route authority; /vrsverify/ remains the observed ACE classification seam."
+  ]
+}
