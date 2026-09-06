@@ -1,0 +1,29 @@
+name: airflow-trs-batch
+
+on:
+  pull_request:
+    paths:
+      - "docs/airflow-trs-batch.md"
+      - "testkit/business/airflow-trs-batch-v1.json"
+      - "scripts/validate_airflow_trs_batch.py"
+      - ".github/workflows/airflow-trs-batch.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/airflow-trs-batch.md"
+      - "testkit/business/airflow-trs-batch-v1.json"
+      - "scripts/validate_airflow_trs_batch.py"
+      - ".github/workflows/airflow-trs-batch.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  batch-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python scripts/validate_airflow_trs_batch.py
