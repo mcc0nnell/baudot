@@ -63,8 +63,9 @@ The executable proving ground now includes:
 - `BAUDOT-INTEROP-004`, a runnable REFER / replacement-dialog / accessibility-handoff evidence chain;
 - a bidirectional JAIN SIP ↔ Elixip `BAUDOT-INTEROP-004` matrix with controlled negative and positive readiness arms, preserved wire evidence, and independent terminal reduction;
 - a PJSIP 2.17 native-media qualification lane in which PJSUA2/PJMEDIA generates live text traffic that Baudot independently reduces to T.140 behavior;
-- an incoming PJSIP 2.17 native-text endpoint qualification in which JAIN releases the controlled call only after the live Baudot reference publishes readiness; and
-- a JAIN SIP → PJSIP 2.17 `BAUDOT-INTEROP-004` positive arm in which native PJMEDIA text replaces Baudot-owned canonical stimulus and original-leg release is gated by the independent live readiness token.
+- an incoming PJSIP 2.17 native-text endpoint qualification in which JAIN releases the controlled call only after the live Baudot reference publishes readiness;
+- a JAIN SIP → PJSIP 2.17 `BAUDOT-INTEROP-004` positive arm in which native PJMEDIA text replaces Baudot-owned canonical stimulus and original-leg release is gated by the independent live readiness token; and
+- `BAUDOT-INTEROP-005`, a runnable iTRS-derived route-handoff chain that keeps authoritative route identity distinct from immediate SIP transport discovery.
 
 A passing transfer does **not** mean that REFER succeeded. The relevant evidence can distinguish:
 
@@ -114,6 +115,41 @@ Java does not parse the implementation-generated RTP and does not compare it to 
 
 See [`docs/sip-wiretap-harness.md`](docs/sip-wiretap-harness.md) for the routed harness and evidence model.
 
+## iTRS mock vertical slice
+
+`testkit/itrs/` adds a deterministic, clean-room proving ground for iTRS-derived routing behavior without requiring live TRS Numbering Directory access.
+
+The first executable call-routing slice is:
+
+```text
+synthetic NANP number
+       |
+       v
+mock iTRS resolution
+       |
+       v
+logical SIP URI
+       |
+       v
+JAIN-SIP INVITE
+       |
+       v
+loopback mock VRS peer
+       |
+       +--> 200 OK
+       +--> ACK
+```
+
+The trial preserves the iTRS-derived logical SIP URI as the SIP Request-URI while using a separate loose Route header for the immediate loopback transport destination. That keeps authoritative route identity separate from downstream service discovery and transport selection.
+
+The fixture matrix covers direct `E2U+sip`, alias forwarding, NAPTR priority, SIP service discovery, no-route, malformed-authority, authority-unavailable, and deterministic-latency cases. A clean-room validator independently recomputes ENUM owner derivation, alias traversal, NAPTR selection, `E2U+sip` validation, and synthetic SIP NAPTR/SRV discovery from the fixture data.
+
+Public historical ACE Direct code now supplies revision-pinned provenance for the first four routing shapes while remaining non-normative. The remaining failure and latency cases are explicit Baudot resilience extensions. The provenance validator prevents historical donor code from becoming live authority or terminal verdict authority.
+
+Run the fixture matrix with `bash scripts/run-itrs-mocks.sh`, the provenance gate with `python -m scripts.validate_itrs_public_provenance`, and the JAIN-SIP handoff proof with `bash scripts/run-itrs-sip-handoff.sh`.
+
+These are synthetic test fixtures. They do not claim live iTRS access, production VRS interoperability, or provider certification.
+
 ## Interoperability ensemble
 
 [ADR-0001](docs/adr/0001-interoperability-ensemble-and-external-oracles.md) defines the base implementation boundary:
@@ -131,11 +167,34 @@ The Elixip external-oracle lane is documented in [`interop/elixip/`](interop/eli
 
 The PJSIP native-media lane is documented in [`interop/pjsip/`](interop/pjsip/). It separately qualifies native outbound text generation, incoming native text endpoint behavior, and participation as the replacement native-media endpoint in a controlled `BAUDOT-INTEROP-004` positive arm. In all three profiles, PJSIP supplies implementation behavior while Baudot's independent reference retains semantic readiness authority.
 
+## Evidence and governance
+
+Baudot is being structured so that useful interoperability claims can outlive any one stack, provider, lab, or maintainer.
+
+The project model is:
+
+```text
+claim
+  -> portable contract
+  -> controlled input
+  -> replaceable execution adapter
+  -> observations
+  -> preserved evidence
+  -> independent reduction
+  -> bounded verdict
+```
+
+This is what the project informally means by **Apache-style proof**: the durable asset is becoming the shared contract, test corpus, evidence model, and implementation-independent interoperability process rather than one privileged implementation.
+
+That phrase describes an engineering direction only. Baudot is not currently an Apache Software Foundation project or podling.
+
+See [`docs/evidence-and-governance.md`](docs/evidence-and-governance.md) for the full model, including clean-room donor discipline, scenario promotion rules, implementation independence, and the evidence milestones required before stronger governance or conformance claims would be credible.
+
 ## Status and claim boundary
 
 Baudot is in active proving-ground development. Several scenarios are **runnable**, but runnable is not the same as proven or conformant.
 
-The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, or other implementation conformance. The native PJSIP handoff arm is evidence that the pinned implementation participated in one controlled replacement-leg flow whose live media was independently reduced before old-leg release; it is not a general conformance finding. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
+The repository does not currently claim full SIP, REFER, RFC 4103, RFC 2198, T.140, VRS, iTRS, SBC/NAT, WebRTC, PJSIP, Elixip, JAIN SIP, or other implementation conformance. The native PJSIP handoff arm is evidence that the pinned implementation participated in one controlled replacement-leg flow whose live media was independently reduced before old-leg release; it is not a general conformance finding. The iTRS route-handoff arm is a clean-room proof that a synthetic authoritative-style logical route can survive into SIP signaling; it is not a live TRS Numbering Directory or provider-routing finding. Promotion toward stronger interoperability claims requires broader endpoint/timing coverage, production-representative gateway evidence, additional independent native-media implementations, and preserved evidence that satisfies each scenario's explicit `requiredBeforeProven` conditions.
 
 ## Project name
 
