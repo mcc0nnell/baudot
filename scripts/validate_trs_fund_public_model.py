@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the public TRS Fund calibration fixture without external dependencies."""
+"""Validate public TRS Fund calibration and synthetic contributor assessments."""
 
 from __future__ import annotations
 
@@ -9,11 +9,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "testkit" / "fund" / "rolka-loube-2025-26.json"
+CONTRIBUTORS = ROOT / "testkit" / "fund" / "contributor-assessments-2026-27.json"
 JOURNAL = ROOT / "interop" / "fineract" / "journal-contract-v1.json"
 
 
 def money(value: Decimal) -> int:
     return int(value.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def cents(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def d(value: str | int) -> Decimal:
@@ -26,10 +31,7 @@ def require(name: str, actual, expected) -> None:
     print(f"PASS {name}: {actual}")
 
 
-def main() -> None:
-    fixture = json.loads(FIXTURE.read_text())
-    journal = json.loads(JOURNAL.read_text())
-
+def validate_public_fund_model(fixture: dict) -> None:
     rates = fixture["rates"]
     demand = fixture["analogDemandMinutes"]
     published = fixture["publishedAnalog"]
@@ -113,11 +115,67 @@ def main() -> None:
         fund["netFundRequirement"],
     )
 
+    # These rows intentionally reproduce the April 2025 Annual Report proposal,
+    # not the later FCC-approved 2025-26 contribution factors. Approved factors
+    # are versioned separately in the contributor-assessment fixture.
     for name, row in fixture["contribution"].items():
         ratio = d(row["netRequirement"]) / d(row["revenueBase"])
         reported = ratio.quantize(Decimal("0.00001"), rounding=ROUND_HALF_UP)
-        require(f"{name} contribution factor", str(reported), row["reportedFactor"])
+        require(f"{name} proposed contribution factor", str(reported), row["reportedFactor"])
 
+
+def validate_contributor_assessments(contributors: dict) -> None:
+    factors = contributors["approvedFactors"]
+    internet_factor = d(factors["internetBased"]["factor"])
+    non_internet_factor = d(factors["nonInternetBased"]["factor"])
+    policy = contributors["billingPolicy"]
+    threshold = d(policy["monthlyBillingAnnualAssessmentThreshold"])
+    minimum = d(policy["minimumAnnualContributionForFilersWithEndUserRevenue"])
+    months = d(policy["programMonths"])
+
+    require("2026-27 Internet-based factor", str(internet_factor), "0.02276")
+    require("2026-27 non-Internet-based factor", str(non_internet_factor), "0.00021")
+    require("Internet-based factor maps to Form 499-A line", factors["internetBased"]["form499ALine"], "514a")
+    require("non-Internet-based factor maps to Form 499-A line", factors["nonInternetBased"]["form499ALine"], "514b")
+
+    for row in contributors["syntheticContributors"]:
+        cid = row["id"]
+        line514a = d(row["form499A"]["line514a"])
+        line514b = d(row["form499A"]["line514b"])
+        expected = row["expected"]
+
+        internet = cents(line514a * internet_factor)
+        non_internet = cents(line514b * non_internet_factor)
+        raw = line514a * internet_factor + line514b * non_internet_factor
+        annual = max(cents(raw), minimum)
+
+        if "internetBasedAssessment" in expected:
+            require(f"{cid} Internet-based assessment", internet, d(expected["internetBasedAssessment"]))
+        if "nonInternetBasedAssessment" in expected:
+            require(f"{cid} non-Internet-based assessment", non_internet, d(expected["nonInternetBasedAssessment"]))
+        if "rawAssessment" in expected:
+            require(f"{cid} raw assessment", raw, d(expected["rawAssessment"]))
+
+        require(f"{cid} annual assessment", annual, d(expected["annualAssessment"]))
+
+        monthly_allowed = annual > threshold and row["goodStanding"]
+        cadence = "monthly" if monthly_allowed else "annual"
+        require(f"{cid} billing cadence", cadence, expected["billingCadence"])
+
+        if cadence == "monthly":
+            monthly = cents(annual / months)
+            require(f"{cid} monthly invoice", monthly, d(expected["monthlyInvoice"]))
+            require(f"{cid} 12-month invoice total", monthly * months, annual)
+        else:
+            require(f"{cid} annual invoice", annual, d(expected["annualInvoice"]))
+
+    boundary = contributors["claimBoundary"]
+    require("synthetic contributor revenue only", boundary["syntheticContributorRevenueOnly"], True)
+    require("no production contributor account data", boundary["productionContributorAccountDataUsed"], False)
+    require("no production billing portal compatibility claim", boundary["productionBillingPortalCompatibilityClaimed"], False)
+
+
+def validate_journal_contract(journal: dict) -> None:
     accounts = journal["accounts"]
     for event_name, event in journal["events"].items():
         debit = event["debit"]
@@ -128,13 +186,23 @@ def main() -> None:
             raise AssertionError(f"{event_name}: references unknown account")
         print(f"PASS {event_name}: Dr {debit} / Cr {credit}")
 
+
+def main() -> None:
+    fixture = json.loads(FIXTURE.read_text())
+    contributors = json.loads(CONTRIBUTORS.read_text())
+    journal = json.loads(JOURNAL.read_text())
+
+    validate_public_fund_model(fixture)
+    validate_contributor_assessments(contributors)
+    validate_journal_contract(journal)
+
     boundary = fixture["claimBoundary"]
     require("public aggregates only", boundary["publicAggregatesOnly"], True)
     require("provider-level demand remains synthetic", boundary["providerLevelDemandSyntheticOnly"], True)
     require("no production Rolka Loube compatibility claim", boundary["productionRolkaLoubeCompatibilityClaimed"], False)
     require("no provider eligibility claim", boundary["providerEligibilityClaimed"], False)
 
-    print("TRS Fund public calibration: PASS")
+    print("TRS Fund public calibration and contributor assessment model: PASS")
 
 
 if __name__ == "__main__":
