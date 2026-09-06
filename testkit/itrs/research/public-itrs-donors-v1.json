@@ -1,0 +1,78 @@
+{
+  "schema": "baudot.itrs-public-donors@1",
+  "status": "research",
+  "rule": "Historical public code may corroborate routing behaviors and motivate clean-room tests, but it never supplies live authority, normative requirements, or terminal verdict authority.",
+  "donors": [
+    {
+      "id": "mitre-ace-direct-itrs-adapter",
+      "repository": "mitre-ace-direct/ace-direct",
+      "revision": "39c8f9ba73d889e743de56a2d49faf418b575c32",
+      "sourceClass": [
+        "historical-behavioral-donor",
+        "adapter-provenance"
+      ],
+      "paths": [
+        "README.md",
+        "mserver/routes/userver.js",
+        "acedirect/patches/itrslookup_test.txt"
+      ],
+      "observedSeams": [
+        "VRS verification is exposed as an adapter boundary rather than embedded directly into call signaling",
+        "an explicit iTRS mode chooses between local database lookup and an external lookup helper",
+        "the external helper is invoked in simple mode and returns a SIP URI as the durable lookup result",
+        "the public repository includes a sanitized testing replacement for the external lookup helper"
+      ],
+      "corroborates": [
+        "adapter-boundary",
+        "logical-sip-uri-handoff",
+        "synthetic-mock-separation"
+      ],
+      "neverAuthorityFor": [
+        "live TRS Numbering Directory records",
+        "current iTRS deployment behavior",
+        "current provider configuration",
+        "regulatory conformance",
+        "terminal Baudot verdicts"
+      ]
+    },
+    {
+      "id": "mitre-ace-direct-itrs-lookup",
+      "repository": "mitre-ace-direct/asterisk",
+      "revision": "cbfc11e7660ed9d64c98d72336b3de3ea7b3aa33",
+      "sourceClass": [
+        "historical-behavioral-donor",
+        "routing-lineage"
+      ],
+      "paths": [
+        "scripts/itrslookup.sh"
+      ],
+      "observedSeams": [
+        "simple mode performs the iTRS NAPTR lookup and returns the resulting SIP URI",
+        "full mode continues from the logical SIP URI through ordinary SIP NAPTR and SRV discovery",
+        "the queried owner reverses the ten-digit number and appends a .1 suffix under the iTRS namespace",
+        "a CNAME result is followed before selecting an E2U+sip record",
+        "multiple eligible records are sorted before the first result is selected",
+        "service discovery and provider endpoint mapping occur after the logical SIP URI is recovered"
+      ],
+      "corroboratesFixtureCases": [
+        "direct-e2u-sip",
+        "alias-then-e2u-sip",
+        "naptr-priority-selection",
+        "sip-service-discovery"
+      ],
+      "baudotExtensionsNotClaimedFromDonor": [
+        "no-route",
+        "malformed-e2u-sip",
+        "directory-unavailable",
+        "slow-authority"
+      ],
+      "neverAuthorityFor": [
+        "current iTRS DNS contents",
+        "current provider endpoint inventory",
+        "current DNS retry policy",
+        "current SIP transport policy",
+        "terminal Baudot verdicts"
+      ]
+    }
+  ]
+}

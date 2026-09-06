@@ -1,0 +1,95 @@
+{
+  "id": "BAUDOT-INTEROP-005",
+  "title": "iTRS-derived route handoff into SIP signaling",
+  "status": "runnable",
+  "contract": "baudot.itrs-route-handoff@1",
+  "objective": "Prove that an authoritative iTRS-style logical SIP route can be consumed by Baudot without collapsing route identity into immediate transport discovery, while negative authority outcomes fail closed before SIP signaling.",
+  "historicalBasis": {
+    "source": "mitre-ace-direct/asterisk",
+    "observation": "ACE Direct demonstrates fielded iTRS-style ENUM/NAPTR routing behavior that can yield a logical SIP URI before downstream SIP service discovery.",
+    "scope": "Behavioral prior art only. Baudot uses synthetic numbers and domains and does not copy ACE Direct source or infer contemporary provider behavior."
+  },
+  "arms": [
+    {
+      "id": "control",
+      "condition": "authoritative mock returns a logical E2U+sip route and Baudot sends an INVITE with that URI preserved as the Request-URI"
+    },
+    {
+      "id": "not-found",
+      "condition": "authoritative mock reports no route and no SIP connection attempt is permitted"
+    },
+    {
+      "id": "invalid-authority",
+      "condition": "authoritative mock returns malformed routing data and no SIP connection attempt is permitted"
+    },
+    {
+      "id": "authority-unavailable",
+      "condition": "authoritative mock is unavailable and no guessed SIP route is emitted"
+    }
+  ],
+  "observations": [
+    "resolutionOutcome",
+    "logicalSipUri",
+    "connectAllowed",
+    "sipInviteSent",
+    "sipInviteReceived",
+    "sipRequestUri",
+    "transportRoute",
+    "sip200Received",
+    "sipAckReceived"
+  ],
+  "assertions": [
+    "sessionEstablished does not imply iceReady",
+    "iceReady does not imply videoRendered",
+    "videoDecoded does not imply videoRendered",
+    "videoRendered does not imply rttReady",
+    "rttReady requires rttNegotiated and firstT140CharacterObserved",
+    "a successful authoritative route is required before SIP signaling",
+    "NOT_FOUND does not imply AUTHORITY_UNAVAILABLE",
+    "INVALID_AUTHORITY does not imply NOT_FOUND",
+    "negative authority outcomes do not silently become guessed SIP routes",
+    "the iTRS-derived logical SIP URI remains the SIP Request-URI",
+    "the immediate transport route may differ from the logical SIP URI",
+    "receipt of 200 OK does not retroactively redefine the authoritative route"
+  ],
+  "execution": {
+    "fixtureRunner": "scripts/run-itrs-mocks.sh",
+    "handoffRunner": "scripts/run-itrs-sip-handoff.sh",
+    "resolutionClient": "org.mcc0nnell.baudot.itrs.ItrsResolutionClient",
+    "routeGateProbe": "org.mcc0nnell.baudot.itrs.ItrsRouteGateProbe",
+    "sipHandoffProbe": "org.mcc0nnell.baudot.itrs.ItrsSipHandoffProbe",
+    "expectedTerminalVerdicts": [
+      "iTRS mock probe: 8/8 PASS",
+      "iTRS fail-closed route gate: 3/3 PASS",
+      "iTRS -> Baudot -> JAIN-SIP handoff: PASS"
+    ]
+  },
+  "runnableEvidence": [
+    "eight deterministic synthetic routing fixtures",
+    "typed resolution outcomes for route, not-found, invalid-authority, and authority-unavailable",
+    "fail-closed connection gate for negative authority outcomes",
+    "live loopback JAIN-SIP INVITE, 200 OK, and ACK transaction",
+    "preserved logical SIP Request-URI with separate loose transport Route"
+  ],
+  "requiredBeforeProven": [
+    "green repeatable CI execution of all fixture, route-gate, and SIP-handoff arms",
+    "a second independent SIP implementation consuming the same logical route contract",
+    "controlled DNS NAPTR/SRV transport-discovery evidence rather than loopback-only Route injection",
+    "authorized non-public iTRS integration evidence without exposing credentials or subscriber data",
+    "provider-representative interoperability evidence under explicit authorization",
+    "terminal evidence bundle suitable for explicit proven-state review"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "T.140 conformance",
+      "RFC 4103 conformance",
+      "live TRS Numbering Directory access",
+      "production VRS interoperability",
+      "SIP conformance",
+      "ENUM conformance",
+      "provider certification",
+      "emergency-call correctness",
+      "that any current provider behaves like historical ACE Direct"
+    ]
+  }
+}
