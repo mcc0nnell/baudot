@@ -1,0 +1,236 @@
+{
+  "canonicalEventTypes": [
+    "signaling.connected",
+    "media.audio.observed",
+    "media.video.observed",
+    "media.screenshare.observed",
+    "text.transcript.observed",
+    "participant.joined",
+    "participant.left",
+    "session.ended"
+  ],
+  "canonicalObservationSchema": "baudot.session-observation@1",
+  "cases": [
+    {
+      "eventType": "text.transcript.observed",
+      "expected": {
+        "authority": {
+          "classification": "source-observation-only",
+          "doesNotEstablish": [
+            "accessibility.caption.ready",
+            "rttReady",
+            "t140Semantics",
+            "rfc4103Media",
+            "endToEndAccessibility"
+          ]
+        },
+        "eventId": "a767d28b3bf2361c26cd8382",
+        "eventType": "text.transcript.observed",
+        "observation": {
+          "endTimeMs": 1788652800900,
+          "languageId": 9,
+          "startTimeMs": 1788652800000,
+          "text": "Hello from Zoom"
+        },
+        "occurredAtMs": 1788652801000,
+        "participant": {
+          "sourceParticipantId": "4242"
+        },
+        "schema": "baudot.session-observation@1",
+        "source": {
+          "family": "zoom-rtms",
+          "sourceSessionId": "zoom-meeting-example-001"
+        }
+      },
+      "id": "APP-INGEST-ZOOM-001",
+      "input": {
+        "fixture": "zoom-rtms-transcript-v1",
+        "message": {
+          "content": {
+            "data": "Hello from Zoom",
+            "end_time": 1788652800900,
+            "language": 9,
+            "start_time": 1788652800000,
+            "timestamp": 1788652801000,
+            "user_id": 4242,
+            "user_name": "Example Participant"
+          },
+          "msg_type": 17
+        },
+        "sourceFamily": "zoom-rtms",
+        "sourceSessionId": "zoom-meeting-example-001",
+        "synthetic": true
+      }
+    },
+    {
+      "eventType": "media.audio.observed",
+      "expected": {
+        "authority": {
+          "classification": "source-observation-only",
+          "doesNotEstablish": [
+            "accessibility.caption.ready",
+            "rttReady",
+            "t140Semantics",
+            "rfc4103Media",
+            "endToEndAccessibility"
+          ]
+        },
+        "eventId": "2589b5741b69e9e2ade4af4c",
+        "eventType": "media.audio.observed",
+        "observation": {
+          "bytesObserved": 640,
+          "channels": 1,
+          "format": "L16",
+          "sampleRateHz": 16000
+        },
+        "occurredAtMs": 1788652801100,
+        "participant": {
+          "sourceParticipantId": "4242"
+        },
+        "schema": "baudot.session-observation@1",
+        "source": {
+          "family": "zoom-rtms",
+          "sourceSessionId": "zoom-meeting-example-001"
+        }
+      },
+      "id": "APP-INGEST-ZOOM-002",
+      "input": {
+        "bytesObserved": 640,
+        "channels": 1,
+        "fixture": "zoom-rtms-audio-v1",
+        "format": "L16",
+        "message": {
+          "content": {
+            "timestamp": 1788652801100,
+            "user_id": 4242,
+            "user_name": "Example Participant"
+          },
+          "msg_type": 14
+        },
+        "sampleRateHz": 16000,
+        "sourceFamily": "zoom-rtms",
+        "sourceSessionId": "zoom-meeting-example-001",
+        "synthetic": true
+      }
+    },
+    {
+      "eventType": "signaling.connected",
+      "expected": {
+        "authority": {
+          "classification": "source-observation-only",
+          "doesNotEstablish": [
+            "accessibility.caption.ready",
+            "rttReady",
+            "t140Semantics",
+            "rfc4103Media",
+            "endToEndAccessibility"
+          ]
+        },
+        "eventId": "4de22fb874de6039b6fe2048",
+        "eventType": "signaling.connected",
+        "observation": {
+          "state": "established"
+        },
+        "occurredAtMs": 1788652802000,
+        "schema": "baudot.session-observation@1",
+        "source": {
+          "family": "teams-graph-media",
+          "sourceSessionId": "teams-call-example-001"
+        }
+      },
+      "id": "APP-INGEST-TEAMS-001",
+      "input": {
+        "adapterObservation": {
+          "callId": "teams-call-example-001",
+          "kind": "call-established",
+          "timestampMs": 1788652802000
+        },
+        "fixture": "teams-graph-call-established-v1",
+        "sourceFamily": "teams-graph-media",
+        "synthetic": true
+      }
+    },
+    {
+      "eventType": "media.audio.observed",
+      "expected": {
+        "authority": {
+          "classification": "source-observation-only",
+          "doesNotEstablish": [
+            "accessibility.caption.ready",
+            "rttReady",
+            "t140Semantics",
+            "rfc4103Media",
+            "endToEndAccessibility"
+          ]
+        },
+        "eventId": "ed5dde17c2beb21c54edd803",
+        "eventType": "media.audio.observed",
+        "observation": {
+          "bytesObserved": 640,
+          "channels": 1,
+          "format": "PCM_S16LE",
+          "sampleRateHz": 16000
+        },
+        "occurredAtMs": 1788652802100,
+        "participant": {
+          "sourceParticipantId": "teams-participant-example-001"
+        },
+        "schema": "baudot.session-observation@1",
+        "source": {
+          "family": "teams-graph-media",
+          "sourceSessionId": "teams-call-example-001"
+        }
+      },
+      "id": "APP-INGEST-TEAMS-002",
+      "input": {
+        "adapterObservation": {
+          "bytesObserved": 640,
+          "callId": "teams-call-example-001",
+          "channels": 1,
+          "format": "PCM_S16LE",
+          "kind": "audio-buffer",
+          "participantId": "teams-participant-example-001",
+          "sampleRateHz": 16000,
+          "timestampMs": 1788652802100
+        },
+        "fixture": "teams-graph-audio-v1",
+        "sourceFamily": "teams-graph-media",
+        "synthetic": true
+      }
+    }
+  ],
+  "doesNotEstablish": [
+    "accessibility.caption.ready",
+    "rttReady",
+    "t140Semantics",
+    "rfc4103Media",
+    "endToEndAccessibility"
+  ],
+  "principle": "source observation is evidence, never terminal accessibility authority",
+  "schema": "baudot.application-ingest-contract@1",
+  "sourceFamilies": [
+    {
+      "id": "zoom-rtms",
+      "kind": "application-media",
+      "publicSurface": "Zoom Realtime Media Streams",
+      "sourceReference": "https://developers.zoom.us/docs/rtms/meetings/media/",
+      "supportedFixtureObservations": [
+        "audio",
+        "transcript"
+      ],
+      "transportBoundary": "WebSocket RTMS source adapter"
+    },
+    {
+      "id": "teams-graph-media",
+      "kind": "application-media",
+      "publicSurface": "Microsoft Teams application-hosted media bot",
+      "sourceReference": "https://learn.microsoft.com/en-us/microsoftteams/platform/bots/calls-and-meetings/requirements-considerations-application-hosted-media-bots",
+      "supportedFixtureObservations": [
+        "call-established",
+        "audio-buffer"
+      ],
+      "transportBoundary": "Baudot-owned adapter over Microsoft Graph real-time media callbacks"
+    }
+  ],
+  "status": "experimental"
+}
