@@ -1,0 +1,19 @@
+{
+  "version": "0.1",
+  "selectionId": "sel-pjsip-rtt-0001",
+  "target": "tel:+12025550124",
+  "resolutionDigest": "sha256:resolution-pjsip-rtt-0001",
+  "requestDigest": "sha256:request-pjsip-rtt-0001",
+  "evaluatedAt": "2026-09-05T23:55:00Z",
+  "candidates": [
+    {
+      "uri": "sip:pjsip-target@127.0.0.1:5322;transport=udp",
+      "priority": 1,
+      "preferenceScore": 0,
+      "outcome": "selected",
+      "matchedPreferred": ["rtt"]
+    }
+  ],
+  "terminal": "selected",
+  "selectedEndpoint": "sip:pjsip-target@127.0.0.1:5322;transport=udp"
+}
