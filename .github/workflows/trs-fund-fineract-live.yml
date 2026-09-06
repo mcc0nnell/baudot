@@ -20,23 +20,41 @@ jobs:
     env:
       FINERACT_RELEASE: "1.15.0"
       FINERACT_RELEASE_COMMIT: "d5636847ac556c30b437254c353f05526d172b97"
-      FINERACT_IMAGE_TAG: "d5636847a"
+      FINERACT_IMAGE: "apache/fineract:1.15.0"
 
     steps:
       - name: Check out Baudot
         uses: actions/checkout@v5
 
-      - name: Check out pinned Apache Fineract release
+      - name: Check out pinned Apache Fineract release source
         uses: actions/checkout@v5
         with:
           repository: apache/fineract
           ref: ${{ env.FINERACT_RELEASE_COMMIT }}
           path: .fineract-upstream
 
-      - name: Pin the Fineract container to the release commit
+      - name: Verify pinned Fineract source
+        working-directory: .fineract-upstream
         run: |
-          docker pull "apache/fineract:${FINERACT_IMAGE_TAG}"
-          docker tag "apache/fineract:${FINERACT_IMAGE_TAG}" fineract:latest
+          test "$(git rev-parse HEAD)" = "${FINERACT_RELEASE_COMMIT}"
+          git tag --points-at HEAD | grep -Fx "${FINERACT_RELEASE}"
+
+      - name: Pin the Fineract release container and capture provenance
+        run: |
+          mkdir -p artifacts/trs-fund-fineract
+          docker pull "${FINERACT_IMAGE}"
+          docker tag "${FINERACT_IMAGE}" fineract:latest
+          IMAGE_ID="$(docker image inspect "${FINERACT_IMAGE}" --format '{{.Id}}')"
+          REPO_DIGESTS="$(docker image inspect "${FINERACT_IMAGE}" --format '{{json .RepoDigests}}')"
+          cat > artifacts/trs-fund-fineract/fineract-implementation.json <<EOF
+          {
+            "release": "${FINERACT_RELEASE}",
+            "sourceCommit": "${FINERACT_RELEASE_COMMIT}",
+            "image": "${FINERACT_IMAGE}",
+            "imageId": "${IMAGE_ID}",
+            "repoDigests": ${REPO_DIGESTS}
+          }
+          EOF
 
       - name: Start Fineract test stack
         working-directory: .fineract-upstream
