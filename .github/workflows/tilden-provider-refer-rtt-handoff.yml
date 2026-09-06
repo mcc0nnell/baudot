@@ -1,0 +1,90 @@
+name: tilden-provider-refer-rtt-handoff
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/tilden-provider-refer-rtt-handoff.yml'
+      - 'interop/tilden/**'
+      - 'interop/pjsip/CMakeLists.txt'
+      - 'interop/pjsip/native_t140_uas.cpp'
+      - 'scripts/live_t140_readiness_gate.py'
+      - 'scripts/run-pjsip-interop004-native-handoff.sh'
+      - 'scripts/validate_pjsip_refer_native_handoff.py'
+      - 'scripts/run-tilden-provider-refer-rtt-handoff.sh'
+      - 'scripts/validate_tilden_provider_refer_rtt_handoff.py'
+      - 'src/main/java/org/mcc0nnell/baudot/harness/PjsipReferNativeHandoffProbe.java'
+      - 'src/main/java/org/mcc0nnell/baudot/tilden/**'
+      - 'pom.xml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tilden-provider-refer-rtt-handoff-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  selected-provider-transfer-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Install native build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libasound2-dev \
+            libssl-dev \
+            pkg-config \
+            iproute2
+
+      - name: Fetch exact PJSIP 2.17 replacement endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/pjsip/pjproject.git /tmp/baudot-pjproject
+          git -C /tmp/baudot-pjproject checkout --detach 5a457451fa2712ba18e12b01738e8ff3af2b26fd
+          test "$(git -C /tmp/baudot-pjproject rev-parse HEAD)" = 5a457451fa2712ba18e12b01738e8ff3af2b26fd
+          test "$(git -C /tmp/baudot-pjproject describe --tags --exact-match HEAD)" = 2.17
+          test -z "$(git -C /tmp/baudot-pjproject status --porcelain=v1 --untracked-files=normal)"
+
+      - name: Validate outer runner syntax
+        shell: bash
+        run: |
+          bash -n scripts/run-tilden-provider-refer-rtt-handoff.sh
+          python3 -m py_compile scripts/validate_tilden_provider_refer_rtt_handoff.py
+
+      - name: Execute Tilden-selected provider transfer
+        shell: bash
+        env:
+          PJSIP_ROOT: /tmp/baudot-pjproject
+        run: bash scripts/run-tilden-provider-refer-rtt-handoff.sh
+
+      - name: Verify outer evidence manifest
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=target/evidence-external/TILDEN-HANDOFF-003/sel-provider-refer-rtt-0001/bundle.manifest.sha256
+          test -f "$manifest"
+          (cd "$(dirname "$manifest")" && sha256sum -c bundle.manifest.sha256)
+
+      - name: Preserve selected-provider transfer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-tilden-provider-refer-rtt-handoff
+          path: target/evidence-external/TILDEN-HANDOFF-003/sel-provider-refer-rtt-0001
+          if-no-files-found: warn
