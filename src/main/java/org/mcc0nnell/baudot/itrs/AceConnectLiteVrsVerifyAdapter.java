@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Minimal compatibility facade for the /vrsverify/ lookup consumed by
@@ -30,6 +31,11 @@ public final class AceConnectLiteVrsVerifyAdapter {
     private static final int DEFAULT_PORT = 8801;
     private final String cteBase;
     private final HttpClient client;
+    private final AtomicLong requests = new AtomicLong();
+    private final AtomicLong successes = new AtomicLong();
+    private final AtomicLong failures = new AtomicLong();
+    private volatile String lastNumber;
+    private volatile boolean lastRoutable;
 
     private AceConnectLiteVrsVerifyAdapter(String cteBase) {
         this.cteBase = cteBase.endsWith("/") ? cteBase.substring(0, cteBase.length() - 1) : cteBase;
@@ -47,11 +53,31 @@ public final class AceConnectLiteVrsVerifyAdapter {
         HttpServer server = HttpServer.create(bind, 0);
         server.createContext("/health", exchange -> respond(exchange, 200,
                 "{\"status\":\"ok\",\"service\":\"baudot-ace-vrsverify-adapter\"}"));
+        server.createContext("/stats", this::handleStats);
         server.createContext("/vrsverify/", this::handleVrsVerify);
         server.setExecutor(null);
         server.start();
         System.out.printf("Baudot ACE /vrsverify/ adapter listening on http://%s:%d -> %s%n",
                 bind.getAddress().getHostAddress(), port, cteBase);
+    }
+
+    private void handleStats(HttpExchange exchange) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.getResponseHeaders().set("Allow", "GET");
+            respond(exchange, 405, "{\"status\":\"error\",\"failure\":\"METHOD_NOT_ALLOWED\"}");
+            return;
+        }
+        String number = lastNumber;
+        StringBuilder json = new StringBuilder("{\"status\":\"stats\"")
+                .append(",\"requests\":").append(requests.get())
+                .append(",\"successes\":").append(successes.get())
+                .append(",\"failures\":").append(failures.get())
+                .append(",\"lastRoutable\":").append(lastRoutable);
+        if (number != null) {
+            json.append(",\"lastNumber\":\"").append(escape(number)).append("\"");
+        }
+        json.append('}');
+        respond(exchange, 200, json.toString());
     }
 
     private void handleVrsVerify(HttpExchange exchange) throws IOException {
@@ -61,7 +87,11 @@ public final class AceConnectLiteVrsVerifyAdapter {
             return;
         }
         String number = query(exchange).get("vrsnum");
+        requests.incrementAndGet();
+        lastNumber = number;
         if (number == null || !number.matches("\\d{10}")) {
+            failures.incrementAndGet();
+            lastRoutable = false;
             respond(exchange, 200, failure());
             return;
         }
@@ -80,10 +110,13 @@ public final class AceConnectLiteVrsVerifyAdapter {
             // The compatibility contract is fail-closed: a failed CTE lookup is not a VRS success.
         }
 
+        lastRoutable = routable;
         if (routable) {
+            successes.incrementAndGet();
             respond(exchange, 200, "{\"message\":\"success\",\"data\":[{\"vrs\":\""
                     + escape(number) + "\"}]}");
         } else {
+            failures.incrementAndGet();
             respond(exchange, 200, failure());
         }
     }
