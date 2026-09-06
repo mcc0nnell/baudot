@@ -64,6 +64,10 @@ jobs:
           bash -n scripts/run-tilden-pjsip-rtt-handoff.sh
           python3 -m py_compile scripts/validate_tilden_pjsip_rtt_handoff.py
 
+      - name: Compile Baudot runtime classes
+        shell: bash
+        run: mvn -B -ntp -q -DskipTests compile
+
       - name: Execute Tilden-selected native RTT handoff
         shell: bash
         env:
