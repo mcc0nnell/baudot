@@ -1,0 +1,33 @@
+name: part64-fund-payment-settlement
+
+on:
+  push:
+    paths:
+      - "docs/part64-fund-payment-settlement.md"
+      - "testkit/fund/part64-vrs-payment-settlement-v1.json"
+      - "testkit/fund/part64-vrs-claim-handoff-v1.json"
+      - "interop/fineract/journal-contract-v1.json"
+      - "scripts/validate_part64_fund_payment_settlement.py"
+      - ".github/workflows/part64-fund-payment-settlement.yml"
+  pull_request:
+    paths:
+      - "docs/part64-fund-payment-settlement.md"
+      - "testkit/fund/part64-vrs-payment-settlement-v1.json"
+      - "testkit/fund/part64-vrs-claim-handoff-v1.json"
+      - "interop/fineract/journal-contract-v1.json"
+      - "scripts/validate_part64_fund_payment_settlement.py"
+      - ".github/workflows/part64-fund-payment-settlement.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Part 64 Fund payment settlement contract
+        run: python scripts/validate_part64_fund_payment_settlement.py
