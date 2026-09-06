@@ -1,0 +1,17 @@
+apisix:
+  node_listen: 9080
+  enable_admin: false
+  enable_ipv6: false
+  enable_server_tokens: false
+  ssl:
+    enable: true
+    listen:
+      - port: 9443
+        enable_http3: false
+    ssl_protocols: TLSv1.2 TLSv1.3
+    ssl_session_tickets: false
+
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml
