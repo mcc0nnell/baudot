@@ -1,0 +1,79 @@
+{
+  "schema": "baudot.fineract-trs-journal-contract@1",
+  "authority": "synthetic-accounting-adapter-only",
+  "fineractApiSurface": {
+    "journalEntries": "/api/v1/journalentries",
+    "reversal": "/api/v1/journalentries/{transactionId}/reversal",
+    "accountingClosures": "/api/v1/glclosures"
+  },
+  "accounts": {
+    "1100": {"name": "TRS Fund Cash", "type": "ASSET"},
+    "1200": {"name": "Contributor Receivable", "type": "ASSET"},
+    "2100": {"name": "Provider Payable", "type": "LIABILITY"},
+    "4100": {"name": "Contribution Revenue", "type": "INCOME"},
+    "5100": {"name": "TRS Provider Compensation Expense", "type": "EXPENSE"},
+    "5200": {"name": "TRS Program Administration Expense", "type": "EXPENSE"},
+    "5300": {"name": "NDBEDP Program Expense", "type": "EXPENSE"}
+  },
+  "events": {
+    "providerClaimApproved": {
+      "debit": "5100",
+      "credit": "2100",
+      "businessAuthority": "baudot-synthetic-claim-reducer"
+    },
+    "providerDisbursement": {
+      "debit": "2100",
+      "credit": "1100",
+      "businessAuthority": "baudot-synthetic-payment-authorization"
+    },
+    "contributorAssessment": {
+      "debit": "1200",
+      "credit": "4100",
+      "businessAuthority": "baudot-synthetic-assessment-model"
+    },
+    "contributorReceipt": {
+      "debit": "1100",
+      "credit": "1200",
+      "businessAuthority": "baudot-synthetic-receipt-model"
+    },
+    "programAdministrationAccrued": {
+      "debit": "5200",
+      "credit": "2100",
+      "businessAuthority": "baudot-synthetic-admin-cost-model"
+    },
+    "ndbedpAccrued": {
+      "debit": "5300",
+      "credit": "2100",
+      "businessAuthority": "baudot-synthetic-program-cost-model"
+    }
+  },
+  "requiredEvidence": [
+    "syntheticBusinessTransactionId",
+    "eventType",
+    "postingDate",
+    "amount",
+    "expectedDebitAccount",
+    "expectedCreditAccount",
+    "fineractTransactionId",
+    "fineractJournalEntryIds",
+    "balanced",
+    "reconciled"
+  ],
+  "invariants": [
+    "debits-equal-credits",
+    "business-transaction-id-is-idempotency-key-in-baudot-adapter",
+    "fineract-ledger-success-does-not-imply-program-eligibility",
+    "reversal-is-explicit-and-evidence-preserving",
+    "posting-after-accounting-closure-must-fail-or-use-an-authorized-open-date"
+  ],
+  "claimExclusions": [
+    "fcc-approval",
+    "provider-certification",
+    "provider-eligibility",
+    "production-rolka-loube-api-compatibility",
+    "production-payment-network-operation",
+    "financial-statement-compliance",
+    "routing-authority",
+    "accessibility-readiness"
+  ]
+}

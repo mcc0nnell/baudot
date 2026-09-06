@@ -1,0 +1,32 @@
+name: trs-fund-public-model
+
+on:
+  pull_request:
+    paths:
+      - "docs/trs-fund-public-ledger.md"
+      - "testkit/fund/**"
+      - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - ".github/workflows/trs-fund-public-model.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/trs-fund-public-ledger.md"
+      - "testkit/fund/**"
+      - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - ".github/workflows/trs-fund-public-model.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  public-model:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate public TRS Fund calibration
+        run: python scripts/validate_trs_fund_public_model.py

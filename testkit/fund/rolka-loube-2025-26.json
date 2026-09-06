@@ -1,0 +1,120 @@
+{
+  "schema": "baudot.trs-fund-public-calibration@1",
+  "programYear": {
+    "start": "2025-07-01",
+    "end": "2026-06-30"
+  },
+  "sources": [
+    {
+      "title": "Rolka Loube TRS Reports",
+      "url": "https://rolkaloube.com/programs/federal-itrs/forms-reports",
+      "use": "2025 Annual Report, Tables 2-4 and public program-year totals"
+    },
+    {
+      "title": "Rolka Loube TRS Providers",
+      "url": "https://rolkaloube.com/programs/federal-itrs/trs-providers",
+      "use": "published per-minute compensation rates"
+    }
+  ],
+  "rates": {
+    "2024-07-01/2025-06-30": {
+      "TTY": "6.1229",
+      "STS": "7.2539",
+      "CTS": "2.7867"
+    },
+    "2025-07-01/2026-06-30": {
+      "TTY": "7.3512",
+      "STS": "8.4822",
+      "CTS": "3.1893",
+      "IP_RELAY": "2.1970",
+      "IP_CTS_CA_BASE": "1.40",
+      "IP_CTS_CA_SUPPLEMENTAL": "0.22",
+      "IP_CTS_ASR": "1.05",
+      "VRS_EMERGENT": "8.33",
+      "VRS_TIER_I": "6.73",
+      "VRS_TIER_II": "4.21",
+      "VTS_ADDITIVE": "0.21"
+    },
+    "2026-07-01/2027-06-30": {
+      "TTY": "9.1713",
+      "STS": "10.3023",
+      "CTS": "3.3885",
+      "IP_RELAY": "2.271",
+      "IP_CTS_CA_BASE": "1.45",
+      "IP_CTS_ASR": "0.95"
+    }
+  },
+  "analogDemandMinutes": {
+    "2025-05-01/2025-06-30": {
+      "TTY": "133646.9",
+      "STS": "21905.2",
+      "CTS": "77136.5"
+    },
+    "2025-07-01/2026-04-30": {
+      "TTY": "658738.5",
+      "STS": "109526.2",
+      "CTS": "342171.4"
+    },
+    "2026-05-01/2026-06-30": {
+      "TTY": "130121.1",
+      "STS": "21905.2",
+      "CTS": "60603.3"
+    }
+  },
+  "publishedAnalog": {
+    "TTY": {
+      "fundRequirement": 5660825,
+      "twoMonthReserve": 956546,
+      "totalFundRequirement": 6617371
+    },
+    "STS": {
+      "fundRequirement": 1087921,
+      "twoMonthReserve": 185804,
+      "totalFundRequirement": 1273725
+    },
+    "CTS": {
+      "fundRequirement": 1306244,
+      "twoMonthReserve": 193282,
+      "totalFundRequirement": 1499526
+    },
+    "grossAnalogFundRequirement": 9390622,
+    "allocatedNdbedp": 53560,
+    "allocatedAdministrativeCosts": 161104,
+    "lessAllocatedFundBalance": 1392560,
+    "netAnalogFundRequirement": 8212726
+  },
+  "publishedIpBased": {
+    "serviceRevenueRequirement": 1743891208,
+    "allocatedNdbedp": 9946440,
+    "allocatedAdministrativeCosts": 29918081,
+    "grossFundRequirement": 1783755729,
+    "lessAllocatedFundBalance": 258607440,
+    "netFundRequirement": 1525148289
+  },
+  "publishedFund": {
+    "totalServiceRevenueRequirement": 1753281830,
+    "ndbedp": 10000000,
+    "administrativeCosts": 30079185,
+    "grossFundRequirement": 1793361015,
+    "lessProjectedFundBalance": 260000000,
+    "netFundRequirement": 1533361015
+  },
+  "contribution": {
+    "analog": {
+      "netRequirement": 8212726,
+      "revenueBase": 31985845946,
+      "reportedFactor": "0.00026"
+    },
+    "ipBased": {
+      "netRequirement": 1525148289,
+      "revenueBase": 70016213165,
+      "reportedFactor": "0.02178"
+    }
+  },
+  "claimBoundary": {
+    "publicAggregatesOnly": true,
+    "providerLevelDemandSyntheticOnly": true,
+    "productionRolkaLoubeCompatibilityClaimed": false,
+    "providerEligibilityClaimed": false
+  }
+}

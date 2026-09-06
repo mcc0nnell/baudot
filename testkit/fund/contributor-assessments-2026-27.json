@@ -1,0 +1,109 @@
+{
+  "schema": "baudot.trs-fund-contributor-assessment@1",
+  "programYear": {
+    "start": "2026-07-01",
+    "end": "2027-06-30"
+  },
+  "authority": {
+    "fccOrder": "DA-26-646",
+    "fccOrderUrl": "https://docs.fcc.gov/public/attachments/DA-26-646A1.pdf",
+    "rolkaLoubeContributorUrl": "https://rolkaloube.com/programs/federal-itrs/trs-contributors",
+    "rolkaLoubeFaqUrl": "https://rolkaloube.com/trs-faqs",
+    "form499AInstructionsUrl": "https://docs.fcc.gov/public/attachments/DA-26-570A3.pdf"
+  },
+  "approvedFactors": {
+    "nonInternetBased": {
+      "form499ALine": "514b",
+      "factor": "0.00021",
+      "revenueScope": "interstate-and-international-end-user-revenues"
+    },
+    "internetBased": {
+      "form499ALine": "514a",
+      "factor": "0.02276",
+      "revenueScope": "intrastate-interstate-and-international-end-user-revenues"
+    }
+  },
+  "billingPolicy": {
+    "programMonths": 12,
+    "monthlyBillingAnnualAssessmentThreshold": "1200.00",
+    "goodStandingRequiredForMonthlyBilling": true,
+    "minimumAnnualContributionForFilersWithEndUserRevenue": "25.00"
+  },
+  "syntheticContributors": [
+    {
+      "id": "CONTRIB-LARGE-GOOD",
+      "form499A": {
+        "line514a": "12000000.00",
+        "line514b": "2000000.00"
+      },
+      "goodStanding": true,
+      "expected": {
+        "internetBasedAssessment": "273120.00",
+        "nonInternetBasedAssessment": "420.00",
+        "annualAssessment": "273540.00",
+        "billingCadence": "monthly",
+        "monthlyInvoice": "22795.00"
+      }
+    },
+    {
+      "id": "CONTRIB-SMALL-GOOD",
+      "form499A": {
+        "line514a": "40000.00",
+        "line514b": "10000.00"
+      },
+      "goodStanding": true,
+      "expected": {
+        "internetBasedAssessment": "910.40",
+        "nonInternetBasedAssessment": "2.10",
+        "annualAssessment": "912.50",
+        "billingCadence": "annual",
+        "annualInvoice": "912.50"
+      }
+    },
+    {
+      "id": "CONTRIB-LARGE-NOT-GOOD-STANDING",
+      "form499A": {
+        "line514a": "100000.00",
+        "line514b": "100000.00"
+      },
+      "goodStanding": false,
+      "expected": {
+        "internetBasedAssessment": "2276.00",
+        "nonInternetBasedAssessment": "21.00",
+        "annualAssessment": "2297.00",
+        "billingCadence": "annual",
+        "annualInvoice": "2297.00"
+      }
+    },
+    {
+      "id": "CONTRIB-MINIMUM",
+      "form499A": {
+        "line514a": "500.00",
+        "line514b": "100.00"
+      },
+      "goodStanding": true,
+      "expected": {
+        "rawAssessment": "11.4010",
+        "annualAssessment": "25.00",
+        "billingCadence": "annual",
+        "annualInvoice": "25.00"
+      }
+    }
+  ],
+  "negativeCases": [
+    "wrong-program-year-factor",
+    "line-514a-and-514b-swapped",
+    "duplicate-assessment",
+    "revised-499a-without-adjustment-evidence",
+    "monthly-billing-when-annual-assessment-is-1200-or-less",
+    "monthly-billing-for-account-not-in-good-standing",
+    "receipt-applied-to-wrong-assessment",
+    "overpayment-without-credit-balance-evidence"
+  ],
+  "claimBoundary": {
+    "syntheticContributorRevenueOnly": true,
+    "productionContributorAccountDataUsed": false,
+    "productionBillingPortalCompatibilityClaimed": false,
+    "assessmentArithmeticOnly": true
+  }
+}
