@@ -4,26 +4,128 @@ on:
   push:
     paths:
       - 'testkit/business/nifi-bulk-ingest-v1.json'
+      - 'testkit/nifi/live/**'
       - 'scripts/validate_nifi_bulk_ingest.py'
+      - 'scripts/run_nifi_live.py'
       - 'docs/nifi-bulk-ingest.md'
       - '.github/workflows/nifi-bulk-ingest.yml'
   pull_request:
     paths:
       - 'testkit/business/nifi-bulk-ingest-v1.json'
+      - 'testkit/nifi/live/**'
       - 'scripts/validate_nifi_bulk_ingest.py'
+      - 'scripts/run_nifi_live.py'
       - 'docs/nifi-bulk-ingest.md'
       - '.github/workflows/nifi-bulk-ingest.yml'
 
 permissions:
   contents: read
 
+env:
+  NIFI_VERSION: '2.11.0'
+  NIFI_RELEASE_COMMIT: 'e296b299805a7e3ff4c99916b79cfba16c5e4870'
+  NIFI_USER: 'baudotadmin'
+  NIFI_PASSWORD: 'synthetic-nifi-test-only'
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.13'
+      - name: Compile NiFi validators and live driver
+        run: python -m py_compile scripts/validate_nifi_bulk_ingest.py scripts/run_nifi_live.py
       - name: Validate NiFi bulk-ingest authority contract
-        run: python3 scripts/validate_nifi_bulk_ingest.py
+        run: python scripts/validate_nifi_bulk_ingest.py
+
+  live-nifi:
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Verify signed NiFi release tag resolves to pinned commit
+        run: |
+          set -euo pipefail
+          api='https://api.github.com/repos/apache/nifi/git'
+          curl -fsS "$api/ref/tags/rel/nifi-${NIFI_VERSION}" > /tmp/nifi-ref.json
+          release_tag_sha=$(jq -r '.object.sha' /tmp/nifi-ref.json)
+          curl -fsS "$api/tags/$release_tag_sha" > /tmp/nifi-release-tag.json
+          test "$(jq -r '.verification.verified' /tmp/nifi-release-tag.json)" = 'true'
+          rc_tag_sha=$(jq -r '.object.sha' /tmp/nifi-release-tag.json)
+          curl -fsS "$api/tags/$rc_tag_sha" > /tmp/nifi-rc-tag.json
+          test "$(jq -r '.verification.verified' /tmp/nifi-rc-tag.json)" = 'true'
+          test "$(jq -r '.object.sha' /tmp/nifi-rc-tag.json)" = "$NIFI_RELEASE_COMMIT"
+
+      - name: Start pinned NiFi 2.11.0 with HTTPS single-user authentication
+        run: |
+          set -euo pipefail
+          mkdir -p target/nifi-live
+          docker pull "apache/nifi:${NIFI_VERSION}"
+          docker run -d --name baudot-nifi \
+            -p 127.0.0.1:8443:8443 \
+            -e SINGLE_USER_CREDENTIALS_USERNAME="$NIFI_USER" \
+            -e SINGLE_USER_CREDENTIALS_PASSWORD="$NIFI_PASSWORD" \
+            -v "$PWD/target/nifi-live:/data" \
+            "apache/nifi:${NIFI_VERSION}"
+          ready=0
+          for attempt in $(seq 1 150); do
+            if curl -kfsS https://127.0.0.1:8443/nifi-api/access/config >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-nifi
+            exit 1
+          fi
+          docker inspect --format='{{.Image}}' baudot-nifi > target/nifi-live/nifi-image-id.txt
+
+      - name: Build and exercise live provider/CDR ingest flows
+        run: |
+          set -euo pipefail
+          umask 000
+          python scripts/run_nifi_live.py \
+            --base https://127.0.0.1:8443 \
+            --user "$NIFI_USER" \
+            --password "$NIFI_PASSWORD" \
+            --data-root target/nifi-live \
+            --out target/nifi-live/evidence.json
+
+      - name: Capture and verify bounded NiFi evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          docker logs baudot-nifi > target/nifi-live/nifi-container.log 2>&1 || true
+          if [ -f target/nifi-live/evidence.json ]; then
+            jq -e '.accepted | length == 2' target/nifi-live/evidence.json >/dev/null
+            jq -e '.quarantined | length == 2' target/nifi-live/evidence.json >/dev/null
+            jq -e '.stagedFiles | all(.bytesPreserved == true)' target/nifi-live/evidence.json >/dev/null
+            jq -e '.authority | all(. == false)' target/nifi-live/evidence.json >/dev/null
+          fi
+          grep -q 'BAUDOT_NIFI_PROVIDER_EVIDENCE' target/nifi-live/nifi-container.log
+          grep -q 'BAUDOT_NIFI_CDR_EVIDENCE' target/nifi-live/nifi-container.log
+          for key in sourceSystem sourceObjectId receivedAt contentSha256 flowId correlationId; do
+            grep -q "Key: '$key'" target/nifi-live/nifi-container.log
+          done
+          ! grep -q 'provider-a,VRS,active' target/nifi-live/nifi-container.log
+          ! grep -q '"cdrId":"cdr-001"' target/nifi-live/nifi-container.log
+          ! grep -Eq 'subscriberEligible|providerCertified|itrsAuthorized|compensable|claimApproved|paymentAuthorized|fundPeriodClosed|sourceAuthoritative|accessibilityReady' target/nifi-live/nifi-container.log
+
+      - name: Preserve bounded NiFi evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nifi-bulk-ingest-evidence
+          path: target/nifi-live/
+          if-no-files-found: warn
+
+      - name: Stop live NiFi
+        if: always()
+        run: docker rm -f baudot-nifi >/dev/null 2>&1 || true
