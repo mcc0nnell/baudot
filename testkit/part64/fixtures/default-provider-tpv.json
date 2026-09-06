@@ -1,0 +1,38 @@
+{
+  "schema": "baudot.part64-default-provider-tpv@1",
+  "scenario": "ITRS-CHANGE-TPV-001",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "underlyingMarketingTransaction": {
+    "language": "asl",
+    "format": "video"
+  },
+  "verifier": {
+    "ownedManagedControlledOrDirectedByProvider": false,
+    "ownedManagedControlledOrDirectedByMarketingAgent": false,
+    "financialIncentiveToConfirmOrders": false,
+    "physicallySeparate": true
+  },
+  "providerDroppedAfterThreeWayConnection": true,
+  "nonMisleading": true,
+  "newProviderIdentifiedAtStart": true,
+  "changeMeaningConfirmed": true,
+  "userIdentityConfirmed": true,
+  "userIsPersonOnVerificationConfirmed": true,
+  "changeRequestedConfirmed": true,
+  "notUpgradeConfirmed": true,
+  "equipmentReturnPossibilityConfirmed": true,
+  "newDefaultProvider": "provider-b.example",
+  "telephoneNumber": "+12025550126",
+  "trsType": "VRS",
+  "registrationDataCheckedAgainstSyntheticUrd": true,
+  "verificationLanguage": "asl",
+  "verificationFormat": "video",
+  "recordedInEntirety": true,
+  "recordingNoticeGiven": true,
+  "realAuthorizationRecordingStored": false,
+  "evidence": {
+    "syntheticDigest": "sha256:8a3d9ff5d67e50bb2ae39e5f2c8e21df2d6b6a06d2fc15c1c44cf5a9d92c8e1f",
+    "immutable": true,
+    "retentionYears": 5
+  }
+}
