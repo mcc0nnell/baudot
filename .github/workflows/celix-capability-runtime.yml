@@ -65,7 +65,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=/tmp/celix-install \
             -DBUILD_TESTING=OFF \
-            -DBUILD_SHELL=ON
+            -DBUILD_SHELL=ON \
+            -DCXX_REMOTE_SERVICE_ADMIN=OFF
           cmake --build /tmp/celix-build --target install --parallel 2
 
       - name: Build Baudot Celix capability containers
