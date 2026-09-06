@@ -109,7 +109,7 @@ public:
         static_assert(answerProfile.statusCode == PJSIP_SC_OK);
 
         CallOpParam answer(true);
-        answer.statusCode = answerProfile.statusCode;
+        answer.statusCode = static_cast<pjsip_status_code>(answerProfile.statusCode);
         answer.opt.audioCount = answerProfile.audioCount;
         answer.opt.videoCount = answerProfile.videoCount;
         answer.opt.textCount = answerProfile.textCount;
