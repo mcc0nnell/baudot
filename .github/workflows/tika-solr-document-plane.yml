@@ -1,0 +1,43 @@
+name: tika-solr-document-plane
+
+on:
+  pull_request:
+    paths:
+      - 'testkit/business/tika-solr-document-plane-v1.json'
+      - 'scripts/validate_tika_solr_document_plane.py'
+      - 'docs/tika-solr-document-plane.md'
+      - '.github/workflows/tika-solr-document-plane.yml'
+  push:
+    paths:
+      - 'testkit/business/tika-solr-document-plane-v1.json'
+      - 'scripts/validate_tika_solr_document_plane.py'
+      - 'docs/tika-solr-document-plane.md'
+      - '.github/workflows/tika-solr-document-plane.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Compile document-plane validator
+        run: python -m py_compile scripts/validate_tika_solr_document_plane.py
+      - name: Validate Tika and Solr authority boundary
+        run: python scripts/validate_tika_solr_document_plane.py
+      - name: Verify pinned Tika source
+        run: |
+          git init --quiet target/tika-source
+          git -C target/tika-source remote add origin https://github.com/apache/tika.git
+          git -C target/tika-source fetch --quiet --depth=1 origin 514e1b3d8d29726d02ac6a12479d95f5db263379
+          test "$(git -C target/tika-source rev-parse FETCH_HEAD)" = "514e1b3d8d29726d02ac6a12479d95f5db263379"
+      - name: Verify pinned Solr source
+        run: |
+          git init --quiet target/solr-source
+          git -C target/solr-source remote add origin https://github.com/apache/solr.git
+          git -C target/solr-source fetch --quiet --depth=1 origin 6c6c48a6f78486130682ea9c1f7a2723af5a87be
+          test "$(git -C target/solr-source rev-parse FETCH_HEAD)" = "6c6c48a6f78486130682ea9c1f7a2723af5a87be"
