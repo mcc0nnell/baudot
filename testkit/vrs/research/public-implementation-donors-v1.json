@@ -84,6 +84,56 @@
         "codec or security conformance from dependency presence",
         "terminal Baudot verdicts"
       ]
+    },
+    {
+      "id": "mitre-ace-direct",
+      "repository": "mitre-ace-direct/ace-direct",
+      "revision": "39c8f9ba73d889e743de56a2d49faf418b575c32",
+      "sourceClass": ["historical-behavioral-donor", "compatibility-clue-only"],
+      "paths": [
+        "README.md",
+        "mserver/routes/userver.js",
+        "acedirect/app/utils.js",
+        "acedirect/patches/itrslookup_test.txt"
+      ],
+      "scenarioFamilies": ["ITRS-RESOLVE", "RUE-DIAL"],
+      "observedSeams": [
+        "vrsverify exposes iTRS lookup behind an application adapter instead of collapsing lookup into SIP call state",
+        "iTRS mode and local-database mode are explicit alternatives",
+        "lookup failure is returned separately from successful route data",
+        "the repository ships an explicitly sanitized TESTING ONLY itrslookup replacement rather than embedding production lookup configuration in tests"
+      ],
+      "neverAuthorityFor": [
+        "current TRS Numbering Directory implementation",
+        "live iTRS records or provider configuration",
+        "current provider routing behavior",
+        "SIP or media readiness after route resolution",
+        "terminal Baudot verdicts"
+      ]
+    },
+    {
+      "id": "mitre-ace-asterisk-itrs",
+      "repository": "mitre-ace-direct/asterisk",
+      "revision": "cbfc11e7660ed9d64c98d72336b3de3ea7b3aa33",
+      "sourceClass": ["historical-behavioral-donor", "compatibility-clue-only"],
+      "paths": ["scripts/itrslookup.sh"],
+      "scenarioFamilies": ["ITRS-RESOLVE", "RUE-DIAL"],
+      "observedSeams": [
+        "simple mode separates authoritative iTRS SIP-URI resolution from downstream connection discovery",
+        "telephone digits are normalized and reversed into the historical .1.itrs.us lookup name",
+        "a CNAME hop may precede E2U+sip extraction",
+        "multiple authoritative NAPTR results are explicitly selected rather than treated as an unordered bag",
+        "full mode continues from the logical SIP URI into ordinary DNS NAPTR and SRV service discovery",
+        "provider and iTRS server values are placeholders in the public script rather than live production configuration"
+      ],
+      "neverAuthorityFor": [
+        "current iTRS wire protocol or data model",
+        "standards-correct NAPTR ordering solely from shell implementation behavior",
+        "live TRS Numbering Directory domains or records",
+        "current provider endpoints",
+        "SIP or accessibility readiness after resolution",
+        "terminal Baudot verdicts"
+      ]
     }
   ]
 }
