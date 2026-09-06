@@ -1,0 +1,155 @@
+{
+  "profile": "ace-kamailio-rtpengine-donor-v1",
+  "source": {
+    "repository": "mitre-ace-direct/kamailio",
+    "commit": "3c56fc4112680a15cedd4ece835a9f371f079e0b",
+    "kamailioConfigBlob": "47f0af82f3c5a713e2bf7ae1e15023507e588e8d"
+  },
+  "claimBoundary": {
+    "kamailioConformance": false,
+    "rtpengineConformance": false,
+    "sipConformance": false,
+    "rfc4103Conformance": false,
+    "t140Conformance": false,
+    "vrsConformance": false,
+    "productionInterop": false
+  },
+  "vectors": [
+    {
+      "id": "invite-with-sdp-requests-relay-management",
+      "input": {
+        "method": "INVITE",
+        "hasSdp": true,
+        "inDialog": false,
+        "relayAvailable": true,
+        "signalingEstablished": false,
+        "mediaObserved": false,
+        "independentT140Text": null
+      },
+      "expected": {
+        "relayAction": "manage",
+        "relayOutcome": "requested",
+        "rttReady": false
+      }
+    },
+    {
+      "id": "ack-with-sdp-can-refresh-relay-state",
+      "input": {
+        "method": "ACK",
+        "hasSdp": true,
+        "inDialog": true,
+        "relayAvailable": true,
+        "signalingEstablished": true,
+        "mediaObserved": false,
+        "independentT140Text": null
+      },
+      "expected": {
+        "relayAction": "manage",
+        "relayOutcome": "requested",
+        "rttReady": false
+      }
+    },
+    {
+      "id": "invite-without-sdp-does-not-invent-media-readiness",
+      "input": {
+        "method": "INVITE",
+        "hasSdp": false,
+        "inDialog": false,
+        "relayAvailable": true,
+        "signalingEstablished": false,
+        "mediaObserved": false,
+        "independentT140Text": null
+      },
+      "expected": {
+        "relayAction": "none",
+        "relayOutcome": "not_applicable",
+        "rttReady": false
+      }
+    },
+    {
+      "id": "bye-requests-relay-teardown",
+      "input": {
+        "method": "BYE",
+        "hasSdp": false,
+        "inDialog": true,
+        "relayAvailable": true,
+        "signalingEstablished": true,
+        "mediaObserved": true,
+        "independentT140Text": null
+      },
+      "expected": {
+        "relayAction": "teardown",
+        "relayOutcome": "requested",
+        "rttReady": false
+      }
+    },
+    {
+      "id": "relay-unavailable-is-explicit",
+      "input": {
+        "method": "INVITE",
+        "hasSdp": true,
+        "inDialog": false,
+        "relayAvailable": false,
+        "signalingEstablished": false,
+        "mediaObserved": false,
+        "independentT140Text": null
+      },
+      "expected": {
+        "relayAction": "manage",
+        "relayOutcome": "relay_unavailable",
+        "rttReady": false
+      }
+    },
+    {
+      "id": "signaling-plus-relay-success-is-not-rtt-readiness",
+      "input": {
+        "method": "ACK",
+        "hasSdp": true,
+        "inDialog": true,
+        "relayAvailable": true,
+        "signalingEstablished": true,
+        "mediaObserved": true,
+        "independentT140Text": null
+      },
+      "expected": {
+        "relayAction": "manage",
+        "relayOutcome": "requested",
+        "rttReady": false
+      }
+    },
+    {
+      "id": "packet-observation-without-semantic-reduction-is-not-rtt-readiness",
+      "input": {
+        "method": "ACK",
+        "hasSdp": true,
+        "inDialog": true,
+        "relayAvailable": true,
+        "signalingEstablished": true,
+        "mediaObserved": true,
+        "independentT140Text": null
+      },
+      "expected": {
+        "relayAction": "manage",
+        "relayOutcome": "requested",
+        "rttReady": false
+      }
+    },
+    {
+      "id": "independent-t140-reduction-can-publish-readiness",
+      "input": {
+        "method": "ACK",
+        "hasSdp": true,
+        "inDialog": true,
+        "relayAvailable": true,
+        "signalingEstablished": true,
+        "mediaObserved": true,
+        "independentT140Text": "H"
+      },
+      "expected": {
+        "relayAction": "manage",
+        "relayOutcome": "requested",
+        "rttReady": true
+      }
+    }
+  ]
+}
