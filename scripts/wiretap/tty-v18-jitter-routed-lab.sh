@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 [[ ${EUID:-$(id -u)} -eq 0 ]] || exec sudo -E bash "$0" "$@"
 
@@ -34,6 +34,7 @@ server_pid=""
 recv_pid=""
 relay_up=0
 e2ee_up=0
+failure_stage="initialization"
 
 safe_server_log() {
   [[ -f "$WORK/server.log" ]] || return 0
@@ -41,6 +42,22 @@ safe_server_log() {
     -e 's/(private_key=).*/\1[REDACTED]/' \
     -e 's/(PrivateKey[[:space:]]*=[[:space:]]*).*/\1[REDACTED]/' \
     "$WORK/server.log"
+}
+
+record_error() {
+  local rc=$1
+  local line=$2
+  local command=$3
+  trap - ERR
+  set +e
+  mkdir -p "$RUN"
+  {
+    printf 'stage=%s\n' "$failure_stage"
+    printf 'exitCode=%s\n' "$rc"
+    printf 'line=%s\n' "$line"
+    printf 'command=%q\n' "$command"
+  } >"$RUN/harness-error.properties"
+  exit "$rc"
 }
 
 cleanup() {
@@ -75,8 +92,10 @@ done
 rm -rf "$WORK"
 mkdir -p "$WORK" "$RUN/jitter-reorder-recovery"
 cp "$BASELINE/source.txt" "$RUN/source.txt"
+trap 'record_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
 
 cd "$ROOT"
+failure_stage="preflight"
 python3 scripts/wiretap_topology_preflight.py \
   --wiretap-bin "$WT" \
   --underlay-address "$UL_HOST/24" \
@@ -97,44 +116,66 @@ python3 scripts/wiretap_topology_preflight.py \
   --output "$RUN/preflight.properties"
 trap cleanup EXIT
 
+failure_stage="create-caller-namespace"
 ip netns add "$CNS"
+failure_stage="create-callee-namespace"
 ip netns add "$SNS"
+failure_stage="enable-caller-loopback"
 ip -n "$CNS" link set lo up
+failure_stage="enable-callee-loopback"
 ip -n "$SNS" link set lo up
 
+failure_stage="create-underlay-veth"
 ip link add bdt-tty-j-ul-h type veth peer name bdt-tty-j-ul-c
+failure_stage="move-underlay-peer"
 ip link set bdt-tty-j-ul-c netns "$CNS"
+failure_stage="configure-underlay-host"
 ip addr add "$UL_HOST/24" dev bdt-tty-j-ul-h
 ip link set bdt-tty-j-ul-h up
+failure_stage="configure-underlay-client"
 ip -n "$CNS" addr add "$UL_CLIENT/24" dev bdt-tty-j-ul-c
 ip -n "$CNS" link set bdt-tty-j-ul-c up
 
+failure_stage="create-signaling-veth"
 ip link add bdt-tty-j-sig-h type veth peer name bdt-tty-j-sig-s
+failure_stage="move-signaling-peer"
 ip link set bdt-tty-j-sig-s netns "$SNS"
+failure_stage="configure-signaling-host"
 ip addr add "$SIG_HOST/24" dev bdt-tty-j-sig-h
 ip link set bdt-tty-j-sig-h up
+failure_stage="configure-signaling-server"
 ip -n "$SNS" addr add "$SIG_SERVER/24" dev bdt-tty-j-sig-s
 ip -n "$SNS" link set bdt-tty-j-sig-s up
 
+failure_stage="create-media-veth"
 ip link add bdt-tty-j-med-h type veth peer name bdt-tty-j-med-s
+failure_stage="move-media-peer"
 ip link set bdt-tty-j-med-s netns "$SNS"
+failure_stage="configure-media-host"
 ip addr add "$MEDIA_HOST/24" dev bdt-tty-j-med-h
 ip link set bdt-tty-j-med-h up
+failure_stage="configure-media-server"
 ip -n "$SNS" addr add "$MEDIA_SERVER/24" dev bdt-tty-j-med-s
 ip -n "$SNS" link set bdt-tty-j-med-s up
 
 cd "$WORK"
+failure_stage="wiretap-configure"
 "$WT" configure --endpoint "$UL_CLIENT:$WT_PORT" --routes "$ROUTES" --port "$WT_PORT" >configure.log
+failure_stage="read-wiretap-address"
 CALLER_E2EE=$(sed -n 's/^Address = \([0-9.]*\)\/.*/\1/p' "$WORK/wiretap.conf" | head -n1)
 [[ -n "$CALLER_E2EE" ]] || { echo "unable to read Wiretap E2EE IPv4 address" >&2; exit 1; }
 
+failure_stage="wiretap-relay-up"
 ip netns exec "$CNS" wg-quick up "$WORK/wiretap_relay.conf"
 relay_up=1
+failure_stage="wiretap-e2ee-up"
 ip netns exec "$CNS" wg-quick up "$WORK/wiretap.conf"
 e2ee_up=1
+failure_stage="wiretap-server-start"
 "$WT" serve -f "$WORK/wiretap_server.conf" >server.log 2>&1 &
 server_pid=$!
 
+failure_stage="wiretap-ping"
 for _ in $(seq 1 100); do
   ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1 && break
   if ! kill -0 "$server_pid" 2>/dev/null; then
@@ -149,6 +190,7 @@ ip netns exec "$CNS" "$WT" ping >/dev/null 2>&1 || {
   exit 1
 }
 
+failure_stage="topology-evidence"
 cat >"$RUN/topology.properties" <<EOF
 wiretap.version=$($WT --version 2>/dev/null | head -n1)
 wiretap.routes=$ROUTES
@@ -177,6 +219,7 @@ printf '%s\n' "$DELAY_MS" >"$CASE/delay-ms.txt"
 COUNT=$(python3 "$ROOT/scripts/tty_rtp_udp.py" count "$CASE/pre-route.rtpseq")
 READY="$CASE/receiver.ready"
 
+failure_stage="udp-receiver-start"
 ip netns exec "$SNS" python3 "$ROOT/scripts/tty_rtp_udp.py" receive \
   "$CASE/post-route.rtpseq" \
   --bind "$MEDIA_SERVER" \
@@ -188,6 +231,7 @@ ip netns exec "$SNS" python3 "$ROOT/scripts/tty_rtp_udp.py" receive \
   2>"$CASE/receiver.stderr.txt" &
 recv_pid=$!
 
+failure_stage="udp-receiver-ready"
 for _ in $(seq 1 100); do
   [[ -f "$READY" ]] && break
   kill -0 "$recv_pid" 2>/dev/null || { cat "$CASE/receiver.stderr.txt" >&2; exit 1; }
@@ -195,6 +239,7 @@ for _ in $(seq 1 100); do
 done
 [[ -f "$READY" ]] || { echo "jitter UDP receiver did not become ready" >&2; exit 1; }
 
+failure_stage="udp-send-reordered"
 ip netns exec "$CNS" python3 "$ROOT/scripts/tty_rtp_udp.py" send \
   "$CASE/pre-route.rtpseq" \
   --target "$MEDIA_SERVER" \
@@ -204,10 +249,12 @@ ip netns exec "$CNS" python3 "$ROOT/scripts/tty_rtp_udp.py" send \
   >"$CASE/sender.json" \
   2>"$CASE/sender.stderr.txt"
 
+failure_stage="udp-receiver-complete"
 wait "$recv_pid"
 recv_pid=""
 rm -f "$READY"
 
+failure_stage="raw-arrival-reconstruct"
 set +e
 python3 "$ROOT/scripts/tty_rtp_udp.py" reconstruct \
   "$CASE/post-route.rtpseq" \
@@ -222,20 +269,24 @@ if (( RAW_EXIT == 0 )); then
   exit 1
 fi
 
+failure_stage="resequence"
 python3 "$ROOT/scripts/tty_rtp_udp.py" resequence \
   "$CASE/post-route.rtpseq" \
   "$CASE/resequenced.rtpseq" \
   >"$CASE/resequence.json"
 
+failure_stage="reconstruct-resequenced"
 python3 "$ROOT/scripts/tty_rtp_udp.py" reconstruct \
   "$CASE/resequenced.rtpseq" \
   "$CASE/after-resequence.wav" \
   >"$CASE/reconstruct.json"
 
+failure_stage="decode-resequenced"
 "$BIN_DIR/tty-v18-file" decode "$CASE/after-resequence.wav" \
   >"$CASE/decoded.txt" \
   2>"$CASE/decoder.stderr.txt"
 
+failure_stage="hash-evidence"
 sha256sum \
   "$CASE/pre-route.rtpseq" \
   "$CASE/post-route.rtpseq" \
@@ -245,8 +296,10 @@ sha256sum \
 
 safe_server_log >"$RUN/wiretap-server.log"
 cd "$ROOT"
+failure_stage="independent-reducer"
 python3 scripts/reduce_tty_v18_jitter_reorder.py "$RUN"
 
+failure_stage="bundle-manifest"
 (
   cd "$RUN"
   required=(
@@ -275,4 +328,5 @@ python3 scripts/reduce_tty_v18_jitter_reorder.py "$RUN"
   sha256sum "${required[@]}" >bundle.manifest.sha256
 )
 
+failure_stage="complete"
 cat "$RUN/tty-jitter-validation.json"
