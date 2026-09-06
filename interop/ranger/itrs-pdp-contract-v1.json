@@ -1,0 +1,151 @@
+{
+  "schema": "baudot.ranger-itrs-pdp-contract@1",
+  "serviceType": "baudot-itrs",
+  "serviceName": "synthetic_itrs",
+  "endpoint": "/v1/authorize",
+  "wireAuthority": "Apache Ranger PDP API documentation",
+  "semanticAuthority": "Baudot neutral authorization contract",
+  "trustedCallerBoundary": {
+    "endUserDirectPdpCallsAllowed": false,
+    "applicationMayAssertAuthenticatedSubjectOnly": true,
+    "groupsOrAttributesRequireTrustedCaller": true,
+    "pdpFailureImplicitAllow": false
+  },
+  "operationMappings": {
+    "itrs.directory.query": {
+      "resourceType": "telephone-number",
+      "action": "QUERY",
+      "permission": "query"
+    },
+    "itrs.directory.reverse-query": {
+      "resourceType": "routing-record",
+      "action": "QUERY",
+      "permission": "query"
+    },
+    "itrs.registration.create": {
+      "resourceType": "registration",
+      "action": "CREATE",
+      "permission": "create"
+    },
+    "itrs.registration.update": {
+      "resourceType": "registration",
+      "action": "UPDATE",
+      "permission": "update"
+    },
+    "itrs.number.assign": {
+      "resourceType": "telephone-number",
+      "action": "UPDATE",
+      "permission": "assign"
+    },
+    "itrs.route.read": {
+      "resourceType": "routing-record",
+      "action": "QUERY",
+      "permission": "route"
+    }
+  },
+  "fixtures": [
+    {
+      "id": "ITRS-RANGER-001",
+      "description": "Authenticated subject, trusted application caller, ALLOW, valid protocol",
+      "caller": "baudot-itrs-service",
+      "subject": "provider-a-operator",
+      "authenticated": true,
+      "trustedApplicationCaller": true,
+      "resource": { "type": "telephone-number", "id": "2025550103" },
+      "operationClass": "itrs.directory.query",
+      "protocolValid": true,
+      "pdpMode": "decision",
+      "pdpDecision": "ALLOW",
+      "expected": { "pdpCalled": true, "execute": true }
+    },
+    {
+      "id": "ITRS-RANGER-002",
+      "description": "Authenticated subject, trusted application caller, DENY, valid protocol",
+      "caller": "baudot-itrs-service",
+      "subject": "provider-a-operator",
+      "authenticated": true,
+      "trustedApplicationCaller": true,
+      "resource": { "type": "telephone-number", "id": "2025550103" },
+      "operationClass": "itrs.directory.query",
+      "protocolValid": true,
+      "pdpMode": "decision",
+      "pdpDecision": "DENY",
+      "expected": { "pdpCalled": true, "execute": false }
+    },
+    {
+      "id": "ITRS-RANGER-003",
+      "description": "Ranger ALLOW cannot promote an invalid iTRS operation",
+      "caller": "baudot-itrs-service",
+      "subject": "provider-a-operator",
+      "authenticated": true,
+      "trustedApplicationCaller": true,
+      "resource": { "type": "telephone-number", "id": "2025550103" },
+      "operationClass": "itrs.directory.query",
+      "protocolValid": false,
+      "pdpMode": "decision",
+      "pdpDecision": "ALLOW",
+      "expected": { "pdpCalled": true, "execute": false }
+    },
+    {
+      "id": "ITRS-RANGER-004",
+      "description": "Unauthenticated subjects never reach the PDP",
+      "caller": "baudot-itrs-service",
+      "subject": "provider-a-operator",
+      "authenticated": false,
+      "trustedApplicationCaller": true,
+      "resource": { "type": "telephone-number", "id": "2025550103" },
+      "operationClass": "itrs.directory.query",
+      "protocolValid": true,
+      "pdpMode": "decision",
+      "pdpDecision": "ALLOW",
+      "expected": { "pdpCalled": false, "execute": false }
+    },
+    {
+      "id": "ITRS-RANGER-005",
+      "description": "PDP unavailability fails closed",
+      "caller": "baudot-itrs-service",
+      "subject": "provider-a-operator",
+      "authenticated": true,
+      "trustedApplicationCaller": true,
+      "resource": { "type": "telephone-number", "id": "2025550103" },
+      "operationClass": "itrs.directory.query",
+      "protocolValid": true,
+      "pdpMode": "unavailable",
+      "expected": { "pdpCalled": true, "execute": false }
+    },
+    {
+      "id": "ITRS-RANGER-006",
+      "description": "An untrusted caller may not assert another subject through this profile",
+      "caller": "end-user-a",
+      "subject": "provider-a-operator",
+      "authenticated": true,
+      "trustedApplicationCaller": false,
+      "resource": { "type": "telephone-number", "id": "2025550103" },
+      "operationClass": "itrs.directory.query",
+      "protocolValid": true,
+      "pdpMode": "decision",
+      "pdpDecision": "ALLOW",
+      "expected": { "pdpCalled": false, "execute": false }
+    },
+    {
+      "id": "ITRS-RANGER-007",
+      "description": "Malformed/unknown PDP result is never an implicit allow",
+      "caller": "baudot-itrs-service",
+      "subject": "provider-a-operator",
+      "authenticated": true,
+      "trustedApplicationCaller": true,
+      "resource": { "type": "routing-record", "id": "sip:2025550103@provider-b.invalid" },
+      "operationClass": "itrs.directory.reverse-query",
+      "protocolValid": true,
+      "pdpMode": "malformed",
+      "expected": { "pdpCalled": true, "execute": false }
+    }
+  ],
+  "claimBoundary": {
+    "productionRangerCompatibilityClaimed": false,
+    "productionItrsCompatibilityClaimed": false,
+    "providerCertificationClaimed": false,
+    "routeCorrectnessClaimed": false,
+    "compensabilityClaimed": false
+  }
+}
