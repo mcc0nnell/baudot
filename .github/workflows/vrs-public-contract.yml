@@ -6,6 +6,7 @@ on:
       - "docs/vrs-public-interoperability-osint.md"
       - "testkit/vrs/**"
       - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/validate_rue_dial_config_fixtures.py"
       - "scripts/select_rue_provider.py"
       - "scripts/run-rue-provider-selection.sh"
       - "scripts/validate_rue_dial_execution.py"
@@ -20,6 +21,7 @@ on:
       - "docs/vrs-public-interoperability-osint.md"
       - "testkit/vrs/**"
       - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/validate_rue_dial_config_fixtures.py"
       - "scripts/select_rue_provider.py"
       - "scripts/run-rue-provider-selection.sh"
       - "scripts/validate_rue_dial_execution.py"
@@ -46,6 +48,8 @@ jobs:
           cache: maven
       - name: Validate public VRS/RUE research matrix and fixtures
         run: python -m scripts.validate_vrs_public_matrix
+      - name: Validate ProviderConfig and two-stage dial-around fixtures
+        run: python -m scripts.validate_rue_dial_config_fixtures
       - name: Test deterministic provider selection
         run: python -m unittest tests.test_rue_provider_selection
       - name: Preserve provider selection evidence
