@@ -1,0 +1,33 @@
+name: part64-certification-dossier
+
+on:
+  push:
+    paths:
+      - "docs/part64-certification-dossier.md"
+      - "testkit/part64/certification-requirements-v1.json"
+      - "testkit/part64/fixtures/internet-trs-certification-dossier.json"
+      - "testkit/part64/fixtures/vrs-annual-compliance.json"
+      - "scripts/validate_part64_certification_dossier.py"
+      - ".github/workflows/part64-certification-dossier.yml"
+  pull_request:
+    paths:
+      - "docs/part64-certification-dossier.md"
+      - "testkit/part64/certification-requirements-v1.json"
+      - "testkit/part64/fixtures/internet-trs-certification-dossier.json"
+      - "testkit/part64/fixtures/vrs-annual-compliance.json"
+      - "scripts/validate_part64_certification_dossier.py"
+      - ".github/workflows/part64-certification-dossier.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Part 64 certification dossier
+        run: python scripts/validate_part64_certification_dossier.py
