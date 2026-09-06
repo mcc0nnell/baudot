@@ -3,7 +3,8 @@
   "authority": "synthetic-accounting-adapter-only",
   "fineractApiSurface": {
     "journalEntries": "/api/v1/journalentries",
-    "reversal": "/api/v1/journalentries/{transactionId}/reversal",
+    "reversal": "/api/v1/journalentries/{transactionId}?command=reverse",
+    "reversalCompatibility": "/api/v1/journalentries/{transactionId}/reversal",
     "accountingClosures": "/api/v1/glclosures"
   },
   "accounts": {
