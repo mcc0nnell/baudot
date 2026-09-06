@@ -13,7 +13,8 @@ It is intentionally **not** a provider simulator, a copy of a production VRS con
 - `fixtures/rue-two-stage-front-door-invite.txt` — synthetic two-stage front-door request that deliberately omits the final called number from the initial INVITE.
 - `fixtures/rue-rtt-negotiation-arms-v1.json` — controlled RTT session arms separating local policy, remote T.140 offer, negotiation, first text observation, and terminal readiness.
 - `executions/RUE-DIAL-001-jain.json` — bounded live JAIN SIP dial-around execution contract.
-- `executions/RUE-RTT-001-negotiation-python.json` — bounded executable RTT negotiation/readiness reduction contract.
+- `executions/RUE-RTT-001-negotiation-python.json` — deterministic RTT negotiation/readiness reduction contract.
+- `executions/RUE-RTT-001-jain-negotiation.json` — live JAIN SIP RTT offer/answer execution with independent Python reduction.
 - `research/public-implementation-donors-v1.json` — revision-pinned historical implementation donors that may motivate scenarios but never supply normative or terminal verdict authority.
 
 The research and authority map lives in [`../../docs/vrs-public-interoperability-osint.md`](../../docs/vrs-public-interoperability-osint.md). Historical implementation archaeology lives in [`../../docs/vrs-public-implementation-archaeology.md`](../../docs/vrs-public-implementation-archaeology.md).
@@ -85,14 +86,38 @@ local RTT enabled + remote offers T.140 + answer accepts T.140
 
 The third arm is intentionally a positive **negotiation** control and a negative **readiness** control. It prevents SDP success from being promoted into accessibility readiness.
 
-Run it with:
+### Deterministic reducer lane
 
 ```bash
 python -m unittest tests.test_rue_rtt_negotiation
 python -m scripts.validate_rue_rtt_negotiation
 ```
 
-The reducer writes bounded evidence to `target/evidence/RUE-RTT-NEGOTIATION/`. A future live arm can replace the synthetic `firstT140CharacterObserved` input with the existing independent live T.140 observation gate; the readiness rule does not change.
+This lane writes bounded evidence to `target/evidence/RUE-RTT-NEGOTIATION/`.
+
+### Live JAIN SIP negotiation lane
+
+```bash
+bash scripts/run-rue-rtt-negotiation-live.sh
+```
+
+The live lane creates three actual loopback SIP dialogs. The synthetic remote endpoint sends the arm-specific INVITE/SDP offer; the synthetic RUE sends the arm-specific 200 OK/SDP answer; ACK is observed; and both sides preserve the SDP bytes they actually received.
+
+Java deliberately sends no RTT datagrams and does not classify the SDP. `scripts/validate_rue_rtt_live_execution.py` independently parses the preserved offer and answer, treats a port-zero `m=text` as rejected, joins the manipulated local policy fact, and writes its bounded results under `target/evidence/RUE-RTT-NEGOTIATION-LIVE/`.
+
+For the positive negotiation control the live expected chain remains:
+
+```text
+real SIP dialog established
+    -> remote T.140 offer observed
+    -> active T.140 answer observed
+    -> rttNegotiated=true
+    -> no T.140 media originated
+    -> firstT140CharacterObserved=false
+    -> rttReady=false
+```
+
+A later media-bearing arm can feed the existing independent live T.140 observation gate into the same readiness rule. Negotiation still cannot manufacture readiness.
 
 The local-disabled arm is deliberately a test-policy manipulation. It is not a claim that RFC 9248 permits an implementation to omit mandatory RTT capability. Likewise, a synthetic remote offer without T.140 is a session-state negative control, not by itself a provider-conformance finding.
 
