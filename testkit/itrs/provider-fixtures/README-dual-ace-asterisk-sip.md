@@ -11,6 +11,20 @@ da74e6450193be1456ce2cdf65dd5ffdf0e92f1e
 
 The PBX configuration is intentionally **not** taken from the historical ACE Asterisk submodule. That old pin is not used as a source boundary here. Instead, CI installs the Ubuntu 24.04 `asterisk` package and generates a minimal Baudot-owned configuration for each provider fixture.
 
+## Verification status
+
+Status snapshot: **2026-09-05 21:12 America/New_York**.
+
+This lab is implemented, but its hosted runtime proof is **not green yet**. The GitHub Actions workflow is currently queued and has not acquired a runner. No workflow step has executed and no evidence artifact has been produced for the current head.
+
+Accordingly:
+
+- `Dual ACE -> Asterisk -> JAIN-SIP lab: 8/8 PASS` is the **target terminal verdict**, not a current result;
+- the correct current claim is **implemented and runnable, awaiting hosted runtime verification**; and
+- the signaling-level claim may be promoted only after the workflow completes successfully and uploads the expected evidence.
+
+See [`docs/itrs-vrs-interoperability-lab.md`](../../../docs/itrs-vrs-interoperability-lab.md) for the full evidence ladder and promotion rule.
+
 ## Architecture
 
 ```text
@@ -76,17 +90,22 @@ The final assertion matrix is expected to report:
 Dual ACE -> Asterisk -> JAIN-SIP lab: 8/8 PASS
 ```
 
+Do not treat the expected string above as observed evidence until the workflow completes and the assertion output is preserved.
+
 ## Evidence
 
-A run writes:
+A completed run writes:
 
 - the installed Asterisk version;
 - one JSONL AllCallQuery/AGI trace per provider;
 - one JSON JAIN-SIP transaction record per positive provider leg;
-- ACE/Asterisk/adapter logs retained in the temporary lab directory while the run is active.
+- generated Asterisk configuration; and
+- ACE/Asterisk/adapter/JAIN-SIP logs.
+
+The workflow is configured to upload the lab evidence even on failure, so a red run should identify the failing boundary rather than collapse into a generic CI error.
 
 The JAIN-SIP evidence record captures the logical Request-URI and Route header so the test can prove that routing identity and immediate transport destination remain distinct facts.
 
 ## Claim limit
 
-A green run is a **signaling-level synthetic interoperability proof**, not a production VRS certification. The remote gateways are JAIN-SIP test peers; no production provider, live TRS Numbering Directory, subscriber record, emergency call path, media quality, interpreter queue, or RTT conformance is exercised here.
+When a green run exists, it can support a **signaling-level synthetic interoperability proof**, not a production VRS certification. The remote gateways are JAIN-SIP test peers; no production provider, live TRS Numbering Directory, subscriber record, emergency call path, media quality, interpreter queue, or RTT conformance is exercised here.
