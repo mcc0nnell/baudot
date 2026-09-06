@@ -111,10 +111,13 @@ jobs:
             -v "$PWD/interop/solr/security/basic-auth-security.json:/tmp/security.json:ro" \
             solr:10.0.0 bash -c \
             'cp /tmp/security.json /var/solr/data/security.json && chown solr:solr /var/solr/data/security.json && chmod 640 /var/solr/data/security.json'
+          # Match the exact mode used by the pinned Solr 10 `solr-precreate` script:
+          # `exec solr-fg --user-managed`.  Generic `solr-foreground` defaults
+          # this image into SolrCloud and cannot reopen the precreated user-managed core.
           docker run -d --name baudot-solr --network baudot-docs \
             -p 127.0.0.1:8983:8983 \
             -v baudot-solr-data:/var/solr \
-            solr:10.0.0 solr-foreground
+            solr:10.0.0 solr-fg --user-managed
           ready=0
           for attempt in $(seq 1 90); do
             if curl -fsS -u solr:SolrRocks \
