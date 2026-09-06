@@ -6,7 +6,7 @@ This profile evaluates Apache Druid and Apache Pinot as the analytical store beh
 
 Use **Apache Pinot** as the initial real-time CDR analytical store.
 
-Keep **Apache Druid** as the alternate candidate for a later live benchmark, particularly if the workload becomes dominated by time-series rollup, ingestion-time aggregation, or Druid-specific operational strengths.
+Keep **Apache Druid** as the measured alternate, particularly if the workload becomes dominated by time-series rollup, ingestion-time aggregation, or Druid-specific operational strengths.
 
 Do **not** operate both by default.
 
@@ -150,12 +150,12 @@ These files are implementation profiles, not normative CDR schemas.
 
 ## Benchmark query set
 
-Both candidates execute the same logical workload against the same projected corpus:
+Both candidates execute the same logical workload against the same projected corpus. Time-window queries use a deterministic anchor of **2026-08-31T00:00:00Z** so results are reproducible rather than depending on runner wall-clock time:
 
-1. provider/service call volume;
-2. p50/p95 call duration by provider;
-3. hourly call count and total duration by service type across the 30-day corpus;
-4. outcome counts by provider;
+1. provider/service call volume over the trailing 15 minutes;
+2. p50/p95 call duration by provider over the trailing 24 hours;
+3. hourly call count and total duration by service type over the preceding 30 days;
+4. outcome counts by provider over the trailing 24 hours;
 5. single-call lookup by opaque `callId`.
 
 `interop/olap/benchmark-queries-v1.json` carries the engine-specific SQL needed to preserve those logical query shapes across Pinot and Druid.
@@ -191,7 +191,7 @@ Every relevant PR validates:
 - both release/config profiles;
 - the Kafka 4 Pinot consumer binding;
 - Druid earliest-offset replay configuration;
-- exact benchmark query IDs;
+- exact benchmark query IDs and deterministic windows;
 - privacy-reduced field parity;
 - forbidden-field absence from engine schemas and SQL;
 - Python compilation; and
