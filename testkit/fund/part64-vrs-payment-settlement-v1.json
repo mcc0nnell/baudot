@@ -1,0 +1,212 @@
+{
+  "schema": "baudot.part64-vrs-payment-settlement@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "authorityBoundary": {
+    "claimAccrualAuthority": "upstream-part64-fund-claim-handoff",
+    "paymentAuthorizationAuthority": "baudot-synthetic-payment-authorization",
+    "settlementAuthority": "baudot-synthetic-external-payment-rail-fixture",
+    "accountingAuthority": "fineract-synthetic-accounting-adapter-only",
+    "reconciliationAuthority": "baudot-independent-reducer"
+  },
+  "safety": {
+    "productionPaymentInstruction": false,
+    "realBankAccount": false,
+    "realPaymentRailTransaction": false,
+    "productionFundPayment": false,
+    "realFineractTransaction": false
+  },
+  "startingBalances": {
+    "providerPayableUsd": "8830.00",
+    "fundCashUsd": "50000.00"
+  },
+  "cases": [
+    {
+      "scenario": "FUND-PAY-SETTLE-001",
+      "syntheticBusinessTransactionId": "payment-vrs-2026-08-example-001",
+      "providerPayableExists": true,
+      "payableAmountUsd": "8830.00",
+      "paymentAuthorization": "approved",
+      "authorizedAmountUsd": "8830.00",
+      "paymentInstruction": {
+        "created": true,
+        "amountUsd": "8830.00",
+        "instructionId": "PAYINST-EXAMPLE-001"
+      },
+      "settlement": {
+        "eventId": "SETTLE-EXAMPLE-001",
+        "status": "succeeded",
+        "settledAmountUsd": "8830.00"
+      },
+      "ledgerObservation": {
+        "journalEvent": "providerDisbursement",
+        "transactionId": "FINERACT-SYNTH-001",
+        "debitAccount": "2100",
+        "creditAccount": "1100",
+        "amountUsd": "8830.00",
+        "before": {"providerPayableUsd": "8830.00", "fundCashUsd": "50000.00"},
+        "after": {"providerPayableUsd": "0.00", "fundCashUsd": "41170.00"}
+      },
+      "expected": {
+        "paymentInstructionAllowed": true,
+        "settlementComplete": true,
+        "journalAllowed": true,
+        "reconciled": true,
+        "residualProviderPayableUsd": "0.00"
+      }
+    },
+    {
+      "scenario": "FUND-PAY-AUTH-BLOCK-001",
+      "providerPayableExists": true,
+      "payableAmountUsd": "8830.00",
+      "paymentAuthorization": "not-determined",
+      "paymentInstruction": {"created": false},
+      "settlement": {"status": "not-attempted"},
+      "ledgerObservation": {"journalEvent": null},
+      "expected": {
+        "paymentInstructionAllowed": false,
+        "journalAllowed": false,
+        "cashMovementUsd": "0.00"
+      }
+    },
+    {
+      "scenario": "FUND-PAY-SETTLE-FAIL-001",
+      "providerPayableExists": true,
+      "payableAmountUsd": "8830.00",
+      "paymentAuthorization": "approved",
+      "authorizedAmountUsd": "8830.00",
+      "paymentInstruction": {
+        "created": true,
+        "amountUsd": "8830.00",
+        "instructionId": "PAYINST-EXAMPLE-FAIL-001"
+      },
+      "settlement": {
+        "eventId": "SETTLE-EXAMPLE-FAIL-001",
+        "status": "failed",
+        "settledAmountUsd": "0.00"
+      },
+      "ledgerObservation": {
+        "journalEvent": null,
+        "before": {"providerPayableUsd": "8830.00", "fundCashUsd": "50000.00"},
+        "after": {"providerPayableUsd": "8830.00", "fundCashUsd": "50000.00"}
+      },
+      "expected": {
+        "journalAllowed": false,
+        "reconciled": true,
+        "residualProviderPayableUsd": "8830.00"
+      }
+    },
+    {
+      "scenario": "FUND-PAY-PARTIAL-001",
+      "providerPayableExists": true,
+      "payableAmountUsd": "8830.00",
+      "paymentAuthorization": "approved",
+      "authorizedAmountUsd": "8830.00",
+      "paymentInstruction": {
+        "created": true,
+        "amountUsd": "8830.00",
+        "instructionId": "PAYINST-EXAMPLE-PARTIAL-001"
+      },
+      "settlement": {
+        "eventId": "SETTLE-EXAMPLE-PARTIAL-001",
+        "status": "partial",
+        "settledAmountUsd": "8000.00"
+      },
+      "ledgerObservation": {
+        "journalEvent": "providerDisbursement",
+        "transactionId": "FINERACT-SYNTH-PARTIAL-001",
+        "debitAccount": "2100",
+        "creditAccount": "1100",
+        "amountUsd": "8000.00",
+        "before": {"providerPayableUsd": "8830.00", "fundCashUsd": "50000.00"},
+        "after": {"providerPayableUsd": "830.00", "fundCashUsd": "42000.00"}
+      },
+      "expected": {
+        "journalAllowed": true,
+        "partialJournalReconciled": true,
+        "paymentFullySettled": false,
+        "residualProviderPayableUsd": "830.00"
+      }
+    },
+    {
+      "scenario": "FUND-PAY-DUPLICATE-001",
+      "settlementEventId": "SETTLE-EXAMPLE-001",
+      "alreadyObserved": true,
+      "replayAmountUsd": "8830.00",
+      "expected": {
+        "additionalJournalAllowed": false,
+        "additionalFinancialEffectUsd": "0.00"
+      }
+    },
+    {
+      "scenario": "FUND-PAY-READBACK-MISMATCH-001",
+      "providerPayableExists": true,
+      "payableAmountUsd": "8830.00",
+      "paymentAuthorization": "approved",
+      "authorizedAmountUsd": "8830.00",
+      "settlement": {
+        "eventId": "SETTLE-EXAMPLE-MISMATCH-001",
+        "status": "succeeded",
+        "settledAmountUsd": "8830.00"
+      },
+      "ledgerObservation": {
+        "journalEvent": "providerDisbursement",
+        "debitAccount": "2100",
+        "creditAccount": "1100",
+        "amountUsd": "8830.00",
+        "before": {"providerPayableUsd": "8830.00", "fundCashUsd": "50000.00"},
+        "after": {"providerPayableUsd": "0.01", "fundCashUsd": "41170.00"}
+      },
+      "expected": {
+        "reconciled": false,
+        "failClosed": true
+      }
+    },
+    {
+      "scenario": "FUND-PAY-REVERSAL-001",
+      "original": {
+        "transactionId": "FINERACT-SYNTH-REV-ORIG-001",
+        "journalEvent": "providerDisbursement",
+        "debitAccount": "2100",
+        "creditAccount": "1100",
+        "amountUsd": "8830.00"
+      },
+      "reversalAuthorization": "approved",
+      "reversal": {
+        "transactionId": "FINERACT-SYNTH-REV-001",
+        "referencesOriginalTransactionId": "FINERACT-SYNTH-REV-ORIG-001",
+        "debitAccount": "1100",
+        "creditAccount": "2100",
+        "amountUsd": "8830.00"
+      },
+      "ledgerReadback": {
+        "beforeOriginal": {"providerPayableUsd": "8830.00", "fundCashUsd": "50000.00"},
+        "afterOriginal": {"providerPayableUsd": "0.00", "fundCashUsd": "41170.00"},
+        "afterReversal": {"providerPayableUsd": "8830.00", "fundCashUsd": "50000.00"}
+      },
+      "expected": {
+        "historyPreserved": true,
+        "balancesRestored": true,
+        "reconciled": true
+      }
+    },
+    {
+      "scenario": "FUND-PAY-CLOSED-PERIOD-001",
+      "paymentAuthorization": "approved",
+      "settlement": {
+        "status": "succeeded",
+        "settledAmountUsd": "8830.00",
+        "settlementDate": "2026-08-31"
+      },
+      "accountingPeriod": {
+        "postingDate": "2026-08-31",
+        "closed": true,
+        "authorizedOpenPostingDate": null
+      },
+      "expected": {
+        "journalAllowed": false,
+        "silentBackdatingAllowed": false,
+        "requiresAccountingControlResolution": true
+      }
+    }
+  ]
+}
