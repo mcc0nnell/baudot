@@ -23,6 +23,8 @@ jobs:
         run: mvn -B -ntp -DskipTests compile
       - name: TILDEN-HANDOFF-001 - selected route into live SIP evidence
         run: bash scripts/run-tilden-selection-adapter.sh
+      - name: TILDEN-HANDOFF-002 - selected route independently proved RTT-ready
+        run: bash scripts/run-tilden-rtt-handoff.sh
       - name: Wiretap topology preflight regressions
         run: python3 -m unittest scripts.test_wiretap_topology_preflight
       - name: BAUDOT-INTEROP-003 - JAIN SIP re-INVITE correlation gate
