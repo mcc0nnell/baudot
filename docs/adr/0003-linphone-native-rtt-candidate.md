@@ -119,7 +119,9 @@ It would not establish full Linphone, SIP, RTP, RFC 4103, RFC 2198, T.140, REFER
 Before native build execution, `scripts/linphone_candidate_admission.py` verifies the exact clean checkout and records hashes for the source surfaces that make the candidate worth testing:
 
 ```text
+liblinphone/include/linphone/api/c-factory.h
 liblinphone/include/linphone/call_params.h
+liblinphone/include/linphone/api/c-chat-room.h
 liblinphone/include/linphone/api/c-chat-message.h
 liblinphone/coreapi/help/examples/C/realtimetext_sender.c
 mediastreamer2/src/voip/rfc4103_textstream.c
