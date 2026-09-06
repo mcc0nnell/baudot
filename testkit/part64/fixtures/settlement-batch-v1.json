@@ -1,0 +1,51 @@
+{
+  "schema": "baudot.synthetic-trs-settlement-batch@1",
+  "batchId": "settlement-batch-live-2026-09",
+  "authorityBoundary": "pre-reduced-synthetic-input",
+  "currency": "USD",
+  "claims": [
+    {
+      "eventId": "claim-vrs-batch-001",
+      "provider": "provider-a.example",
+      "amount": "8830.00",
+      "claimDecision": "approved",
+      "paymentAuthorization": "authorized"
+    },
+    {
+      "eventId": "claim-vrs-batch-002",
+      "provider": "provider-b.example",
+      "amount": "4415.50",
+      "claimDecision": "approved",
+      "paymentAuthorization": "authorized"
+    },
+    {
+      "eventId": "claim-vrs-batch-003",
+      "provider": "provider-c.example",
+      "amount": "1250.00",
+      "claimDecision": "approved",
+      "paymentAuthorization": "held"
+    },
+    {
+      "eventId": "claim-vrs-batch-004",
+      "provider": "provider-d.example",
+      "amount": "777.77",
+      "claimDecision": "rejected",
+      "paymentAuthorization": "not-applicable"
+    }
+  ],
+  "expected": {
+    "approvedAccrualTotal": "14495.50",
+    "authorizedDisbursementTotal": "13245.50",
+    "endingPayableNetCredit": "1250.00",
+    "rejectedAmountExcluded": "777.77",
+    "firstPassLedgerMutations": 5,
+    "replayLedgerMutations": 0
+  },
+  "claimsExcluded": [
+    "regulatory-eligibility-decision",
+    "rate-selection",
+    "administrator-claim-approval",
+    "bank-settlement",
+    "production-accounting-authority"
+  ]
+}
