@@ -1,0 +1,31 @@
+name: vrs-public-contract
+
+on:
+  pull_request:
+    paths:
+      - "docs/vrs-public-interoperability-osint.md"
+      - "testkit/vrs/**"
+      - "scripts/validate_vrs_public_matrix.py"
+      - ".github/workflows/vrs-public-contract.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/vrs-public-interoperability-osint.md"
+      - "testkit/vrs/**"
+      - "scripts/validate_vrs_public_matrix.py"
+      - ".github/workflows/vrs-public-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate public VRS/RUE research matrix and fixtures
+        run: python -m scripts.validate_vrs_public_matrix
