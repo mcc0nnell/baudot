@@ -1,0 +1,113 @@
+{
+  "schema": "baudot.kafka-cdr-lane@1",
+  "kafka": {
+    "version": "4.3.1",
+    "releaseCommit": "26b251a451ce941d3d7a55e6487bcb7f16b5ad48",
+    "dockerImage": "apache/kafka:4.3.1",
+    "topic": "baudot.synthetic.cdr.v1",
+    "partitions": 1,
+    "replicationFactor": 1,
+    "recordKey": "callId"
+  },
+  "cdrEnvelope": {
+    "schema": "baudot.cdr@1",
+    "requiredFields": [
+      "schema",
+      "eventId",
+      "callId",
+      "providerId",
+      "serviceType",
+      "direction",
+      "fromTn",
+      "toTn",
+      "startedAt",
+      "endedAt",
+      "durationSeconds",
+      "sourceObservationRefs",
+      "authority"
+    ],
+    "forbiddenAuthorityFields": [
+      "compensable",
+      "claimApproved",
+      "paymentAuthorized",
+      "providerCertified",
+      "rttReady",
+      "accessibilityReady"
+    ],
+    "authorityValue": "call-record-only"
+  },
+  "records": [
+    {
+      "schema": "baudot.cdr@1",
+      "eventId": "cdr-event-0001",
+      "callId": "synthetic-call-0001",
+      "providerId": "provider-a",
+      "serviceType": "VRS",
+      "direction": "outbound",
+      "fromTn": "2025550101",
+      "toTn": "2025550103",
+      "startedAt": "2026-01-15T14:00:00Z",
+      "endedAt": "2026-01-15T14:02:00Z",
+      "durationSeconds": 120,
+      "sourceObservationRefs": ["synthetic:call-0001:signaling"],
+      "authority": "call-record-only"
+    },
+    {
+      "schema": "baudot.cdr@1",
+      "eventId": "cdr-event-0002",
+      "callId": "synthetic-call-0002",
+      "providerId": "provider-b",
+      "serviceType": "IP_CTS",
+      "direction": "inbound",
+      "fromTn": "2025550103",
+      "toTn": "2025550101",
+      "startedAt": "2026-01-15T15:00:00Z",
+      "endedAt": "2026-01-15T15:05:00Z",
+      "durationSeconds": 300,
+      "sourceObservationRefs": ["synthetic:call-0002:signaling"],
+      "authority": "call-record-only"
+    },
+    {
+      "schema": "baudot.cdr@1",
+      "eventId": "cdr-event-0003",
+      "callId": "synthetic-call-0003",
+      "providerId": "provider-a",
+      "serviceType": "IP_RELAY",
+      "direction": "outbound",
+      "fromTn": "2025550105",
+      "toTn": "2025550107",
+      "startedAt": "2026-01-15T16:00:00Z",
+      "endedAt": "2026-01-15T16:01:00Z",
+      "durationSeconds": 60,
+      "sourceObservationRefs": ["synthetic:call-0003:signaling"],
+      "authority": "call-record-only"
+    },
+    {
+      "schema": "baudot.cdr@1",
+      "eventId": "cdr-event-0004",
+      "callId": "synthetic-call-0004",
+      "providerId": "provider-tty",
+      "serviceType": "TTY",
+      "direction": "inbound",
+      "fromTn": "2025550107",
+      "toTn": "2025550105",
+      "startedAt": "2026-01-15T17:00:00Z",
+      "endedAt": "2026-01-15T17:03:00Z",
+      "durationSeconds": 180,
+      "sourceObservationRefs": ["synthetic:call-0004:transport"],
+      "authority": "call-record-only"
+    }
+  ],
+  "expected": {
+    "recordCount": 4,
+    "replayIdentical": true,
+    "singlePartitionOrderPreserved": true
+  },
+  "authorityBoundary": {
+    "kafkaDefinesEventSemantics": false,
+    "cdrPersistenceProvesCallTruth": false,
+    "cdrPersistenceProvesCompensability": false,
+    "cdrPersistenceApprovesClaim": false,
+    "productionCdrDataUsed": false
+  }
+}
