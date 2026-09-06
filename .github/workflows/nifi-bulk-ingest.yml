@@ -1,0 +1,29 @@
+name: nifi-bulk-ingest
+
+on:
+  push:
+    paths:
+      - 'testkit/business/nifi-bulk-ingest-v1.json'
+      - 'scripts/validate_nifi_bulk_ingest.py'
+      - 'docs/nifi-bulk-ingest.md'
+      - '.github/workflows/nifi-bulk-ingest.yml'
+  pull_request:
+    paths:
+      - 'testkit/business/nifi-bulk-ingest-v1.json'
+      - 'scripts/validate_nifi_bulk_ingest.py'
+      - 'docs/nifi-bulk-ingest.md'
+      - '.github/workflows/nifi-bulk-ingest.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate NiFi bulk-ingest authority contract
+        run: python3 scripts/validate_nifi_bulk_ingest.py
