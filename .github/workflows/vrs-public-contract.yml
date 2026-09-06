@@ -6,6 +6,9 @@ on:
       - "docs/vrs-public-interoperability-osint.md"
       - "testkit/vrs/**"
       - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/validate_rue_dial_execution.py"
+      - "scripts/run-rue-one-stage-dial-around.sh"
+      - "src/main/java/org/mcc0nnell/baudot/harness/RueOneStageDialAroundProbe.java"
       - ".github/workflows/vrs-public-contract.yml"
   push:
     branches:
@@ -14,6 +17,9 @@ on:
       - "docs/vrs-public-interoperability-osint.md"
       - "testkit/vrs/**"
       - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/validate_rue_dial_execution.py"
+      - "scripts/run-rue-one-stage-dial-around.sh"
+      - "src/main/java/org/mcc0nnell/baudot/harness/RueOneStageDialAroundProbe.java"
       - ".github/workflows/vrs-public-contract.yml"
 
 permissions:
@@ -27,5 +33,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
       - name: Validate public VRS/RUE research matrix and fixtures
         run: python -m scripts.validate_vrs_public_matrix
+      - name: Execute live one-stage dial-around route proof
+        run: bash scripts/run-rue-one-stage-dial-around.sh
+      - name: Independently reduce live route evidence
+        run: python -m scripts.validate_rue_dial_execution
+      - name: Preserve RUE-DIAL-001 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rue-dial-001-route-evidence
+          path: target/evidence/RUE-DIAL-001
+          if-no-files-found: error
