@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "docs/trs-fund-public-ledger.md"
+      - "docs/adr/0003-deterministic-trs-fund-runtime.md"
+      - "baudot_reference/fund_runtime.py"
+      - "tests/test_fund_runtime.py"
       - "testkit/fund/**"
       - "interop/fineract/**"
       - "scripts/validate_trs_fund_public_model.py"
@@ -12,6 +15,9 @@ on:
     branches: [main]
     paths:
       - "docs/trs-fund-public-ledger.md"
+      - "docs/adr/0003-deterministic-trs-fund-runtime.md"
+      - "baudot_reference/fund_runtime.py"
+      - "tests/test_fund_runtime.py"
       - "testkit/fund/**"
       - "interop/fineract/**"
       - "scripts/validate_trs_fund_public_model.py"
@@ -30,3 +36,5 @@ jobs:
           python-version: "3.13"
       - name: Validate public TRS Fund calibration
         run: python scripts/validate_trs_fund_public_model.py
+      - name: Replay deterministic synthetic Fund runtime
+        run: python -m unittest tests.test_fund_runtime
