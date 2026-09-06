@@ -1,0 +1,55 @@
+{
+  "id": "RUE-DIAL-001-jain",
+  "matrixRow": "RUE-DIAL-001",
+  "status": "runnable-candidate",
+  "authority": "RFC 9248 section 5.2.2",
+  "entrypoint": "org.mcc0nnell.baudot.harness.RueOneStageDialAroundProbe",
+  "runner": "scripts/run-rue-one-stage-dial-around.sh",
+  "topology": [
+    "synthetic RUE physically sends to synthetic default provider A",
+    "Request-URI and To URI contain the called number at selected provider B domain",
+    "From URI remains the synthetic subscriber identity at default provider A domain",
+    "JAIN SIP provider A re-originates the controlled signaling leg while preserving those URI semantics",
+    "a harness-only loose Route delivers the re-originated INVITE to loopback provider B without rewriting the Request-URI"
+  ],
+  "requiredFacts": [
+    "rue.inboundTargetPreserved=true",
+    "rue.inboundToPreserved=true",
+    "rue.inboundSourcePreserved=true",
+    "providerA.forwardedTargetPreserved=true",
+    "providerB.inviteObserved=true",
+    "providerB.targetPreserved=true",
+    "providerB.toPreserved=true",
+    "providerB.sourcePreserved=true",
+    "providerB.ackObserved=true",
+    "rue.final200Observed=true",
+    "rue.ackObservedByDefaultProvider=true",
+    "dialog.established=true",
+    "media.offered=false",
+    "media.readiness.proven=false",
+    "rtt.readiness.proven=false",
+    "video.readiness.proven=false",
+    "scenario.result=PASS"
+  ],
+  "claimBoundary": {
+    "provesOnly": [
+      "the RFC 9248 one-stage dial-around URI relationship can be exercised on a controlled live SIP path",
+      "the selected dial-around provider domain survives into the actual INVITE observed by the synthetic provider-B peer",
+      "the called number and To URI remain correlated to the selected provider",
+      "the source identity remains associated with the default provider",
+      "signaling establishment is not promoted into media or accessibility readiness"
+    ],
+    "doesNotEstablish": [
+      "RFC 9248 conformance",
+      "SIP proxy or B2BUA conformance",
+      "DNS routing behavior",
+      "TLS behavior",
+      "production provider dial-around support",
+      "TRS Numbering Directory behavior",
+      "media readiness",
+      "RTT readiness",
+      "video readiness",
+      "VRS certification or regulatory compliance"
+    ]
+  }
+}
