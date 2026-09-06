@@ -4,19 +4,23 @@ on:
   pull_request:
     paths:
       - "docs/trs-fund-public-ledger.md"
+      - "docs/adr/**"
       - "testkit/fund/**"
       - "interop/fineract/**"
       - "scripts/validate_trs_fund_public_model.py"
       - "scripts/validate_trs_fund_closure_fixture.py"
+      - "scripts/validate_trs_fund_governance.py"
       - ".github/workflows/trs-fund-public-model.yml"
   push:
     branches: [main]
     paths:
       - "docs/trs-fund-public-ledger.md"
+      - "docs/adr/**"
       - "testkit/fund/**"
       - "interop/fineract/**"
       - "scripts/validate_trs_fund_public_model.py"
       - "scripts/validate_trs_fund_closure_fixture.py"
+      - "scripts/validate_trs_fund_governance.py"
       - ".github/workflows/trs-fund-public-model.yml"
 
 permissions:
@@ -34,3 +38,5 @@ jobs:
         run: python scripts/validate_trs_fund_public_model.py
       - name: Validate accounting-closure fixture
         run: python scripts/validate_trs_fund_closure_fixture.py
+      - name: Validate governance boundary
+        run: python scripts/validate_trs_fund_governance.py
