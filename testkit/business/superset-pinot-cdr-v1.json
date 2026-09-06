@@ -1,0 +1,126 @@
+{
+  "schema": "baudot.superset-pinot-cdr@1",
+  "stack": {
+    "supersetVersion": "6.1.0",
+    "pinotVersion": "1.5.1",
+    "pinotDataset": "cdr_analytics_v1",
+    "pinotDriver": "pinotdb",
+    "sqlalchemyUri": "pinot://pinot-broker:8099/query?server=http://pinot-controller:9000/"
+  },
+  "databaseConnection": {
+    "databaseName": "Baudot Pinot CDR Analytics",
+    "allowDml": false,
+    "allowCtas": false,
+    "allowCvas": false,
+    "allowFileUpload": false,
+    "exposeInSqlLab": true,
+    "readOnlyPurpose": "operational-analytics"
+  },
+  "dataset": {
+    "tableName": "cdr_analytics_v1",
+    "sourceContract": "baudot.olap-bakeoff@1",
+    "grain": "privacy-reduced-call-observation",
+    "columns": [
+      "eventTime",
+      "eventId",
+      "callId",
+      "providerId",
+      "serviceType",
+      "direction",
+      "durationSeconds",
+      "outcome",
+      "sourceObservationCount"
+    ],
+    "forbiddenColumns": [
+      "fromTn",
+      "toTn",
+      "subscriberId",
+      "subscriberName",
+      "rawPayload",
+      "claimApproved",
+      "paymentAuthorized",
+      "compensable",
+      "providerCertified",
+      "accessibilityReady"
+    ],
+    "defaultTimeColumn": "eventTime",
+    "defaultCacheTimeoutSeconds": 60
+  },
+  "charts": [
+    {
+      "id": "live-provider-service-volume",
+      "title": "Live Calls by Provider and Service",
+      "window": "15m",
+      "dimensions": ["providerId", "serviceType"],
+      "metrics": ["COUNT(*)"],
+      "defaultDashboard": true
+    },
+    {
+      "id": "provider-duration-distribution",
+      "title": "Call Duration Distribution by Provider",
+      "window": "24h",
+      "dimensions": ["providerId"],
+      "metrics": ["p50(durationSeconds)", "p95(durationSeconds)"],
+      "defaultDashboard": true
+    },
+    {
+      "id": "provider-outcomes",
+      "title": "Call Outcomes by Provider",
+      "window": "24h",
+      "dimensions": ["providerId", "outcome"],
+      "metrics": ["COUNT(*)"],
+      "defaultDashboard": true
+    },
+    {
+      "id": "service-hourly-trend",
+      "title": "Hourly Service Trend",
+      "window": "30d",
+      "dimensions": ["eventTime", "serviceType"],
+      "metrics": ["COUNT(*)", "SUM(durationSeconds)"],
+      "defaultDashboard": true
+    },
+    {
+      "id": "opaque-call-drilldown",
+      "title": "Technical Call Correlation",
+      "window": "point",
+      "dimensions": ["callId", "eventId", "providerId", "serviceType", "direction", "outcome"],
+      "metrics": ["durationSeconds", "sourceObservationCount"],
+      "defaultDashboard": false,
+      "purpose": "technical-correlation-only"
+    }
+  ],
+  "dashboard": {
+    "id": "trs-live-call-operations",
+    "title": "TRS Live Call Operations",
+    "dataset": "cdr_analytics_v1",
+    "chartIds": [
+      "live-provider-service-volume",
+      "provider-duration-distribution",
+      "provider-outcomes",
+      "service-hourly-trend"
+    ],
+    "technicalDrilldownChartId": "opaque-call-drilldown"
+  },
+  "reportingBoundary": {
+    "liveDatasetReplacesCdrDaily": false,
+    "liveDatasetIsRegulatoryReportingSource": false,
+    "liveDatasetIsFinancialReportingSource": false,
+    "cdrDailyRemainsStableAggregate": true,
+    "supersetReadsKafkaDirectly": false,
+    "supersetQueriesPinotReadOnly": true
+  },
+  "authorityBoundary": {
+    "dashboardCreatesCallTruth": false,
+    "dashboardCreatesCompensability": false,
+    "dashboardCreatesClaimApproval": false,
+    "dashboardCreatesPaymentAuthorization": false,
+    "dashboardCreatesEligibility": false,
+    "dashboardCreatesAccessibilityVerdict": false
+  },
+  "claimBoundary": {
+    "liveSupersetImportCompatibilityClaimed": false,
+    "productionPinotConnectivityClaimed": false,
+    "dashboardAccuracyClaimed": false,
+    "regulatoryReportingClaimed": false
+  }
+}
