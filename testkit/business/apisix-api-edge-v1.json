@@ -63,6 +63,20 @@
     "gatewaySuccessIsAccessibilityReady": false,
     "rateLimitDecisionIsTRSPolicy": false
   },
+  "liveQualification": {
+    "profile": "synthetic-itrs-edge",
+    "routeFamily": "/itrs/*",
+    "tls": true,
+    "bearerIntrospection": true,
+    "requiredScope": "itrs",
+    "missingTokenStatus": 401,
+    "invalidTokenStatus": 401,
+    "missingScopeStatus": 403,
+    "authenticatedDownstreamDenyStatus": 403,
+    "rateLimitedStatus": 429,
+    "credentialHeadersForwarded": false,
+    "productionIdpClaimed": false
+  },
   "forbiddenGatewayClaims": [
     "subscriberEligible",
     "providerCertified",
