@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from typing import Iterable
 
+PJSIP_IDENTITY = "pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd"
+
 
 def load_observations(path: Path) -> list[dict[str, str]]:
     observations: list[dict[str, str]] = []
@@ -53,6 +55,17 @@ def require_profile(path: Path, profile: str, required: set[tuple[str, str]]) ->
     return observations
 
 
+def require_pjsip_identity(observations: Iterable[dict[str, str]]) -> None:
+    admission = [
+        item for item in observations
+        if item.get("capability") == "CallAdmission" and item.get("verdict") == "PJSIP_PARSE_ACCEPTED"
+    ]
+    if len(admission) != 1:
+        raise AssertionError(f"expected exactly one PJSIP admission observation, saw {len(admission)}")
+    if PJSIP_IDENTITY not in admission[0].get("detail", ""):
+        raise AssertionError("PJSIP admission observation did not preserve the pinned implementation identity")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--good", required=True, type=Path)
@@ -64,11 +77,13 @@ def main() -> int:
         args.good,
         "good",
         {
-            ("CallAdmission", "ADMISSION_FIXTURE_ACCEPTED"),
+            ("CallAdmission", "PJSIP_PARSE_ACCEPTED"),
             ("RealtimeTextTransport", "RTT_FIXTURE_ACCEPTED"),
             ("AuthorityBoundary", "NOT_MODELED"),
         },
     )
+    require_pjsip_identity(good)
+
     fault_injected = require_profile(
         args.fault_injected,
         "fault-injected",
@@ -78,19 +93,22 @@ def main() -> int:
             ("AuthorityBoundary", "NOT_MODELED"),
         },
     )
+
     missing_rtt = require_profile(
         args.missing_rtt,
         "missing-rtt",
         {
-            ("CallAdmission", "ADMISSION_FIXTURE_ACCEPTED"),
+            ("CallAdmission", "PJSIP_PARSE_ACCEPTED"),
             ("RealtimeTextTransport", "CAPABILITY_MISSING"),
             ("AuthorityBoundary", "NOT_MODELED"),
         },
     )
+    require_pjsip_identity(missing_rtt)
 
     summary = {
-        "schema": "baudot.celix.capability-runtime-summary.v1",
+        "schema": "baudot.celix.capability-runtime-summary.v2",
         "celixRuntimeClaim": "dynamic native capability composition only",
+        "callAdmissionImplementation": PJSIP_IDENTITY,
         "authorizationClaimed": False,
         "protocolConformanceClaimed": False,
         "profiles": {

@@ -2,19 +2,23 @@
 
 This lane proves one narrow architectural claim: Baudot can compose replaceable native telecom capabilities as Apache Celix services without allowing service presence or service output to become an authentication, authorization, TRS business-authority, or regulatory-compliance verdict.
 
-## Runtime pin
+## Runtime pins
 
-The CI lane builds Apache Celix 2.4.0 from the Apache source distribution and verifies its published SHA-512 before building the Baudot bundles.
+The CI lane builds Apache Celix 2.4.0 from the Apache source distribution and verifies its published SHA-512 before building the Baudot bundles. The call-admission provider is now backed by the same pinned PJSIP/PJPROJECT 2.17 identity used by Baudot's existing native RTT lane.
 
 ```text
 Apache Celix release     2.4.0
 source archive           celix-2.4.0.tar.gz
 SHA-512                  76FB2BA448028894841E7315F62E864A0913144A528B666106B4946A0044B45AF13629A558E627DE4EA6331788BAE482B63601AEE669E44BBC32435CC0B72FF0
+
+PJSIP repository         pjsip/pjproject
+PJSIP release            2.17
+PJSIP commit             5a457451fa2712ba18e12b01738e8ff3af2b26fd
 ```
 
 ## Capability contract
 
-The first contract contains exactly three service interfaces:
+The contract still contains exactly three service interfaces:
 
 ```text
 ICallAdmission
@@ -22,25 +26,44 @@ IRealtimeTextTransport
 IEvidenceEmitter
 ```
 
-They are deliberately small. No Shiro actor/session context, Ranger policy decision, iTRS business rule, provider eligibility decision, Fund entitlement, or FCC compliance state is represented inside these services.
+No Shiro actor/session context, Ranger policy decision, iTRS business rule, provider eligibility decision, Fund entitlement, or FCC compliance state is represented inside these services.
+
+## PJSIP admission adapter
+
+`ICallAdmission` is now satisfied in the positive compositions by a Celix bundle linked to the pinned PJPROJECT `pjsip` target. The adapter calls PJSIP's native `pjsip_parse_msg()` parser against a complete synthetic INVITE fixture and accepts only a clean parsed INVITE request.
+
+PJSIP's parser tables are initialized through the public `pjsip_endpt_create()` / `pjsip_endpt_destroy()` lifecycle. Endpoint creation constructs PJSIP's internal runtime managers, including its transport manager, but this adapter does not register or start a UDP/TCP transport, bind a listening socket, create an account or dialog, or initialize media/PJSUA2.
+
+That observation is intentionally narrow:
+
+```text
+PJSIP_PARSE_ACCEPTED
+!= SIP protocol conformance established
+!= signaling policy satisfied
+!= actor authenticated
+!= operation authorized
+!= TRS business authority established
+```
+
+The endpoint exists only to establish the supported PJSIP parser/runtime lifecycle. The adapter proves that an existing native Baudot dependency can satisfy the Celix capability contract without moving any authority boundary into Celix.
 
 ## Three compositions
 
 ### Good control
 
-The good composition registers a narrow synthetic call-admission service and a narrow synthetic realtime-text service. The probe must observe:
+The good composition registers the real PJSIP-backed call-admission service and the existing synthetic realtime-text service. The probe must observe:
 
 ```text
-CallAdmission           ADMISSION_FIXTURE_ACCEPTED
+CallAdmission           PJSIP_PARSE_ACCEPTED
 RealtimeTextTransport   RTT_FIXTURE_ACCEPTED
 AuthorityBoundary       NOT_MODELED
 ```
 
-These are fixture observations, not SIP, SDP, T.140, RFC 4103, media, or accessibility conformance claims.
+The call-admission evidence preserves the exact PJPROJECT release commit in its detail field. The RTT observation remains a fixture result rather than T.140, RFC 4103, media, or accessibility conformance evidence.
 
 ### Fault-injected negative control
 
-The fault-injected composition swaps in deliberately unsafe providers. Both services fail open for malformed synthetic inputs and must emit:
+The fault-injected composition deliberately keeps the unsafe synthetic providers. Both fail open for malformed synthetic inputs and must emit:
 
 ```text
 CallAdmission           FAULT_INJECTED_FAIL_OPEN
@@ -52,15 +75,15 @@ A green CI result means Baudot detected the expected negative control. It does n
 
 ### Missing capability control
 
-The third composition omits the realtime-text bundle entirely. The same probe must preserve the distinction between an available admission service and an absent transport capability:
+The third composition uses the same PJSIP-backed admission provider but omits the realtime-text bundle entirely:
 
 ```text
-CallAdmission           ADMISSION_FIXTURE_ACCEPTED
+CallAdmission           PJSIP_PARSE_ACCEPTED
 RealtimeTextTransport   CAPABILITY_MISSING
 AuthorityBoundary       NOT_MODELED
 ```
 
-This is the first proof that a Baudot native runtime can change composition without changing the semantic authority boundary.
+This preserves the distinction between a native signaling capability and an absent RTT capability without inferring authority from the remaining service.
 
 ## Core invariants
 
@@ -73,6 +96,9 @@ service registered
 != TRS business authority established
 != regulatory compliance established
 
+native parser accepted fixture
+!= protocol conformance established
+
 fault injected and observed
 != fault accepted as valid behavior
 
@@ -82,8 +108,8 @@ capability missing
 
 ## Why Celix belongs here
 
-Celix is used only for the native modular runtime. Camel, NiFi, Kafka, Shiro, Ranger, Fineract, and other Baudot planes keep their own responsibilities. A future SIP/PJSIP or T.140 implementation may satisfy these interfaces, but this PR does not wire those live adapters yet.
+Celix remains only the native modular runtime. PJSIP remains the native SIP implementation. Camel, NiFi, Kafka, Shiro, Ranger, Fineract, and the iTRS/Fund planes retain their own responsibilities. The service contract did not change when the synthetic admission provider was replaced with the PJSIP-backed implementation.
 
 ## Promotion threshold
 
-The next useful slice is to replace one synthetic provider with a real existing Baudot native adapter, preferably the PJSIP call-admission or realtime-text lane, while preserving the same service contract and evidence states. After that, add a controlled stop/start test that proves a capability can disappear and reappear at runtime without collapsing authentication, authorization, protocol validity, and TRS business authority into one decision.
+The next useful slice is controlled runtime lifecycle evidence: stop or remove the PJSIP admission bundle, observe `CAPABILITY_MISSING`, restart or reinstall it, and observe the native capability return. That lifecycle must not manufacture authentication, authorization, protocol-conformance, TRS business-authority, or regulatory-compliance verdicts.

@@ -26,6 +26,7 @@ jobs:
     env:
       CELIX_VERSION: "2.4.0"
       CELIX_SHA512: "76FB2BA448028894841E7315F62E864A0913144A528B666106B4946A0044B45AF13629A558E627DE4EA6331788BAE482B63601AEE669E44BBC32435CC0B72FF0"
+      PJSIP_COMMIT: "5a457451fa2712ba18e12b01738e8ff3af2b26fd"
     steps:
       - uses: actions/checkout@v4
 
@@ -71,6 +72,12 @@ jobs:
             -DBUILD_SHELL=ON
           cmake --build /tmp/celix-build --target install --parallel 2
 
+      - name: Fetch pinned PJSIP source
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/pjsip/pjproject.git /tmp/baudot-pjproject
+          git -C /tmp/baudot-pjproject checkout --detach "${PJSIP_COMMIT}"
+          test "$(git -C /tmp/baudot-pjproject rev-parse HEAD)" = "${PJSIP_COMMIT}"
+
       - name: Build Baudot Celix capability containers
         run: |
           cmake \
@@ -78,7 +85,8 @@ jobs:
             -B build/celix \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=/tmp/celix-install
+            -DCMAKE_PREFIX_PATH=/tmp/celix-install \
+            -DPJSIP_SOURCE_DIR=/tmp/baudot-pjproject
           cmake --build build/celix --parallel 2
 
       - name: Run runtime compositions

@@ -10,9 +10,20 @@
 namespace baudot::celixlab {
 namespace {
 
+constexpr std::string_view PJSIP_INVITE_FIXTURE =
+    "INVITE sip:callee@example.invalid SIP/2.0\r\n"
+    "Via: SIP/2.0/UDP 127.0.0.1:5060;branch=z9hG4bK-baudot-celix\r\n"
+    "Max-Forwards: 70\r\n"
+    "From: <sip:caller@example.invalid>;tag=baudot-celix\r\n"
+    "To: <sip:callee@example.invalid>\r\n"
+    "Call-ID: baudot-celix-pjsip@example.invalid\r\n"
+    "CSeq: 1 INVITE\r\n"
+    "Content-Length: 0\r\n"
+    "\r\n";
+
 #if defined(BAUDOT_PROFILE_GOOD)
 constexpr std::string_view PROFILE = "good";
-constexpr std::string_view SIGNALING_FIXTURE = "INVITE sip:callee@example.invalid SIP/2.0";
+constexpr std::string_view SIGNALING_FIXTURE = PJSIP_INVITE_FIXTURE;
 constexpr std::string_view RTT_FIXTURE = "hello";
 #elif defined(BAUDOT_PROFILE_FAULT_INJECTED)
 constexpr std::string_view PROFILE = "fault-injected";
@@ -20,7 +31,7 @@ constexpr std::string_view SIGNALING_FIXTURE = "MALFORMED_SIGNALING";
 constexpr std::string_view RTT_FIXTURE = "INVALID:RTT";
 #elif defined(BAUDOT_PROFILE_MISSING_RTT)
 constexpr std::string_view PROFILE = "missing-rtt";
-constexpr std::string_view SIGNALING_FIXTURE = "INVITE sip:callee@example.invalid SIP/2.0";
+constexpr std::string_view SIGNALING_FIXTURE = PJSIP_INVITE_FIXTURE;
 constexpr std::string_view RTT_FIXTURE = "hello";
 #else
 #error "A Baudot Celix probe profile must be selected"
