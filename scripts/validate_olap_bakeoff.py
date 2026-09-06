@@ -73,11 +73,16 @@ def main() -> None:
     require("same corpus", threshold["sameKafkaCorpus"] is True)
     require("same projection", threshold["sameProjection"] is True)
     require("same queries", threshold["sameQueries"] is True)
+    require("fixed window anchor", threshold["windowAnchor"] == "2026-08-31T00:00:00Z")
+    require(
+        "opt-in live workflow",
+        threshold["optInWorkflow"] == ".github/workflows/olap-live-bakeoff.yml",
+    )
     require(
         "benchmark measurements",
         set(threshold["measure"])
         == {
-            "ingestionLagMs",
+            "catchupMs",
             "queryP50Ms",
             "queryP95Ms",
             "replayCorrectness",
