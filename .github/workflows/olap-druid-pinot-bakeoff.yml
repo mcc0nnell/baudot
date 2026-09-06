@@ -1,0 +1,29 @@
+name: olap-druid-pinot-bakeoff
+
+on:
+  pull_request:
+    paths:
+      - 'testkit/business/olap-bakeoff-v1.json'
+      - 'scripts/validate_olap_bakeoff.py'
+      - 'docs/olap-druid-pinot-bakeoff.md'
+      - '.github/workflows/olap-druid-pinot-bakeoff.yml'
+  push:
+    paths:
+      - 'testkit/business/olap-bakeoff-v1.json'
+      - 'scripts/validate_olap_bakeoff.py'
+      - 'docs/olap-druid-pinot-bakeoff.md'
+      - '.github/workflows/olap-druid-pinot-bakeoff.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Druid vs Pinot bakeoff contract
+        run: python scripts/validate_olap_bakeoff.py
