@@ -137,6 +137,26 @@ The selected endpoint remains a Tilden routing fact. It does not become evidence
 
 The terminal reducer requires the exact selected endpoint to appear as the SIP Request-URI, a T.140 answer, a positive independent readiness token, and release after readiness. Java records the readiness token as opaque external authority evidence rather than reclassifying its contents.
 
+### Acceptance evidence
+
+The dedicated `tilden-pjsip-rtt-handoff` workflow passed end-to-end on 2026-09-05/06 at Baudot head `2b7ec5d9169f973a9fdd34078434b4b690c828f9` (Actions run `34000399709`).
+
+The passing run preserved:
+
+- `selectionId=sel-pjsip-rtt-0001`;
+- exact selected Request-URI `sip:pjsip-target@127.0.0.1:5322;transport=udp`;
+- exact clean `pjsip/pjproject` 2.17 checkout at `5a457451fa2712ba18e12b01738e8ff3af2b26fd`;
+- native PJSIP text media active before `Call::sendText("H")`;
+- one qualifying direct PT98 T.140 packet with SHA-256 `d9747db76b980c817f1641c93747a252d50d5e9c723ba58b73fb1db652d58963`;
+- independent Baudot reference result `rttReady=true` with first T.140 text `H`;
+- JAIN's opaque observation `rttReady=EXTERNAL_BAUDOT_REFERENCE_TOKEN`;
+- BYE sent only after the readiness token and acknowledged with 200 OK; and
+- terminal verdict `ready` with all seven declared facts true.
+
+The outer evidence-manifest file has SHA-256 `6a1d0276156ad672c9eed942e75c63dfcb44c5f27cd60896afe38e3096069912`. The preserved Actions artifact is `9979329402`, with ZIP digest `sha256:9cb231fe914c26ebf588b807a88b1edf5fd5c229a1b221a3fdf44cb5766c99f1`.
+
+The first instrumented attempt exposed a process-lifetime problem only after the SIP, RTT, and BYE evidence had completed: JAIN implementation worker threads kept Maven's exec process alive. The final profile uses `TildenPjsipRttProcessMain` solely as an explicit process boundary after the evidence-producing call main returns. It has no signaling, media, readiness, routing, or verdict authority.
+
 ## Evidence correlation
 
 `selectionId` survives into Baudot evidence so route selection and runtime behavior can be joined without copying private caller preference data into every artifact.
