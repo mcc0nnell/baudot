@@ -1,0 +1,4 @@
+Baudot Synthetic Public Rule
+
+Accessible communications routing shall preserve evidence provenance.
+This fixture is public-style synthetic text and contains no subscriber data.

@@ -1,0 +1,34 @@
+{
+  "schema": "baudot.document-live-manifest@1",
+  "documents": [
+    {
+      "documentId": "doc-public-rule-001",
+      "sourceClass": "public-rule",
+      "sourceRef": "synthetic://public-rule/001",
+      "file": "public-rule.txt",
+      "expect": "indexed"
+    },
+    {
+      "documentId": "doc-empty-001",
+      "sourceClass": "public-report",
+      "sourceRef": "synthetic://empty-report/001",
+      "file": "empty-report.txt",
+      "expect": "quarantined-empty-extraction"
+    },
+    {
+      "documentId": "doc-missing-hash-001",
+      "sourceClass": "public-guidance",
+      "sourceRef": "synthetic://missing-hash/001",
+      "file": "missing-hash.txt",
+      "omitSourceHash": true,
+      "expect": "rejected-missing-source-hash"
+    },
+    {
+      "documentId": "doc-sensitive-001",
+      "sourceClass": "synthetic-test-evidence",
+      "sourceRef": "synthetic://sensitive/001",
+      "file": "sensitive-evidence.txt",
+      "expect": "rejected-forbidden-data"
+    }
+  ]
+}
