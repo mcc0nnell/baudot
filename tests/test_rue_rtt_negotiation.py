@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.validate_rue_rtt_negotiation import reduce_case, remote_offers_t140
+from scripts.validate_rue_rtt_negotiation import active_t140, reduce_case, remote_offers_t140
 
 
 class RueRttNegotiationTests(unittest.TestCase):
@@ -11,6 +11,25 @@ class RueRttNegotiationTests(unittest.TestCase):
             "a=rtpmap:98 t140/1000\r\n"
         )
         self.assertFalse(remote_offers_t140(sdp))
+        self.assertFalse(active_t140(sdp))
+
+    def test_port_zero_records_t140_but_rejects_active_media(self):
+        sdp = (
+            "v=0\r\n"
+            "m=text 0 RTP/AVP 98\r\n"
+            "a=rtpmap:98 t140/1000\r\n"
+        )
+        self.assertTrue(remote_offers_t140(sdp))
+        self.assertFalse(active_t140(sdp))
+
+    def test_nonzero_text_port_is_active(self):
+        sdp = (
+            "v=0\r\n"
+            "m=text 49174 RTP/AVP 98\r\n"
+            "a=rtpmap:98 t140/1000\r\n"
+        )
+        self.assertTrue(remote_offers_t140(sdp))
+        self.assertTrue(active_t140(sdp))
 
     def test_remote_absent_cannot_negotiate_or_ready(self):
         result = reduce_case(
