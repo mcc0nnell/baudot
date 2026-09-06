@@ -172,6 +172,8 @@ container image identity
 corpus SHA-256
 ```
 
+The evidence sealer requires both engines to ingest the exact corpus row count, produce the same response cardinality for each logical query, and satisfy minimum expected shapes. It does not hard-code every aggregate result count where corpus-density changes would be irrelevant to engine parity.
+
 The final evidence summary also records a measured faster engine for the benchmark run, but it explicitly sets:
 
 ```text
