@@ -25,6 +25,7 @@ def main() -> None:
     allowed = set(projection["fields"])
     forbidden = set(projection["forbiddenFields"])
     require("projection separates allowed/forbidden", allowed.isdisjoint(forbidden), True)
+    require("benchmark window anchor", QUERIES["windowAnchor"], "2026-08-31T00:00:00Z")
 
     pinot_fields = {
         item["name"]
@@ -65,6 +66,13 @@ def main() -> None:
     require("benchmark query IDs", query_ids, expected_ids)
     require("benchmark table", QUERIES["table"], projection["name"])
 
+    expected_window_fragments = {
+        "OLAP-Q001": {"pinot": "1788133500000", "druid": "2026-08-30 23:45:00"},
+        "OLAP-Q002": {"pinot": "1788048000000", "druid": "2026-08-30 00:00:00"},
+        "OLAP-Q003": {"pinot": "1785542400000", "druid": "2026-08-01 00:00:00"},
+        "OLAP-Q004": {"pinot": "1788048000000", "druid": "2026-08-30 00:00:00"},
+    }
+
     for item in QUERIES["queries"]:
         for engine in ("pinot", "druid"):
             sql = item[engine]
@@ -74,7 +82,10 @@ def main() -> None:
                     raise AssertionError(f"{item['id']} {engine}: forbidden field {field} appears in SQL")
             if projection["name"].lower() not in lowered:
                 raise AssertionError(f"{item['id']} {engine}: wrong table")
-            print(f"PASS {item['id']} {engine}: privacy-reduced SQL")
+            fragment = expected_window_fragments.get(item["id"], {}).get(engine)
+            if fragment and fragment not in sql:
+                raise AssertionError(f"{item['id']} {engine}: deterministic time window missing")
+            print(f"PASS {item['id']} {engine}: privacy-reduced deterministic SQL")
 
     boundary = CONTRACT["authorityBoundary"]
     for key, value in boundary.items():
