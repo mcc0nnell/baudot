@@ -62,6 +62,7 @@ jobs:
             cmake \
             g++ \
             gcc \
+            libgtest-dev \
             libncurses-dev \
             libpugixml-dev \
             ninja-build
