@@ -12,9 +12,12 @@ from dataclasses import dataclass
 
 MESSAGE_START = re.compile(
     r"(?im)^[ \t]*(?:(?:INVITE|ACK|BYE|REFER|NOTIFY|OPTIONS|CANCEL|UPDATE|INFO|PRACK|REGISTER|SUBSCRIBE)"
-    r"\s+\S+\s+SIP/2\.0|SIP/2\.0\s+\d{3}\b[^\r\n]*)[ \t]*$"
+    r"\s+\S+\s+SIP/2\.0|SIP/2\.0\s+\d{3}\b[^\r\n]*)[ \t]*\r?$"
 )
-CSEQ = re.compile(r"(?im)^CSeq:\s*(\d+)\s+([A-Z]+)\s*$")
+CSEQ = re.compile(r"(?im)^CSeq:\s*(\d+)\s+([A-Z]+)[ \t]*\r?$")
+CONTENT_LENGTH = re.compile(
+    r"(?im)^(?:Content-Length|l):\s*(\d+)[ \t]*\r?$"
+)
 
 
 @dataclass(frozen=True)
@@ -53,14 +56,50 @@ class SipMessage:
 
     @property
     def body(self) -> str:
-        separator = "\r\n\r\n" if "\r\n\r\n" in self.raw else "\n\n"
-        if separator not in self.raw:
+        boundary = _header_boundary(self.raw, 0)
+        if boundary is None:
             return ""
-        return self.raw.split(separator, 1)[1].strip()
+        header_end, separator = boundary
+        body_start = header_end + len(separator)
+        length_match = CONTENT_LENGTH.search(self.raw[:header_end])
+        body_end = (
+            body_start + int(length_match.group(1))
+            if length_match is not None
+            else len(self.raw)
+        )
+        return self.raw[body_start:body_end].strip()
+
+
+def _header_boundary(trace: str, start: int) -> tuple[int, str] | None:
+    separators = tuple(
+        (position, separator)
+        for separator in ("\r\n\r\n", "\n\n")
+        if (position := trace.find(separator, start)) >= 0
+    )
+    return min(separators, key=lambda item: item[0]) if separators else None
+
+
+def _declared_body_end(trace: str, start: int) -> int:
+    boundary = _header_boundary(trace, start)
+    if boundary is None:
+        return start
+
+    header_end, separator = boundary
+    length_match = CONTENT_LENGTH.search(trace[start:header_end])
+    if length_match is None:
+        return start
+    return header_end + len(separator) + int(length_match.group(1))
 
 
 def parse_messages(trace: str) -> list[SipMessage]:
-    starts = list(MESSAGE_START.finditer(trace))
+    starts = []
+    body_end = -1
+    for match in MESSAGE_START.finditer(trace):
+        if match.start() < body_end:
+            continue
+        starts.append(match)
+        body_end = _declared_body_end(trace, match.start())
+
     messages: list[SipMessage] = []
     for index, match in enumerate(starts):
         end = starts[index + 1].start() if index + 1 < len(starts) else len(trace)
