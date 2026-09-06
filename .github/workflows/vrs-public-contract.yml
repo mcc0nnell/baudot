@@ -6,8 +6,11 @@ on:
       - "docs/vrs-public-interoperability-osint.md"
       - "testkit/vrs/**"
       - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/select_rue_provider.py"
+      - "scripts/run-rue-provider-selection.sh"
       - "scripts/validate_rue_dial_execution.py"
       - "scripts/run-rue-one-stage-dial-around.sh"
+      - "tests/test_rue_provider_selection.py"
       - "src/main/java/org/mcc0nnell/baudot/harness/RueOneStageDialAroundProbe.java"
       - ".github/workflows/vrs-public-contract.yml"
   push:
@@ -17,8 +20,11 @@ on:
       - "docs/vrs-public-interoperability-osint.md"
       - "testkit/vrs/**"
       - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/select_rue_provider.py"
+      - "scripts/run-rue-provider-selection.sh"
       - "scripts/validate_rue_dial_execution.py"
       - "scripts/run-rue-one-stage-dial-around.sh"
+      - "tests/test_rue_provider_selection.py"
       - "src/main/java/org/mcc0nnell/baudot/harness/RueOneStageDialAroundProbe.java"
       - ".github/workflows/vrs-public-contract.yml"
 
@@ -40,14 +46,20 @@ jobs:
           cache: maven
       - name: Validate public VRS/RUE research matrix and fixtures
         run: python -m scripts.validate_vrs_public_matrix
+      - name: Test deterministic provider selection
+        run: python -m unittest tests.test_rue_provider_selection
+      - name: Preserve provider selection evidence
+        run: bash scripts/run-rue-provider-selection.sh
       - name: Execute live one-stage dial-around route proof
         run: bash scripts/run-rue-one-stage-dial-around.sh
       - name: Independently reduce live route evidence
         run: python -m scripts.validate_rue_dial_execution
-      - name: Preserve RUE-DIAL-001 evidence
+      - name: Preserve VRS/RUE evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rue-dial-001-route-evidence
-          path: target/evidence/RUE-DIAL-001
+          name: vrs-rue-public-contract-evidence
+          path: |
+            target/evidence/RUE-PROV-001
+            target/evidence/RUE-DIAL-001
           if-no-files-found: error
