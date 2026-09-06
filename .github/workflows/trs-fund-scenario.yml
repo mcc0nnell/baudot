@@ -5,7 +5,10 @@ on:
     paths:
       - "docs/trs-fund-event-runtime.md"
       - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_trs_fund_runtime_contract.py"
       - "scripts/run_trs_fund_scenario.py"
+      - "testkit/fund/trs-fund-runtime-contract-v1.json"
       - "testkit/fund/scenarios/**"
       - ".github/workflows/trs-fund-scenario.yml"
   push:
@@ -13,7 +16,10 @@ on:
     paths:
       - "docs/trs-fund-event-runtime.md"
       - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_trs_fund_runtime_contract.py"
       - "scripts/run_trs_fund_scenario.py"
+      - "testkit/fund/trs-fund-runtime-contract-v1.json"
       - "testkit/fund/scenarios/**"
       - ".github/workflows/trs-fund-scenario.yml"
 
@@ -30,6 +36,8 @@ jobs:
           python-version: "3.13"
       - name: Validate public Fund calibration
         run: python scripts/validate_trs_fund_public_model.py
+      - name: Validate canonical Fund lifecycle contract
+        run: python scripts/validate_trs_fund_runtime_contract.py
       - name: Run Year 1 synthetic Fund smoke scenario
         run: |
           mkdir -p build/evidence
