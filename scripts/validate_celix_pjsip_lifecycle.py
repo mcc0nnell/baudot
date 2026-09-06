@@ -8,7 +8,15 @@ import json
 from pathlib import Path
 
 PJSIP_IDENTITY = "pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd"
+ADMISSION_VERDICT = "PJSIP_UAS_TEXT_ANSWER_SELECTED"
 TYPE = "baudot.celix.lifecycle-observation"
+DETAIL_MARKERS = (
+    "parser=PJSIP_PARSE_ACCEPTED",
+    "statusCode=200",
+    "audioCount=0",
+    "videoCount=0",
+    "textCount=1",
+)
 
 
 def load(path: Path) -> list[dict[str, str]]:
@@ -57,18 +65,22 @@ def main() -> int:
     if len(observations) != 6:
         raise AssertionError(f"expected exactly six lifecycle observations, saw {len(observations)}")
 
-    active = one(observations, "active", "CallAdmission", "PJSIP_PARSE_ACCEPTED")
+    active = one(observations, "active", "CallAdmission", ADMISSION_VERDICT)
     one(observations, "active", "AuthorityBoundary", "NOT_MODELED")
 
     stopped = one(observations, "stopped", "CallAdmission", "CAPABILITY_MISSING")
     one(observations, "stopped", "AuthorityBoundary", "NOT_MODELED")
 
-    restored = one(observations, "restored", "CallAdmission", "PJSIP_PARSE_ACCEPTED")
+    restored = one(observations, "restored", "CallAdmission", ADMISSION_VERDICT)
     one(observations, "restored", "AuthorityBoundary", "NOT_MODELED")
 
     for label, item in (("active", active), ("restored", restored)):
-        if PJSIP_IDENTITY not in item.get("detail", ""):
+        detail = item.get("detail", "")
+        if PJSIP_IDENTITY not in detail:
             raise AssertionError(f"{label}: missing pinned PJSIP implementation identity")
+        missing = [marker for marker in DETAIL_MARKERS if marker not in detail]
+        if missing:
+            raise AssertionError(f"{label}: missing parser/UAS answer-profile evidence: {missing}")
 
     if "stopped" not in stopped.get("detail", ""):
         raise AssertionError("stopped observation does not preserve the lifecycle cause")
@@ -83,9 +95,16 @@ def main() -> int:
         raise AssertionError(f"lifecycle evidence leaked authority/conformance verdicts: {leaked}")
 
     summary = {
-        "schema": "baudot.celix.pjsip-lifecycle-summary.v1",
+        "schema": "baudot.celix.pjsip-lifecycle-summary.v2",
         "callAdmissionImplementation": PJSIP_IDENTITY,
-        "sequence": ["PJSIP_PARSE_ACCEPTED", "CAPABILITY_MISSING", "PJSIP_PARSE_ACCEPTED"],
+        "sequence": [ADMISSION_VERDICT, "CAPABILITY_MISSING", ADMISSION_VERDICT],
+        "parserEvidence": "PJSIP_PARSE_ACCEPTED",
+        "nativeUasAnswerProfile": {
+            "statusCode": 200,
+            "audioCount": 0,
+            "videoCount": 0,
+            "textCount": 1,
+        },
         "authorizationClaimed": False,
         "protocolConformanceClaimed": False,
         "trsBusinessAuthorityClaimed": False,
