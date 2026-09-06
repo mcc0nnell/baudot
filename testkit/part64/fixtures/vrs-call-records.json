@@ -1,0 +1,60 @@
+{
+  "schema": "baudot.part64-vrs-call-records@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "capture": {
+    "automatedElectronic": true,
+    "standardizedFormat": "json",
+    "humanInterventionDuringCallTiming": false,
+    "retentionYears": 5,
+    "easilyRetrievable": true
+  },
+  "records": [
+    {
+      "scenario": "VRS-CDR-001",
+      "callRecordId": "CDR-EXAMPLE-0001",
+      "caId": "CA-EXAMPLE-001",
+      "sessionStart": "2026-09-01T14:00:00Z",
+      "sessionEnd": "2026-09-01T14:05:30Z",
+      "conversationStart": "2026-09-01T14:00:42Z",
+      "conversationEnd": "2026-09-01T14:05:12Z",
+      "incoming": {
+        "telephoneNumber": "+12025550126",
+        "ipAddress": "192.0.2.44"
+      },
+      "outbound": {
+        "telephoneNumber": "+12025550199",
+        "ipAddress": "198.51.100.20"
+      },
+      "totalConversationMinutes": 4.5,
+      "totalSessionMinutes": 5.5,
+      "handlingLocation": {
+        "type": "call-center",
+        "id": "CENTER-EXAMPLE-01"
+      },
+      "initiatingUrl": "https://vrs.example/call",
+      "compensable": "not-determined"
+    },
+    {
+      "scenario": "VRS-IVCS-CDR-001",
+      "callRecordId": "CDR-EXAMPLE-IVCS-0001",
+      "caId": "CA-EXAMPLE-002",
+      "sessionStart": "2026-09-02T16:00:00Z",
+      "sessionEnd": "2026-09-02T16:18:00Z",
+      "conversationStart": "2026-09-02T16:00:55Z",
+      "conversationEnd": "2026-09-02T16:17:40Z",
+      "totalConversationMinutes": 16.75,
+      "totalSessionMinutes": 18.0,
+      "handlingLocation": {
+        "type": "call-center",
+        "id": "CENTER-EXAMPLE-02"
+      },
+      "initiatingUrl": "https://conference.example/session/CONF-EXAMPLE-001",
+      "integratedVrs": {
+        "videoConferenceId": "CONF-EXAMPLE-001",
+        "requestingVrsUserId": "VRS-USER-EXAMPLE-001",
+        "platform": "synthetic-ivcs-fixture"
+      },
+      "compensable": "not-determined"
+    }
+  ]
+}
