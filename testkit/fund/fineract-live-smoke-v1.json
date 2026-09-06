@@ -1,0 +1,65 @@
+{
+  "schema": "baudot.trs-fund-fineract-live-scenario@1",
+  "scenarioId": "fund-live-smoke-2026-09-05",
+  "description": "One deterministic synthetic Fund dollar loop through an external Fineract ledger.",
+  "currencyCode": "USD",
+  "officeId": 1,
+  "postingDate": "2026-09-05",
+  "policyProvenance": {
+    "fundCalibration": "testkit/fund/rolka-loube-2025-26.json",
+    "contributorAssessment": "testkit/fund/contributor-assessments-2026-27.json",
+    "journalContract": "interop/fineract/journal-contract-v1.json"
+  },
+  "events": [
+    {
+      "id": "EVT-ASSESS-0001",
+      "type": "contributorAssessment",
+      "amount": "10000.00",
+      "memo": "Synthetic contributor assessment"
+    },
+    {
+      "id": "EVT-RECEIPT-0001",
+      "type": "contributorReceipt",
+      "amount": "10000.00",
+      "memo": "Synthetic contributor receipt"
+    },
+    {
+      "id": "EVT-CLAIM-0001",
+      "type": "providerClaimApproved",
+      "amount": "6000.00",
+      "memo": "Synthetic approved provider claim"
+    },
+    {
+      "id": "EVT-DISBURSE-0001",
+      "type": "providerDisbursement",
+      "amount": "6000.00",
+      "memo": "Synthetic provider disbursement"
+    }
+  ],
+  "reversalProbe": {
+    "eventId": "EVT-DISBURSE-0001",
+    "memo": "Reverse synthetic provider disbursement to prove explicit reversal",
+    "repostAs": "EVT-DISBURSE-0001-R1"
+  },
+  "expectedFinalBalances": {
+    "1100": "4000.00",
+    "1200": "0.00",
+    "2100": "0.00",
+    "4100": "-10000.00",
+    "5100": "6000.00"
+  },
+  "requiredInvariants": [
+    "FUND-ACC-001",
+    "FUND-REC-001",
+    "FUND-CLM-001",
+    "FUND-DIS-001",
+    "FUND-ADJ-001",
+    "FUND-AUD-001",
+    "FUND-AUT-001"
+  ],
+  "claimBoundary": {
+    "syntheticOnly": true,
+    "fineractAcceptanceIsProgramAuthorization": false,
+    "productionPaymentNetworkUsed": false
+  }
+}
