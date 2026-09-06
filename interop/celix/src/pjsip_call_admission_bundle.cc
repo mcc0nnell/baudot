@@ -1,4 +1,5 @@
 #include "BaudotCapabilities.h"
+#include "native_t140_answer_profile.h"
 
 #include <celix/BundleActivator.h>
 
@@ -85,20 +86,26 @@ public:
 
         pj_pool_release(pool);
 
-        if (inviteRequest) {
+        if (!inviteRequest) {
             return {
-                true,
-                "PJSIP_PARSE_ACCEPTED",
+                false,
+                "PJSIP_PARSE_REJECTED",
                 std::string{PJSIP_IDENTITY} +
-                    ": native parser accepted an INVITE request; no protocol-conformance or authority inference"
+                    ": native parser did not produce a clean INVITE request; no authority inference"
             };
         }
 
+        constexpr auto answerProfile = baudot::pjsipinterop::nativeT140AnswerProfile();
         return {
-            false,
-            "PJSIP_PARSE_REJECTED",
+            true,
+            "PJSIP_UAS_TEXT_ANSWER_SELECTED",
             std::string{PJSIP_IDENTITY} +
-                ": native parser did not produce a clean INVITE request; no authority inference"
+                ": parser=PJSIP_PARSE_ACCEPTED; shared native_t140_uas answer profile statusCode=" +
+                std::to_string(answerProfile.statusCode) +
+                " audioCount=" + std::to_string(answerProfile.audioCount) +
+                " videoCount=" + std::to_string(answerProfile.videoCount) +
+                " textCount=" + std::to_string(answerProfile.textCount) +
+                "; application answer selection only, not protocol-conformance or authority evidence"
         };
     }
 
@@ -131,7 +138,7 @@ public:
             .addProperty("baudot.capability", ICallAdmission::NAME)
             .addProperty("baudot.capability.version", ICallAdmission::VERSION)
             .addProperty("baudot.implementation", std::string{PJSIP_IDENTITY})
-            .addProperty("baudot.control", "native-pjsip")
+            .addProperty("baudot.control", "native-pjsip-uas-answer-profile")
             .setRegisterAsync(false)
             .build();
     }
