@@ -1,0 +1,26 @@
+{
+  "schema": "baudot.part64-default-provider-loa@1",
+  "scenario": "ITRS-CHANGE-LOA-001",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "separateDocumentOrScreen": true,
+  "title": "Letter of Authorization to Change my Default Provider",
+  "authorizingLanguageOnly": true,
+  "signed": true,
+  "dated": true,
+  "electronicSignature": true,
+  "esignConsumerDisclosuresPresent": true,
+  "language": "en",
+  "promotionalMaterialLanguage": "en",
+  "registeredIdentity": {
+    "namePresent": true,
+    "addressPresent": true,
+    "valuesStoredInPublicFixture": false
+  },
+  "telephoneNumbers": ["+12025550126"],
+  "originalDefaultProvider": "provider-a.example",
+  "newDefaultProvider": "provider-b.example",
+  "changeDecisionExplicit": true,
+  "newProviderAgencyDesignationExplicit": true,
+  "oneDefaultProviderPerNumberAcknowledged": true,
+  "realSubscriberData": false
+}
