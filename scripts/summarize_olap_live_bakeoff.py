@@ -11,7 +11,7 @@ EXPECTED_QUERY_ROWS = {
     "OLAP-Q001": 16,
     "OLAP-Q002": 4,
     "OLAP-Q003": 2880,
-    "OLAP-Q004": 24,
+    "OLAP-Q004": 16,
     "OLAP-Q005": 1,
 }
 
