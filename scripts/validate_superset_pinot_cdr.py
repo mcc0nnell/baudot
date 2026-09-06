@@ -12,6 +12,8 @@ PROFILE = json.loads((ROOT / "testkit/business/superset-pinot-cdr-v1.json").read
 OLAP = json.loads((ROOT / "testkit/business/olap-bakeoff-v1.json").read_text())
 PINOT_SCHEMA = json.loads((ROOT / "interop/olap/pinot/cdr_analytics_v1.schema.json").read_text())
 CONNECTION = json.loads((ROOT / "interop/superset/pinot/database-connection-v1.json").read_text())
+DOCKERFILE = (ROOT / "interop/superset/pinot/Dockerfile").read_text()
+LIVE_WORKFLOW = ROOT / ".github/workflows/superset-pinot-live-admission.yml"
 
 FIELD_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 FUNCTION_WORDS = {"COUNT", "SUM", "p50", "p95"}
@@ -34,6 +36,10 @@ def main() -> None:
     require("Pinot pin", PROFILE["stack"]["pinotVersion"], "1.5.1")
     require("Pinot driver", PROFILE["stack"]["pinotDriver"], "pinotdb")
     require("dataset name", PROFILE["stack"]["pinotDataset"], "cdr_analytics_v1")
+
+    require("Superset image pin", "FROM apache/superset:6.1.0" in DOCKERFILE, True)
+    require("pinotdb driver pin", 'pinotdb==9.1.2' in DOCKERFILE, True)
+    require("live admission workflow present", LIVE_WORKFLOW.exists(), True)
 
     uri = PROFILE["stack"]["sqlalchemyUri"]
     require("profile URI matches connection", uri, CONNECTION["sqlalchemy_uri"])
