@@ -1,0 +1,85 @@
+{
+  "schema": "baudot.vrs-annual-compliance@1",
+  "provenance": "baudot-authored-synthetic-fixture",
+  "annualReport": {
+    "scenario": "VRS-ANNUAL-REPORT-001",
+    "updatesCertificationInformation": true,
+    "updatedDocumentationOrNoChangeCertificationPresent": true,
+    "summaryOfUpdatesPresent": true,
+    "executiveCertification": {
+      "role": "cfo",
+      "firstHandKnowledge": true,
+      "underPenaltyOfPerjury": true,
+      "factsAndDocumentationTrueAccurateCompleteAsserted": true,
+      "realIdentityStored": false
+    },
+    "compliancePlan": {
+      "filed": true,
+      "responsibleOfficerOrManagerIdentified": true,
+      "complianceTrainingDescribed": true,
+      "employeeAbuseReportingMechanismsIdentified": true,
+      "internalAuditProcessesDescribed": true,
+      "wasteFraudAbusePreventionPoliciesDescribed": true,
+      "commissionAdequacyDetermination": "not-determined"
+    },
+    "atHomeAnnualInformation": {
+      "authorized": true,
+      "totalHomeCas": 8,
+      "homeWorkstation911Calls": 2,
+      "atHomeComplaints": 1,
+      "substantivePlanChangesDescriptionPresent": true
+    },
+    "productionAnnualReport": false
+  },
+  "timelineCases": [
+    {
+      "scenario": "ITRS-CERT-RENEW-090-PASS",
+      "certificationTermYears": 5,
+      "renewalFiledDaysBeforeExpiration": 90,
+      "expected": {"timely": true}
+    },
+    {
+      "scenario": "ITRS-CERT-RENEW-089-FAIL",
+      "certificationTermYears": 5,
+      "renewalFiledDaysBeforeExpiration": 89,
+      "expected": {"timely": false}
+    },
+    {
+      "scenario": "VRS-SUBSTANTIVE-CHANGE-060-PASS",
+      "substantiveChange": "new-technology",
+      "notificationDaysAfterChange": 60,
+      "continuedMinimumStandardsCertificationPresent": true,
+      "expected": {"timely": true}
+    },
+    {
+      "scenario": "VRS-SUBSTANTIVE-CHANGE-061-FAIL",
+      "substantiveChange": "new-facility",
+      "notificationDaysAfterChange": 61,
+      "continuedMinimumStandardsCertificationPresent": true,
+      "expected": {"timely": false}
+    },
+    {
+      "scenario": "VRS-COMPLIANCE-PLAN-MISSING-001",
+      "annualReportFiled": true,
+      "compliancePlanFiled": false,
+      "expected": {"entitledToCompensationDuringNoncompliance": false}
+    },
+    {
+      "scenario": "VRS-COMPLIANCE-CURE-060-PASS",
+      "commissionFoundPlanInadequate": true,
+      "directedCorrectionPeriodDays": 60,
+      "amendedPlanSubmittedDay": 60,
+      "expected": {"curedWithinDirectedPeriod": true}
+    },
+    {
+      "scenario": "VRS-COMPLIANCE-CURE-061-FAIL",
+      "commissionFoundPlanInadequate": true,
+      "directedCorrectionPeriodDays": 60,
+      "amendedPlanSubmittedDay": 61,
+      "expected": {
+        "curedWithinDirectedPeriod": false,
+        "entitledToCompensationDuringNoncompliance": false
+      }
+    }
+  ]
+}

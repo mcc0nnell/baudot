@@ -1,0 +1,35 @@
+{
+  "schema": "baudot.part64-certification-requirements@1",
+  "authority": {
+    "citation": "47 CFR 64.606",
+    "source": "https://www.ecfr.gov/current/title-47/chapter-I/subchapter-B/part-64/subpart-F/section-64.606",
+    "accessed": "2026-09-06"
+  },
+  "safety": {
+    "realCertificationApplication": false,
+    "realProviderOwnershipData": false,
+    "realEmployeeData": false,
+    "productionContracts": false,
+    "realFacilityDocuments": false,
+    "realExecutiveCertification": false,
+    "claimsActualFccCertification": false
+  },
+  "requirements": [
+    {"id":"PART64-606-A2-SERVICES","citation":"64.606(a)(2)(i)","requirement":"Application describes the forms of Internet-based TRS to be provided."},
+    {"id":"PART64-606-A2-STANDARDS","citation":"64.606(a)(2)(ii)","requirement":"Application describes in detail how all applicable non-waived mandatory minimum standards will be met and includes documentary or other evidence."},
+    {"id":"PART64-606-A2-VRS-FACILITIES","citation":"64.606(a)(2)(ii)(A)","requirement":"VRS application includes required call-center facility and technology/equipment ownership, lease, license, and ACD evidence as applicable."},
+    {"id":"PART64-606-A2-ORG","citation":"64.606(a)(2)(ii)(B)-(E)","requirement":"Application includes qualifying ownership/control interests, organization/executives, TRS employee counts, retained employment agreements, and sponsorship arrangements."},
+    {"id":"PART64-606-A2-COMPLAINTS","citation":"64.606(a)(2)(iii)","requirement":"Application describes provider complaint procedures."},
+    {"id":"PART64-606-A2-ANNUAL-COMMIT","citation":"64.606(a)(2)(iv)","requirement":"Application states that annual compliance reports will be filed."},
+    {"id":"PART64-606-A2-EXEC-CERT","citation":"64.606(a)(2)(v)","requirement":"Certification application includes a qualifying senior-executive certification with first-hand knowledge under penalty of perjury."},
+    {"id":"PART64-606-A3-ONSITE","citation":"64.606(a)(3)","requirement":"Applicant consents to Commission on-site visits used to assess the application."},
+    {"id":"PART64-606-A4-ATHOME","citation":"64.606(a)(4)","requirement":"Initial VRS applicants seeking at-home call handling include a detailed 64.604(d)(7) compliance plan."},
+    {"id":"PART64-606-B2-EXTERNAL-CERT","citation":"64.606(b)(2)","requirement":"Internet-based TRS certification and Fund eligibility arise only after Commission review and determination that the documentation establishes the required standards and compliance procedures."},
+    {"id":"PART64-606-C2-RENEWAL","citation":"64.606(c)(2)","requirement":"Internet-based TRS certification lasts five years and renewal documentation is filed at least 90 days before expiration."},
+    {"id":"PART64-606-F2-CHANGE","citation":"64.606(f)(2)","requirement":"Certified VRS/IP Relay providers notify the Commission of substantive service/program/feature changes within 60 days and certify continued minimum-standard compliance."},
+    {"id":"PART64-606-G-ANNUAL","citation":"64.606(g)(1)-(2)","requirement":"Annual report updates certification information/documentation or certifies no changes and includes qualifying senior-executive certification."},
+    {"id":"PART64-606-G3-PLAN","citation":"64.606(g)(3)","requirement":"Each VRS annual report includes a 64.604(c)(13) compliance plan with responsible management, training, reporting mechanisms, internal audits, and waste/fraud/abuse prevention policies; failure to file removes compensation entitlement during noncompliance."},
+    {"id":"PART64-606-G4-CURE","citation":"64.606(g)(4)","requirement":"If the Commission finds a compliance plan inadequate, the provider must correct and submit an amended plan within the directed period not exceeding 60 days; failure removes compensation entitlement during noncompliance."}
+  ],
+  "deferred": ["64.606(h) unauthorized service interruption state machine"]
+}
