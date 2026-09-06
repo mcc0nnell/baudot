@@ -1,65 +1,92 @@
-# ADR-0004: Governed control plane via Apache Juneau MCP and Apache Camel
+# ADR-0004: Governed MCP execution via neutral contracts and Apache control-plane components
 
 - Status: Proposed
 - Date: 2026-09-05
+- Updated: 2026-09-06
 - Decision owners: Baudot maintainers
 
 ## Context
 
-Baudot is becoming an executable interoperability layer rather than a single signaling implementation. Its current architecture already separates routing decisions, signaling observations, media observations, independent semantic reduction, and terminal accessibility verdicts.
+Baudot is becoming an executable interoperability layer rather than a single signaling implementation. Its architecture already separates route selection, signaling observations, media observations, independent semantic reduction, program-policy decisions, financial posting, and terminal accessibility verdicts.
 
-Recent work introduces additional application and execution surfaces:
+MCP can expose bounded Baudot capabilities to an operator or agent, but an MCP tool call must not collapse those authority boundaries.
 
-- Tilden selects and explains a route, while Baudot executes and observes that route;
-- Zoom and Microsoft Teams can contribute application/media observations without becoming semantic authority;
-- MCP can expose communications capabilities to agentic clients; and
-- an external control plane can provide authorization, approval, policy, session state, and audit records.
-
-A control plane is useful, but it must not collapse Baudot's evidence boundaries.
-
-The central invariant remains:
+The central invariant is:
 
 ```text
 request
-!= authorization
+!= authentication
+!= policy authorization
 != execution
 != observation
 != accessibility readiness
 ```
 
-The control plane may authorize and invoke work. It may not manufacture a Baudot semantic verdict from successful orchestration.
+The business/control architecture has also matured since this ADR was first drafted:
 
-Atlas UI 3 is a useful public design donor because it combines MCP integration, access control, tool approval, auditable workflows, and agentic execution. However, importing Atlas as a required Baudot runtime would couple Baudot to a large Python/React application and its dependency graph. The useful architectural ideas can be expressed through neutral contracts instead.
+```text
+Shiro   -> application actor authentication / session context
+Ranger  -> centralized resource/action/context policy decision
+APISIX  -> external API edge
+Camel   -> request/event orchestration and enforcement workflow
+Tilden  -> route selection
+Baudot  -> communications execution/evidence and bounded reducers
+```
 
-Apache Juneau and Apache Camel provide a more Apache-native path:
+That split means Camel is no longer a second policy authority. Camel may call and enforce Ranger, but Ranger owns the policy decision for protected domain actions.
 
-- Apache Juneau provides first-party MCP server and client modules with typed, revision-bound protocol models over JSON-RPC, while retaining revision-neutral server/client cores.
-- Apache Camel provides routing, Enterprise Integration Patterns, connectors, policy seams, error handling, correlation, observability, and its own MCP integration surface.
+## Release reality
 
-The combination allows MCP protocol handling and workflow orchestration to remain distinct concerns.
+The architecture distinguishes a preferred protocol design from what can be qualified using released software today.
+
+### Apache Juneau
+
+Apache Juneau has a first-party MCP implementation on its 10.0.0 development line, with revision-neutral MCP cores and dated protocol adapters. As of this ADR update, 10.0.0 remains unreleased `-SNAPSHOT` development; the latest released Juneau line does not provide the MCP runtime assumed by the original draft.
+
+Therefore:
+
+```text
+Juneau MCP
+= preferred/reference protocol candidate
+!= required released runtime today
+```
+
+Baudot must not claim a released Juneau MCP integration until an Apache Juneau release containing those modules exists and is pinned by exact release identity.
+
+### Apache Camel
+
+Apache Camel 4.22.0 is a released LTS line and includes preview `camel-ai-tool` and `camel-mcp-server` modules. Camel can expose selected `ai-tool` routes as MCP tools over streamable HTTP. Tool annotation hints are advisory metadata and are not authorization.
+
+Camel 4.22.0 is therefore the first released Apache qualification lane for the neutral MCP tool contracts while Juneau remains a replaceable future/reference adapter.
 
 ## Decision
 
-Baudot will define a **governed execution boundary** whose protocol and orchestration implementations remain replaceable.
+Baudot will define a **governed execution boundary** whose protocol, policy, and orchestration implementations remain separate and replaceable.
 
-The preferred Apache-native reference architecture is:
+The current reference shape is:
 
 ```text
 MCP host / agent / operator
           |
           v
-Apache Juneau MCP boundary
-  protocol revision / JSON-RPC
-  typed tools and resources
-  auth / trace propagation
+MCP protocol adapter
+  Camel 4.22 released qualification lane
+  Juneau future/reference adapter
           |
           v
-Apache Camel control plane
-  authorization / approval
-  routing / orchestration
-  retry / timeout / policy
-  connector execution
-  audit / correlation
+neutral Baudot tool / ExecutionRequest contract
+          |
+          v
+Shiro-authenticated actor context
+          |
+          v
+Ranger policy decision
+          |
+          v
+Camel orchestration / enforcement
+  retry / timeout / correlation
+  connector invocation
+  receipt creation
           |
           +------------------+
           |                  |
@@ -68,11 +95,13 @@ Apache Camel control plane
    route selection     execution/evidence
 ```
 
-### 1. Baudot owns the governed-execution contract
+For read-only fixed evidence tools, the path may omit a domain mutation decision when no protected resource action is requested, but actor/session and access policy remain explicit deployment concerns.
 
-Baudot will define implementation-neutral request and receipt contracts.
+## 1. Baudot owns the governed-execution contracts
 
-The initial vocabulary should distinguish at least:
+No Atlas-, Camel-, Juneau-, Ranger-, Shiro-, Teams-, Zoom-, or provider-specific object becomes canonical Baudot semantics.
+
+The initial neutral vocabulary distinguishes:
 
 ```text
 ExecutionRequest
@@ -81,21 +110,20 @@ ExecutionReceipt
 ObservationReference
 ```
 
-A request identifies the requested operation and evidence requirements. An authorization receipt records whether a policy authority permitted the requested action. An execution receipt records what executor attempted and what it returned. Observation references bind control-plane execution to separately preserved Baudot evidence.
-
-No Atlas-, Camel-, Juneau-, Teams-, Zoom-, or provider-specific object becomes the canonical Baudot contract.
-
-A minimal conceptual shape is:
+A conceptual shape is:
 
 ```text
 ExecutionRequest
+  requestId
   correlationId
   operation
+  actorRef
   requestedCapabilities
-  policyContext
+  resourceRefs
   evidenceRequirements
 
 AuthorizationReceipt
+  requestId
   correlationId
   authority
   decision
@@ -103,186 +131,260 @@ AuthorizationReceipt
   policyReference
 
 ExecutionReceipt
+  requestId
   correlationId
   executor
   startedAt
   completedAt
   resultClass
-  evidenceRefs
+  observationRefs
+
+ObservationReference
+  correlationId
+  evidenceId
+  evidenceType
+  sourceRef
+  digest
 ```
 
-The exact committed schema will be versioned separately from this ADR.
+The exact schemas are versioned separately from this ADR.
 
-### 2. Apache Juneau is the preferred MCP protocol boundary
+## 2. The first MCP surface is read-only evidence inspection
 
-Juneau will be evaluated as the preferred reference implementation for the MCP-facing protocol layer.
+Implementation issue #92 defines the first bounded tool set:
 
-Its role is deliberately narrow:
+```text
+inspect_dialog
+observe_sip_trace
+compare_sdp
+export_evidence
+```
 
-- decode and encode the supported MCP/JSON-RPC revision;
-- expose typed Baudot/Tilden control-plane tools and resources;
-- preserve protocol metadata and correlation identifiers;
-- participate in authentication and trace propagation; and
-- convert MCP calls into the neutral governed-execution contract.
+These tools adapt existing evidence/runtime boundaries; they do not recreate SIP, SDP, media, or evidence semantics inside the MCP adapter.
 
-Juneau does not decide whether a call is accessible, whether a route was correct, or whether media was usable.
+### `inspect_dialog`
 
-Juneau's revision-neutral core plus dated MCP adapters is attractive because Baudot should not silently reinterpret a future MCP protocol revision as equivalent to an older one.
+Returns normalized dialog/transaction state for a controlled run. JAIN SIP and preserved signaling evidence remain the underlying observation authority.
 
-### 3. Apache Camel is the preferred orchestration and policy engine
+### `observe_sip_trace`
 
-Camel sits behind the MCP boundary and owns workflow execution concerns.
+Returns a bounded structured signaling trace with correlation identifiers and source evidence references.
+
+### `compare_sdp`
+
+Compares preserved offer/answer evidence and reports differences. SDP comparison does not establish negotiated media usability or RTT readiness.
+
+### `export_evidence`
+
+Returns the preserved evidence bundle or references for a controlled run without creating new semantic claims.
+
+The mutation surface remains absent from this first slice.
+
+## 3. Shiro owns application actor/session context
+
+Shiro establishes who the application actor is and whether the actor has an active authenticated session.
+
+```text
+Shiro authenticated
+!= Ranger authorized
+```
+
+Only a minimal actor/session projection may cross the authentication boundary. Subscriber eligibility, TRS identity-verification state, telephone numbers, claim/payment authority, and other domain truth do not belong in Shiro session context.
+
+A remembered principal is not treated as fresh authentication for protected TRS operations.
+
+## 4. Ranger is the policy decision point
+
+For protected resource/action operations, a trusted Baudot service translates the authenticated actor plus requested resource/action/context into a Ranger policy request.
+
+```text
+actor + resource + action + context
+        -> Ranger
+        -> ALLOW / DENY
+```
+
+Ranger failure or an ambiguous response fails closed for protected operations.
+
+An explicit Ranger `ALLOW` remains insufficient to establish protocol validity, route correctness, subscriber eligibility, compensability, payment authorization, or accessibility readiness.
+
+## 5. Camel owns orchestration and enforcement workflow
+
+Camel sits behind the neutral contract and owns request/event workflow concerns.
 
 Camel may:
 
-- evaluate authorization and approval policies;
-- route an accepted request to Tilden, Baudot, or an external adapter;
+- invoke Ranger and enforce its decision;
+- route an accepted request to Tilden, Baudot, or another bounded adapter;
 - perform bounded retries and timeout handling;
 - execute connector-specific calls;
-- propagate correlation IDs;
-- emit operational telemetry; and
-- create control-plane receipts.
+- propagate opaque correlation identifiers;
+- emit technical telemetry; and
+- construct execution receipts from observed workflow facts.
 
-Camel does not own Baudot's terminal semantic or accessibility verdict.
+Camel may not:
 
-The expected composition is:
+- invent an authorization decision when Ranger is required;
+- turn route success into protocol or accessibility truth;
+- select a new provider/route when Tilden selection is required;
+- turn a CDR into compensability or Fund authority; or
+- treat workflow completion as evidence that an external target behaved correctly.
+
+The protected composition is:
 
 ```text
 MCP tool call
     -> ExecutionRequest
-    -> authorization policy
+    -> authenticated actor context
+    -> Ranger decision
     -> AuthorizationReceipt
-    -> Camel route
-    -> external action
+    -> Camel route/enforcement
+    -> external or Baudot evidence adapter
     -> ExecutionReceipt
-    -> Baudot evidence references
-    -> independent Baudot reducer
+    -> ObservationReference(s)
+    -> independent Baudot reducer when a semantic verdict is requested
 ```
 
-### 4. Camel MCP support remains a valid alternate adapter
+## 6. Camel 4.22 is the initial released MCP qualification adapter
 
-Camel 4.22 includes an MCP server capable of exposing Camel `ai-tool` routes as MCP tools over streamable HTTP.
-
-That capability is useful and should remain interoperable with the same neutral contracts. However, the initial architecture will not make Camel route definitions the canonical MCP protocol model.
-
-The preferred layering is:
+Camel 4.22 provides:
 
 ```text
-Juneau MCP
-    -> neutral Baudot execution contract
-    -> Camel orchestration
+camel-ai-tool
+camel-mcp-server
 ```
 
-A direct Camel MCP adapter may later prove simpler for some deployments:
+The MCP server exposes only `ai-tool` routes matching configured tags over streamable HTTP. Baudot must configure an explicit allowlist/tag set; wildcard publication of all tools is not the default profile.
+
+The first qualification lane should expose only the four read-only tools from #92.
+
+MCP annotations such as `readOnlyHint`, `destructiveHint`, and `idempotentHint` are useful client-facing hints, but they are not security decisions. Enforcement remains in the authenticated/policy/orchestration path.
 
 ```text
-Camel MCP
-    -> same neutral Baudot execution contract
-    -> Camel orchestration
+readOnlyHint=true
+!= actor authorized
 ```
 
-Both paths must produce equivalent governed-execution facts. No terminal Baudot reducer may branch on which MCP implementation was used.
+## 7. Juneau remains a replaceable protocol adapter, not a prerequisite
 
-### 5. Tilden retains route-selection authority
+When a released Apache Juneau version containing the MCP modules is available, Baudot should qualify it against the same neutral contracts and fixed evidence fixtures.
+
+The required equivalence is:
+
+```text
+Camel MCP adapter
+        \
+         -> same ExecutionRequest / receipts / observations
+        /
+Juneau MCP adapter
+```
+
+No terminal reducer may branch on which MCP implementation produced an equivalent neutral request.
+
+Until that released threshold exists, normative CI must not depend on Juneau 10 snapshot artifacts.
+
+## 8. Tilden retains route-selection authority
 
 The control plane may request a route selection from Tilden and may execute the returned route, but it does not replace Tilden's selection authority.
-
-The authority chain remains:
 
 ```text
 Tilden
   owns why a route was selected
 
-Camel / control plane
-  owns whether execution was authorized and attempted
+Ranger
+  owns whether the protected requested action is allowed
+
+Camel
+  owns whether the authorized workflow was attempted and how it was orchestrated
 
 Baudot
-  owns signaling/media observations and evidence reduction
+  owns preserved communications observations and bounded evidence reduction
 ```
 
-A Camel route may not promote an eligible-but-unselected route after failure unless a new Tilden selection explicitly authorizes that route.
+A Camel retry may retry the same authorized operation within the contract. It may not silently promote an eligible-but-unselected route after failure when a new Tilden selection is required.
 
-This preserves the existing Tilden reselection boundary.
+## 9. Atlas UI 3 remains a design donor
 
-### 6. Atlas UI 3 is a design donor and interoperability specimen
+Atlas UI 3 is not a required Baudot build-time or runtime dependency.
 
-Atlas UI 3 will not be a required Baudot build-time or runtime dependency.
-
-Its public behavior is useful as donor material for control-plane scenarios such as:
+Its public behavior remains useful donor material for:
 
 - tool discovery;
 - requested tool execution;
-- human/tool approval;
-- group or policy authorization;
+- human approval UX;
 - auditable execution;
 - session correlation; and
-- MCP server integration.
+- MCP integration.
 
-Those behaviors should be converted into provider-neutral test questions rather than copied as Atlas-specific semantics.
-
-The donor rule is:
+Those behaviors are converted into neutral test questions instead of Atlas-specific runtime semantics.
 
 ```text
 Atlas behavior
     -> control-plane question
     -> neutral Baudot contract
-    -> Juneau/Camel reference implementation
+    -> Apache qualification adapter
     -> preserved execution evidence
 ```
 
-Atlas may later be tested as an independent MCP/control-plane participant against the same contracts.
-
-### 7. The control plane never becomes accessibility verdict authority
-
-Successful authorization, execution, or tool completion is insufficient to establish a usable communications session.
+## 10. Tool completion never becomes accessibility verdict authority
 
 Examples:
 
 ```text
-MCP tool accepted=true
-!= operation authorized
+MCP tool listed
+!= actor authorized
 
-operation authorized=true
+MCP tool accepted
+!= policy ALLOW
+
+policy ALLOW
 != operation executed
 
-operation executed=true
+operation executed
 != target observed
 
-media observed=true
+SIP observed
+!= dialog established
+
+SDP compared
 != media usable
 
-transcript observed=true
-!= T.140 semantics
+media observed
+!= RTT ready
 
-call connected=true
-!= rttReady
+call connected
+!= accessibility ready
 ```
 
-The terminal accessibility verdict remains with Baudot reducers/reference code under explicit claim boundaries.
+The terminal accessibility verdict remains with explicit Baudot reducers/reference code under their claim boundaries.
 
-### 8. Build and runtime independence are requirements
+## 11. Build and runtime independence are requirements
 
 The Baudot core and normative testkit must remain buildable and runnable without:
 
 - Apache Juneau;
 - Apache Camel;
+- Apache Ranger;
+- Apache Shiro;
 - Atlas UI 3;
 - Microsoft Teams credentials;
 - Zoom credentials; or
-- any production provider/network access.
+- production provider/network access.
 
-A deterministic mock control-plane implementation must be sufficient for normative CI and contract validation.
+A deterministic mock control-plane implementation is sufficient for normative contract validation.
 
-Juneau and Camel reference integrations are qualification lanes, not prerequisites for expressing Baudot semantics.
+External Apache integrations are qualification lanes, not prerequisites for expressing Baudot semantics.
 
 ## Evidence roles
 
-| Participant | Role | May define Baudot terminal verdict? |
+| Participant | Role | May define Baudot terminal accessibility verdict? |
 | --- | --- | --- |
-| Baudot reducers/reference code | communications evidence reduction and terminal verdict | Yes, within explicit claim boundaries |
-| Tilden | identity/routing selection and explanation | No |
-| Apache Juneau MCP | MCP protocol boundary | No |
-| Apache Camel | orchestration, policy, connector execution, control-plane receipts | No |
+| Baudot reducers/reference code | communications evidence reduction and bounded terminal verdict | Yes, within explicit claim boundaries |
+| Tilden | route selection and explanation | No |
+| Shiro | application actor/session authentication | No |
+| Ranger | protected resource/action/context policy decision | No |
+| Camel | orchestration/enforcement, connector invocation, execution receipts | No |
+| Camel MCP 4.22 | released MCP qualification adapter | No |
+| Juneau MCP | future/reference MCP protocol adapter pending released artifact | No |
 | Atlas UI 3 | design donor / independent integration specimen | No |
 | Teams / Zoom / VRS / SIP endpoints | external implementation observations | No |
 
@@ -290,54 +392,58 @@ Juneau and Camel reference integrations are qualification lanes, not prerequisit
 
 ### Positive
 
-- MCP protocol handling is separated from orchestration semantics.
-- Camel can express complex execution flows without redefining Baudot's call model.
-- Tilden's selection authority remains intact.
-- Atlas contributes useful design evidence without becoming a dependency.
-- The architecture remains replaceable at both the MCP and orchestration layers.
-- Normative Baudot tests remain deterministic and independent of external SaaS credentials.
-- The design is compatible with an Apache-style dependency and release boundary.
+- Identity, policy, MCP transport, orchestration, route selection, and communications evidence have separate owners.
+- The first tool surface is read-only and deterministic.
+- Camel 4.22 provides a released Apache path for immediate MCP qualification.
+- Juneau's attractive revision-bound MCP design can be adopted later without blocking current work or making snapshots normative.
+- Ranger policies remain centralized instead of being duplicated in Camel routes.
+- Tilden selection authority remains intact.
+- Normative Baudot tests remain deterministic and external-service independent.
 
 ### Costs
 
-- Two Apache layers (Juneau and Camel) create more integration work than using a single framework end-to-end.
-- The neutral execution contract must be maintained independently from both implementations.
-- Authorization policy semantics need explicit versioning rather than being left implicit in route code.
-- Correlation and evidence references must survive across MCP, Camel, Tilden, and Baudot boundaries.
+- More explicit boundaries create more contracts and adapters.
+- Camel MCP is marked preview in 4.22, so production suitability is not implied by qualification success.
+- Juneau cannot yet be treated as a released MCP dependency.
+- Correlation/evidence references must survive MCP, Shiro, Ranger, Camel, Tilden, and Baudot boundaries.
 
 ## Rejected alternatives
 
+### Treat Camel as the policy authority
+
+Rejected. Ranger owns centralized domain-policy decisions. Camel owns orchestration and enforcement workflow.
+
+### Use unreleased Juneau 10 snapshots as a normative dependency
+
+Rejected. Snapshot availability is useful for design evaluation, not a released implementation claim.
+
 ### Import Atlas UI 3 as the Baudot control plane
 
-Rejected as the default architecture. Atlas is useful and permissively licensed, but making it required would introduce unnecessary application/runtime coupling and weaken implementation neutrality.
+Rejected as the default architecture. Atlas remains donor material rather than a required runtime.
 
 ### Put MCP protocol semantics directly into Baudot reducers
 
-Rejected. Protocol transport and semantic/accessibility verdict authority are different concerns.
+Rejected. Protocol transport and communications semantic verdict authority are different concerns.
 
 ### Let Camel route success define operation success
 
-Rejected. Camel can prove that a route executed according to its orchestration rules. It cannot by itself prove that the communications result was usable.
+Rejected. Camel can establish orchestration facts only.
 
 ### Let the control plane choose fallback providers after a failed route
 
-Rejected. Tilden retains route-selection authority. Recovery requires a new Tilden selection when selection semantics require one.
-
-### Make Juneau mandatory for all Baudot execution
-
-Rejected. Juneau is the preferred reference MCP protocol boundary, not part of the normative communications semantics.
+Rejected. Tilden retains route-selection authority.
 
 ## Follow-up
 
-1. Define `ExecutionRequest`, `AuthorizationReceipt`, `ExecutionReceipt`, and `ObservationReference` as versioned Baudot testkit contracts.
-2. Add a deterministic mock control-plane reducer proving `request != authorization != execution`.
-3. Implement a minimal Juneau MCP adapter that emits the neutral request contract.
-4. Implement a minimal Camel route that consumes the contract, applies an explicit authorization policy, and emits receipts.
-5. Bind receipt `correlationId` values to existing Tilden/Baudot evidence IDs without copying unnecessary private request state.
-6. Add negative tests for unauthorized execution, policy timeout, duplicate request, stale authorization, execution without observation, and observation without accessibility readiness.
-7. Convert selected Atlas UI 3 behaviors into donor scenarios without importing Atlas implementation code.
-8. Keep direct Camel MCP as an alternate implementation lane and require equivalent governed-execution facts.
+1. Implement issue #92 as versioned neutral contracts for `inspect_dialog`, `observe_sip_trace`, `compare_sdp`, and `export_evidence`.
+2. Add deterministic fixed-fixture equivalence tests between direct evidence inspection and tool results.
+3. Add `ExecutionRequest`, `AuthorizationReceipt`, `ExecutionReceipt`, and `ObservationReference` contracts.
+4. Qualify the read-only tools through released Camel 4.22 `camel-ai-tool` + `camel-mcp-server` over streamable HTTP.
+5. Require explicit tool tags/allowlisting and read-only/destructive/idempotency hints without treating hints as authorization.
+6. Compose protected-operation tests with Shiro subject context and Ranger policy decisions.
+7. Add negative tests for denied policy, policy timeout, duplicate request, stale authorization, execution without observation, and observation without accessibility readiness.
+8. Qualify a released Juneau MCP adapter against the same contracts when such a release exists.
 
 ## Claim boundary
 
-This ADR defines an architecture and authority split. It does not establish Apache Juneau MCP conformance, Apache Camel MCP conformance, authorization correctness, production security posture, Teams/Zoom/VRS interoperability, SIP/RTP/RFC 4103/T.140 conformance, or end-to-end accessibility readiness.
+This ADR defines architecture and authority split. It does not establish Apache Camel MCP conformance generally, future Apache Juneau MCP conformance, authorization correctness, production security posture, Teams/Zoom/VRS interoperability, SIP/RTP/RFC 4103/T.140 conformance, regulatory compliance, or end-to-end accessibility readiness.
