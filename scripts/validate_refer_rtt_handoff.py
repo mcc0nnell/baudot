@@ -52,9 +52,20 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def evidence_ref(path: Path, relative: str, reducer: str, selector: str) -> dict[str, str]:
+    return {
+        "path": relative,
+        "sha256": sha256(path),
+        "reducer": reducer,
+        "selector": selector,
+    }
+
+
 def main() -> None:
-    control = load_properties(CONTROL / "result.properties")
-    signaling = load_properties(SIGNALING_ONLY / "result.properties")
+    control_properties_path = CONTROL / "result.properties"
+    signaling_properties_path = SIGNALING_ONLY / "result.properties"
+    control = load_properties(control_properties_path)
+    signaling = load_properties(signaling_properties_path)
 
     for label, values in (("control", control), ("signaling-only", signaling)):
         require(values, "signaling.transfer.complete", "true", label)
@@ -130,16 +141,129 @@ def main() -> None:
     TERMINAL.mkdir(parents=True, exist_ok=True)
     result_path = TERMINAL / "refer-rtt-readiness.json"
     result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    signaling_reducer = "org.mcc0nnell.baudot.harness.LiveReferRttHandoffProbe/EvidenceRecorder"
+    semantic_reducer = "baudot_reference.rfc4103.PrimaryT140RtpPacket"
+    proof = {
+        "schema": "baudot.causal-proof-manifest@1",
+        "scenarioId": "BAUDOT-INTEROP-004",
+        "correlationId": "jain-live-refer-rtt-v1",
+        "contract": "testkit/meta/causal-proof-contract-v1.json",
+        "evidenceRoot": "..",
+        "proofs": [
+            {
+                "id": "control-old-leg-release",
+                "arm": "control",
+                "sourceFacts": [
+                    {
+                        "id": "replacement.dialog.established",
+                        "authority": "baudot-signaling-evidence",
+                        "evidence": [
+                            evidence_ref(
+                                control_properties_path,
+                                "control/result.properties",
+                                signaling_reducer,
+                                "replacement.dialog.established=true",
+                            )
+                        ],
+                    },
+                    {
+                        "id": "replacement.rtt.negotiated",
+                        "authority": "baudot-signaling-evidence",
+                        "evidence": [
+                            evidence_ref(
+                                control_properties_path,
+                                "control/result.properties",
+                                signaling_reducer,
+                                "rtt.negotiated=true",
+                            )
+                        ],
+                    },
+                    {
+                        "id": "replacement.t140.semantic.observed",
+                        "authority": "baudot-semantic-reducer",
+                        "evidence": [
+                            evidence_ref(
+                                control_packet_path,
+                                "control/rtt-datagram-received.bin",
+                                semantic_reducer,
+                                "payloadType=98; firstT140Text=H",
+                            )
+                        ],
+                    },
+                ],
+                "expectClaims": [
+                    "replacement.rtt.ready",
+                    "old-leg.safe-to-release",
+                ],
+            },
+            {
+                "id": "signaling-only-cannot-release",
+                "arm": "signaling-only",
+                "sourceFacts": [
+                    {
+                        "id": "refer.accepted",
+                        "authority": "baudot-signaling-evidence",
+                        "evidence": [
+                            evidence_ref(
+                                signaling_properties_path,
+                                "signaling-only/result.properties",
+                                signaling_reducer,
+                                "refer.accepted=true",
+                            )
+                        ],
+                    },
+                    {
+                        "id": "replacement.dialog.established",
+                        "authority": "baudot-signaling-evidence",
+                        "evidence": [
+                            evidence_ref(
+                                signaling_properties_path,
+                                "signaling-only/result.properties",
+                                signaling_reducer,
+                                "replacement.dialog.established=true",
+                            )
+                        ],
+                    },
+                    {
+                        "id": "replacement.rtt.negotiated",
+                        "authority": "baudot-signaling-evidence",
+                        "evidence": [
+                            evidence_ref(
+                                signaling_properties_path,
+                                "signaling-only/result.properties",
+                                signaling_reducer,
+                                "rtt.negotiated=true",
+                            )
+                        ],
+                    },
+                ],
+                "forbidClaims": [
+                    "replacement.rtt.ready",
+                    "old-leg.safe-to-release",
+                ],
+            },
+        ],
+        "claimBoundary": result["claimBoundary"],
+    }
+    proof_path = TERMINAL / "causal-proof.json"
+    proof_path.write_text(json.dumps(proof, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
     manifest_path = TERMINAL / "manifest.sha256"
     manifest_path.write_text(
         f"{sha256(result_path)}  refer-rtt-readiness.json\n"
+        f"{sha256(proof_path)}  causal-proof.json\n"
+        f"{sha256(control_properties_path)}  ../control/result.properties\n"
+        f"{sha256(signaling_properties_path)}  ../signaling-only/result.properties\n"
         f"{sha256(control_packet_path)}  ../control/rtt-datagram-received.bin\n",
         encoding="utf-8",
     )
 
     print("✓ BAUDOT-INTEROP-004 control: signaling + independently parsed T.140 => rttReady=true")
     print("✓ BAUDOT-INTEROP-004 signaling-only: bounded no-T.140 observation => rttReady=false")
+    print("✓ portable causal proof manifest emitted")
     print(f"evidence: {result_path}")
+    print(f"proof: {proof_path}")
 
 
 if __name__ == "__main__":

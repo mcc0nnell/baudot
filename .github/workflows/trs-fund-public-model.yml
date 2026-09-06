@@ -6,7 +6,9 @@ on:
       - "docs/trs-fund-public-ledger.md"
       - "testkit/fund/**"
       - "interop/fineract/**"
+      - "testkit/meta/causal-proof-contract-v1.json"
       - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_causal_proof_manifest.py"
       - ".github/workflows/trs-fund-public-model.yml"
   push:
     branches: [main]
@@ -14,7 +16,9 @@ on:
       - "docs/trs-fund-public-ledger.md"
       - "testkit/fund/**"
       - "interop/fineract/**"
+      - "testkit/meta/causal-proof-contract-v1.json"
       - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_causal_proof_manifest.py"
       - ".github/workflows/trs-fund-public-model.yml"
 
 permissions:
@@ -30,3 +34,7 @@ jobs:
           python-version: "3.13"
       - name: Validate public TRS Fund calibration
         run: python scripts/validate_trs_fund_public_model.py
+      - name: Validate Fund non-promotion proof
+        run: >-
+          python scripts/validate_causal_proof_manifest.py
+          target/evidence/TRS-FUND-PUBLIC-MODEL/causal-proof.json
