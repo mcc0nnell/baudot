@@ -1,0 +1,30 @@
+name: superset-trs-analytics
+
+on:
+  pull_request:
+    paths:
+      - "docs/superset-trs-analytics.md"
+      - "testkit/business/superset-trs-analytics-v1.json"
+      - "scripts/validate_superset_trs_analytics.py"
+      - ".github/workflows/superset-trs-analytics.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/superset-trs-analytics.md"
+      - "testkit/business/superset-trs-analytics-v1.json"
+      - "scripts/validate_superset_trs_analytics.py"
+      - ".github/workflows/superset-trs-analytics.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  analytics-profile:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate Superset TRS analytics profile
+        run: python scripts/validate_superset_trs_analytics.py
