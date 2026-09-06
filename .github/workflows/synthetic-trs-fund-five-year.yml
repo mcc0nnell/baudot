@@ -1,0 +1,77 @@
+name: synthetic-trs-fund-five-year
+
+on:
+  pull_request:
+    paths:
+      - "testkit/fund/**"
+      - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_trs_fund_runtime_contract.py"
+      - "scripts/validate_synthetic_trs_fund_five_year.py"
+      - "scripts/validate_synthetic_trs_fund_five_year_authority.py"
+      - "docs/trs-fund-five-year-corpus.md"
+      - ".github/workflows/synthetic-trs-fund-five-year.yml"
+  push:
+    branches: [main]
+    paths:
+      - "testkit/fund/**"
+      - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_trs_fund_runtime_contract.py"
+      - "scripts/validate_synthetic_trs_fund_five_year.py"
+      - "scripts/validate_synthetic_trs_fund_five_year_authority.py"
+      - "docs/trs-fund-five-year-corpus.md"
+      - ".github/workflows/synthetic-trs-fund-five-year.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-five-year-fund:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate canonical public Fund model
+        run: python scripts/validate_trs_fund_public_model.py
+      - name: Validate canonical runtime lifecycle contract
+        run: python scripts/validate_trs_fund_runtime_contract.py
+      - name: Validate independent five-year synthetic reducer
+        run: python scripts/validate_synthetic_trs_fund_five_year.py
+      - name: Validate five-year authority overlap
+        run: python scripts/validate_synthetic_trs_fund_five_year_authority.py
+      - name: Seal benchmark evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=target/evidence-external/TRS-FUND-FIVE-YEAR/v1
+          mkdir -p "$out"
+          cp testkit/fund/synthetic-trs-fund-five-year-v1.json "$out/"
+          cp testkit/fund/rolka-loube-2025-26.json "$out/"
+          cp testkit/fund/contributor-assessments-2026-27.json "$out/"
+          cp testkit/fund/trs-fund-runtime-contract-v1.json "$out/"
+          cp interop/fineract/journal-contract-v1.json "$out/"
+          cp scripts/validate_synthetic_trs_fund_five_year.py "$out/"
+          cp scripts/validate_synthetic_trs_fund_five_year_authority.py "$out/"
+          (
+            cd "$out"
+            sha256sum \
+              synthetic-trs-fund-five-year-v1.json \
+              rolka-loube-2025-26.json \
+              contributor-assessments-2026-27.json \
+              trs-fund-runtime-contract-v1.json \
+              journal-contract-v1.json \
+              validate_synthetic_trs_fund_five_year.py \
+              validate_synthetic_trs_fund_five_year_authority.py \
+              > bundle.manifest.sha256
+            sha256sum -c bundle.manifest.sha256
+          )
+      - name: Preserve benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-synthetic-trs-fund-five-year
+          path: target/evidence-external/TRS-FUND-FIVE-YEAR/v1
+          if-no-files-found: warn
