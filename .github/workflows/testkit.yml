@@ -50,3 +50,5 @@ jobs:
         run: bash scripts/run-itrs-sip-handoff.sh
       - name: Prove public-evidence iTRS CTE state machine and SIP handoff
         run: bash scripts/run-itrs-cte.sh
+      - name: Prove source-anchored ACE Connect Lite vrsverify adapter
+        run: bash scripts/run-ace-vrsverify-adapter.sh
