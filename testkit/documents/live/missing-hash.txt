@@ -1,0 +1,1 @@
+Baudot synthetic guidance fixture whose admission manifest intentionally omits the source hash.

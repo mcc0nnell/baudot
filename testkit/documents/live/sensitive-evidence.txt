@@ -1,0 +1,4 @@
+Synthetic protected-record fixture.
+subscriberId: synthetic-subscriber-001
+telephoneNumber: 2025550103
+This document must never enter the general Solr search index.
