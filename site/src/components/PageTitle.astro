@@ -1,9 +1,13 @@
 ---
 import Default from '@astrojs/starlight/components/PageTitle.astro';
 import AssuranceGraph from './AssuranceGraph.astro';
+import FundReasoningChart from './FundReasoningChart.astro';
 
-const isEvidencePage = Astro.locals.starlightRoute.id === 'evidence';
+const routeId = Astro.locals.starlightRoute.id;
+const isEvidencePage = routeId === 'evidence';
+const isFundLabPage = routeId === 'fund-lab';
 ---
 
 <Default><slot /></Default>
 {isEvidencePage && <AssuranceGraph />}
+{isFundLabPage && <FundReasoningChart />}
