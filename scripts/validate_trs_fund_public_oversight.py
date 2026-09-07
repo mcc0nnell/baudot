@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "site" / "src" / "components" / "PublicFundOversight.astro"
 PAGE = ROOT / "site" / "src" / "pages" / "public-fund.astro"
+CONFIG = ROOT / "site" / "astro.config.mjs"
 PACKAGE = ROOT / "site" / "package.json"
 PROJECTION = ROOT / "site" / "public" / "data" / "trs-fund-public-2025-26.json"
 
@@ -26,11 +27,13 @@ def main() -> None:
 
     component = COMPONENT.read_text(encoding="utf-8")
     page = PAGE.read_text(encoding="utf-8")
+    config = CONFIG.read_text(encoding="utf-8")
     package = json.loads(PACKAGE.read_text(encoding="utf-8"))
     projection = json.loads(PROJECTION.read_text(encoding="utf-8"))
 
     require("oversight page uses StarlightPage", "@astrojs/starlight/components/StarlightPage.astro" in page)
     require("oversight page renders the public component", "<PublicFundOversight" in page)
+    require("oversight page is present in Starlight navigation", "Public TRS Fund overview" in config and "/public-fund/" in config)
     require(
         "component imports the checked-in public projection directly",
         "../../public/data/trs-fund-public-2025-26.json" in component,
