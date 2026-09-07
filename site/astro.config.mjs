@@ -36,6 +36,10 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Oversight',
+          items: [{ label: 'Public TRS Fund overview', link: '/public-fund/' }],
+        },
+        {
           label: 'Architecture',
           items: [
             { label: 'System shape', slug: 'architecture' },
