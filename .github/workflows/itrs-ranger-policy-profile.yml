@@ -1,0 +1,30 @@
+name: itrs-ranger-policy-profile
+
+on:
+  pull_request:
+    paths:
+      - "docs/itrs-ranger-policy-profile.md"
+      - "interop/ranger/**"
+      - "scripts/validate_itrs_ranger_profile.py"
+      - ".github/workflows/itrs-ranger-policy-profile.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/itrs-ranger-policy-profile.md"
+      - "interop/ranger/**"
+      - "scripts/validate_itrs_ranger_profile.py"
+      - ".github/workflows/itrs-ranger-policy-profile.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ranger-pdp-profile:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate Ranger service definition and execute PDP fixture matrix
+        run: python scripts/validate_itrs_ranger_profile.py
