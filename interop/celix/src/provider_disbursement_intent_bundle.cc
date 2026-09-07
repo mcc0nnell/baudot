@@ -20,7 +20,9 @@ public:
         if (!authorization.authorized || authorization.verdict != "PAYMENT_AUTHORIZED") {
             return {
                 false,
+                facts.syntheticBusinessTransactionId,
                 authorization.syntheticBusinessTransactionId,
+                authorization.authorizationId,
                 facts.eventType,
                 {},
                 {},
@@ -30,10 +32,42 @@ public:
             };
         }
 
+        if (facts.syntheticBusinessTransactionId.empty()) {
+            return {
+                false,
+                {},
+                authorization.syntheticBusinessTransactionId,
+                authorization.authorizationId,
+                facts.eventType,
+                {},
+                {},
+                {},
+                "PROVIDER_DISBURSEMENT_INTENT_REJECTED_TRANSACTION_ID_REQUIRED",
+                "providerDisbursement requires its own synthetic business transaction id as the disbursement idempotency key"
+            };
+        }
+
+        if (facts.syntheticBusinessTransactionId == authorization.syntheticBusinessTransactionId) {
+            return {
+                false,
+                facts.syntheticBusinessTransactionId,
+                authorization.syntheticBusinessTransactionId,
+                authorization.authorizationId,
+                facts.eventType,
+                {},
+                {},
+                {},
+                "PROVIDER_DISBURSEMENT_INTENT_REJECTED_TRANSACTION_ID_COLLISION",
+                "providerDisbursement must use a distinct business transaction id while preserving lineage to the upstream provider-payable transaction"
+            };
+        }
+
         if (facts.eventType != "providerDisbursement") {
             return {
                 false,
+                facts.syntheticBusinessTransactionId,
                 authorization.syntheticBusinessTransactionId,
+                authorization.authorizationId,
                 facts.eventType,
                 {},
                 {},
@@ -46,7 +80,9 @@ public:
         if (facts.amountUsd != authorization.authorizedAmountUsd) {
             return {
                 false,
+                facts.syntheticBusinessTransactionId,
                 authorization.syntheticBusinessTransactionId,
+                authorization.authorizationId,
                 facts.eventType,
                 {},
                 {},
@@ -59,7 +95,9 @@ public:
         if (facts.expectedDebitAccount != "2100" || facts.expectedCreditAccount != "1100") {
             return {
                 false,
+                facts.syntheticBusinessTransactionId,
                 authorization.syntheticBusinessTransactionId,
+                authorization.authorizationId,
                 facts.eventType,
                 facts.amountUsd,
                 facts.expectedDebitAccount,
@@ -72,20 +110,24 @@ public:
         if (facts.priorDisbursementObservedForBusinessTransactionId) {
             return {
                 false,
+                facts.syntheticBusinessTransactionId,
                 authorization.syntheticBusinessTransactionId,
+                authorization.authorizationId,
                 facts.eventType,
                 facts.amountUsd,
                 facts.expectedDebitAccount,
                 facts.expectedCreditAccount,
                 "PROVIDER_DISBURSEMENT_INTENT_REJECTED_IDEMPOTENT_REPLAY",
-                "a previously observed provider disbursement for the same synthetic business transaction id blocks a second financial effect"
+                "a previously observed provider disbursement for this disbursement business transaction id blocks a second financial effect"
             };
         }
 
         if (!facts.accountingPeriodOpen && !facts.authorizedOpenPostingDate) {
             return {
                 false,
+                facts.syntheticBusinessTransactionId,
                 authorization.syntheticBusinessTransactionId,
+                authorization.authorizationId,
                 facts.eventType,
                 facts.amountUsd,
                 facts.expectedDebitAccount,
@@ -97,13 +139,15 @@ public:
 
         return {
             true,
+            facts.syntheticBusinessTransactionId,
             authorization.syntheticBusinessTransactionId,
+            authorization.authorizationId,
             facts.eventType,
             facts.amountUsd,
             facts.expectedDebitAccount,
             facts.expectedCreditAccount,
             "PROVIDER_DISBURSEMENT_INTENT_READY",
-            "canonical synthetic providerDisbursement intent is ready for a future execution adapter; no journal post, bank instruction, Fund cash movement, settlement, or regulatory-compliance verdict is created by this service"
+            "canonical synthetic providerDisbursement intent is ready for a future execution adapter with distinct disbursement idempotency and explicit payable/payment lineage; no journal post, bank instruction, Fund cash movement, settlement, or regulatory-compliance verdict is created by this service"
         };
     }
 };
