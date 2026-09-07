@@ -29,14 +29,14 @@ public:
             };
         }
 
-        if (!journal.posted || journal.verdict != "FINERACT_JOURNAL_ACCEPTED_FIXTURE") {
+        if (!journal.posted) {
             return {
                 false,
                 payableIntent.syntheticBusinessTransactionId,
                 facts.authorizationId,
                 {},
                 "PAYMENT_AUTHORIZATION_NOT_EVALUATED_POSTED_PAYABLE_REQUIRED",
-                "payment authorization requires the canonical provider-payable journal to be posted before a provider disbursement may be considered"
+                "payment authorization requires the canonical provider-payable journal to be posted before a provider disbursement may be considered; adapter-specific verdict text is not itself authority"
             };
         }
 
@@ -47,7 +47,18 @@ public:
                 facts.authorizationId,
                 {},
                 "PAYMENT_AUTHORIZATION_REJECTED_TRANSACTION_LINEAGE_MISMATCH",
-                "Fineract journal business-transaction lineage must match the provider-payable accounting intent exactly"
+                "posted journal business-transaction lineage must match the provider-payable accounting intent exactly"
+            };
+        }
+
+        if (journal.fineractTransactionId.empty()) {
+            return {
+                false,
+                payableIntent.syntheticBusinessTransactionId,
+                facts.authorizationId,
+                {},
+                "PAYMENT_AUTHORIZATION_REJECTED_LEDGER_TRANSACTION_ID_REQUIRED",
+                "posted provider-payable evidence must carry a ledger transaction id before payment authority can be evaluated"
             };
         }
 
