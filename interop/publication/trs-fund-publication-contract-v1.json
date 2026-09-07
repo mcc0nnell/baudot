@@ -1,0 +1,80 @@
+{
+  "schema": "baudot.trs-fund-publication-contract@1",
+  "description": "A one-way public/oversight projection over explicitly public aggregate TRS Fund calibration data. It grants visibility only and cannot establish provider, machine, operator, claim, payment, ledger, or TRS program authority.",
+  "source": {
+    "path": "testkit/fund/rolka-loube-2025-26.json",
+    "requiredSchema": "baudot.trs-fund-public-calibration@1",
+    "requiredBoundaryFact": "publicAggregatesOnly",
+    "requiredBoundaryValue": true
+  },
+  "publication": {
+    "path": "site/public/data/trs-fund-public-2025-26.json",
+    "mediaType": "application/json",
+    "authenticationRequired": false,
+    "direction": "one-way",
+    "mutationAllowed": false,
+    "consumerTypes": [
+      "public",
+      "oversight",
+      "research"
+    ]
+  },
+  "allowedTopLevelFields": [
+    "schema",
+    "programYear",
+    "sources",
+    "fund",
+    "serviceRequirements",
+    "contribution",
+    "rates",
+    "claimBoundary"
+  ],
+  "forbiddenFieldsAnywhere": [
+    "providerId",
+    "providerName",
+    "clientId",
+    "userId",
+    "accountId",
+    "accountNo",
+    "transactionId",
+    "journalId",
+    "paymentId",
+    "claimId",
+    "consentId",
+    "sessionId",
+    "accessToken",
+    "refreshToken",
+    "deviceFingerprint",
+    "email",
+    "telephoneNumber",
+    "subscriberId"
+  ],
+  "forbiddenValueMarkers": [
+    "demo-client-",
+    "demo3@example.com",
+    "demo4@example.com",
+    "Bearer ",
+    "access_token=",
+    "refresh_token="
+  ],
+  "authorityInvariants": [
+    "public visibility != provider entitlement",
+    "public visibility != machine consent",
+    "public visibility != Baudot operator authority",
+    "public visibility != TRS program authority",
+    "public visibility != claim approval",
+    "public visibility != payment authorization",
+    "published aggregate != Fineract ledger authority"
+  ],
+  "claimBoundary": {
+    "officialFccPublication": false,
+    "productionFundStateClaimed": false,
+    "providerLevelDataAllowed": false,
+    "consumerAuthenticationDerived": false,
+    "machineConsentDerived": false,
+    "operatorAuthorityDerived": false,
+    "claimAuthorityDerived": false,
+    "paymentAuthorityDerived": false,
+    "regulatoryComplianceClaimed": false
+  }
+}
