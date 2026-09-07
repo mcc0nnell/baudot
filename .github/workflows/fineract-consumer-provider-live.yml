@@ -5,14 +5,14 @@ on:
     paths:
       - "docs/fineract-consumer-provider-live.md"
       - "interop/fineract-consumer/**"
-      - "scripts/run_fineract_consumer_provider_live.py"
+      - "scripts/run_fineract_consumer_provider_live.sh"
       - ".github/workflows/fineract-consumer-provider-live.yml"
   push:
     branches: [main]
     paths:
       - "docs/fineract-consumer-provider-live.md"
       - "interop/fineract-consumer/**"
-      - "scripts/run_fineract_consumer_provider_live.py"
+      - "scripts/run_fineract_consumer_provider_live.sh"
       - ".github/workflows/fineract-consumer-provider-live.yml"
 
 permissions:
@@ -34,18 +34,14 @@ jobs:
           path: .upstream/fineract-consumer-facing
           persist-credentials: false
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-
       - name: Verify Consumer-Facing source pin
         run: test "$(git -C .upstream/fineract-consumer-facing rev-parse HEAD)" = "58eacf7338126aa0de2b2a2ef70319f45d403fbf"
 
       - name: Exercise authenticated provider read and cross-provider denial
         run: >-
-          python scripts/run_fineract_consumer_provider_live.py
-          --upstream-root .upstream/fineract-consumer-facing
-          --evidence-dir "${RUNNER_TEMP}/fineract-consumer-provider-live"
+          bash scripts/run_fineract_consumer_provider_live.sh
+          .upstream/fineract-consumer-facing
+          "${RUNNER_TEMP}/fineract-consumer-provider-live"
 
       - name: Preserve live boundary evidence
         if: always()
