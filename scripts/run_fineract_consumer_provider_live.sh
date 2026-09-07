@@ -81,9 +81,17 @@ login_customer
 ACCESS_TOKEN="$RESULT"
 require "upstream provider login returned a session token" test -n "$ACCESS_TOKEN"
 
+# Consumer-Facing binds every authenticated consumer request to the device
+# fingerprint minted into the access token. The qualification probe must carry
+# the same header as the login/2FA flow rather than replaying the cookie alone.
+consumer_curl_headers=(
+  -H "Cookie: ${ACCESS_TOKEN_COOKIE_NAME}=$ACCESS_TOKEN"
+  -H "$DEVICE_FINGERPRINT_HEADER: $DEVICE_FINGERPRINT"
+)
+
 OWN_LIST="$EVIDENCE_DIR/provider-own-savings.json"
 OWN_LIST_STATUS="$(curl -sS -o "$OWN_LIST" -w '%{http_code}' \
-  -H "Cookie: ${ACCESS_TOKEN_COOKIE_NAME}=$ACCESS_TOKEN" \
+  "${consumer_curl_headers[@]}" \
   "$BFF_BASE/savings")"
 require_eq "authenticated provider can list own savings" "200" "$OWN_LIST_STATUS"
 
@@ -94,7 +102,7 @@ require "provider savings response contains an account" test -n "$OWN_ID"
 # isolation measurement begins only after this known-good resource check.
 OWN_DETAIL="$EVIDENCE_DIR/provider-own-savings-detail.json"
 OWN_DETAIL_STATUS="$(curl -sS -o "$OWN_DETAIL" -w '%{http_code}' \
-  -H "Cookie: ${ACCESS_TOKEN_COOKIE_NAME}=$ACCESS_TOKEN" \
+  "${consumer_curl_headers[@]}" \
   "$BFF_BASE/savings/$OWN_ID")"
 require_eq "provider can read one owned savings account" "200" "$OWN_DETAIL_STATUS"
 
@@ -115,7 +123,7 @@ BEFORE_PROTECTED="$(count_path_hits "$BEFORE_LOG" "$PROTECTED_PATH")"
 
 CROSS_BODY="$EVIDENCE_DIR/cross-provider-denial.json"
 CROSS_STATUS="$(curl -sS -o "$CROSS_BODY" -w '%{http_code}' \
-  -H "Cookie: ${ACCESS_TOKEN_COOKIE_NAME}=$ACCESS_TOKEN" \
+  "${consumer_curl_headers[@]}" \
   "$BFF_BASE/savings/$CROSS_SAVINGS_ID")"
 require_eq "cross-provider savings request is denied" "403" "$CROSS_STATUS"
 
@@ -128,7 +136,7 @@ require_eq "primed cross-provider denial creates no downstream Fineract request"
 
 AUDIT_BODY="$EVIDENCE_DIR/provider-audit-events.json"
 AUDIT_STATUS="$(curl -sS -o "$AUDIT_BODY" -w '%{http_code}' \
-  -H "Cookie: ${ACCESS_TOKEN_COOKIE_NAME}=$ACCESS_TOKEN" \
+  "${consumer_curl_headers[@]}" \
   "$BFF_BASE/audit/events" || true)"
 if [ "$AUDIT_STATUS" != "200" ]; then
   rm -f "$AUDIT_BODY"
@@ -161,7 +169,12 @@ jq -n \
     schema: $schema,
     upstream: {repository: $repository, commit: $commit},
     actor: {kind: "synthetic-provider-user", email: $providerEmail},
-    authentication: {passwordStepObserved: true, twoFactorObserved: true, sessionEstablished: true},
+    authentication: {
+      passwordStepObserved: true,
+      twoFactorObserved: true,
+      sessionEstablished: true,
+      deviceFingerprintBindingPreserved: true
+    },
     ownRead: {
       listEndpoint: $ownListEndpoint,
       listStatus: ($ownListStatus|tonumber),
