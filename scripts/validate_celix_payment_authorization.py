@@ -167,7 +167,15 @@ def main() -> int:
         raise AssertionError("ready payment evidence lost the no-cash-execution boundary")
 
     ready_disbursement = detail_for(ready, "ProviderDisbursementIntent")
-    for token in ("readyForPosting=true", "debit=2100", "credit=1100", "amountUsd=8830.00"):
+    for token in (
+        "readyForPosting=true",
+        "businessTransactionId=disburse-vrs-celix-payment-001",
+        "sourceProviderPayableBusinessTransactionId=claim-vrs-celix-payment-001",
+        "paymentAuthorizationId=payment-auth-celix-001",
+        "debit=2100",
+        "credit=1100",
+        "amountUsd=8830.00",
+    ):
         if token not in ready_disbursement:
             raise AssertionError(f"ready disbursement evidence missing {token}")
 
@@ -198,6 +206,8 @@ def main() -> int:
         "fineractLedgerSuccessImpliesPaymentAuthorization": False,
         "paymentAuthorizationImpliesCashMovement": False,
         "disbursementIntentImpliesCashMovement": False,
+        "distinctDisbursementTransactionIdPreserved": True,
+        "paymentAuthorizationLineagePreserved": True,
         "bankOrPaymentNetworkUsed": False,
         "settlementClaimed": False,
         "profiles": {
