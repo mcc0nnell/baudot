@@ -27,11 +27,19 @@ def machine_access(contract: dict, facts: dict) -> str:
 
 
 def provider_access(facts: dict, expected: str) -> str:
+    """Observe only the provider surface explicitly exercised by a control.
+
+    A machine-only control may carry providerSessionActive as an independence fact,
+    but that must not manufacture a provider authorization verdict. Only controls
+    that explicitly expect provider authorization evaluate the active session.
+    """
     if facts.get("openBankingBearerPresentedToConsumerSurface") is True:
         return "UNAUTHENTICATED"
-    if facts.get("providerSessionActive") is True:
-        return "AUTHORIZED"
-    return expected if expected in {"UNCHANGED", "NOT_APPLICABLE"} else "UNCHANGED"
+    if expected == "AUTHORIZED":
+        return "AUTHORIZED" if facts.get("providerSessionActive") is True else "DENIED"
+    if expected in {"UNCHANGED", "NOT_APPLICABLE"}:
+        return expected
+    return "UNCHANGED"
 
 
 def validate_upstream(contract: dict, upstream_root: Path) -> None:
