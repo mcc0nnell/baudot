@@ -1,0 +1,70 @@
+{
+  "schema": "baudot.trs-fund-public-projection@1",
+  "programYear": {
+    "start": "2025-07-01",
+    "end": "2026-06-30"
+  },
+  "sources": [
+    {
+      "title": "Rolka Loube TRS Reports",
+      "url": "https://rolkaloube.com/programs/federal-itrs/forms-reports",
+      "use": "2025 Annual Report, Tables 2-4 and public program-year totals"
+    },
+    {
+      "title": "Rolka Loube TRS Providers",
+      "url": "https://rolkaloube.com/programs/federal-itrs/trs-providers",
+      "use": "published per-minute compensation rates"
+    }
+  ],
+  "fund": {
+    "totalServiceRevenueRequirement": 1753281830,
+    "ndbedp": 10000000,
+    "administrativeCosts": 30079185,
+    "grossFundRequirement": 1793361015,
+    "lessProjectedFundBalance": 260000000,
+    "netFundRequirement": 1533361015
+  },
+  "serviceRequirements": {
+    "analogNetFundRequirement": 8212726,
+    "ipBasedNetFundRequirement": 1525148289
+  },
+  "contribution": {
+    "analog": {
+      "netRequirement": 8212726,
+      "revenueBase": 31985845946,
+      "reportedFactor": "0.00026"
+    },
+    "ipBased": {
+      "netRequirement": 1525148289,
+      "revenueBase": 70016213165,
+      "reportedFactor": "0.02178"
+    }
+  },
+  "rates": {
+    "TTY": "7.3512",
+    "STS": "8.4822",
+    "CTS": "3.1893",
+    "IP_RELAY": "2.1970",
+    "IP_CTS_CA_BASE": "1.40",
+    "IP_CTS_CA_SUPPLEMENTAL": "0.22",
+    "IP_CTS_ASR": "1.05",
+    "VRS_EMERGENT": "8.33",
+    "VRS_TIER_I": "6.73",
+    "VRS_TIER_II": "4.21",
+    "VTS_ADDITIVE": "0.21"
+  },
+  "claimBoundary": {
+    "publicAggregatesOnly": true,
+    "officialFccPublication": false,
+    "productionFundStateClaimed": false,
+    "providerLevelData": false,
+    "providerEntitlementDerived": false,
+    "consumerAuthenticationDerived": false,
+    "machineConsentDerived": false,
+    "operatorAuthorityDerived": false,
+    "trsProgramAuthorityDerived": false,
+    "claimAuthorityDerived": false,
+    "paymentAuthorityDerived": false,
+    "regulatoryComplianceClaimed": false
+  }
+}
