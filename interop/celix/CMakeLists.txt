@@ -162,6 +162,26 @@ add_celix_bundle(FundClaimAuthorityBundle
 )
 baudot_configure_bundle(FundClaimAuthorityBundle)
 
+add_celix_bundle(ProviderPayableIntentBundle
+  SOURCES src/provider_payable_intent_bundle.cc
+  SYMBOLIC_NAME "Baudot_ProviderPayableIntent"
+  NAME "Baudot Provider Payable Intent"
+  FILENAME "baudot_provider_payable_intent"
+  VERSION "0.1.0"
+  GROUP "baudot/celix-lab"
+)
+baudot_configure_bundle(ProviderPayableIntentBundle)
+
+add_celix_bundle(FineractJournalAdapterBundle
+  SOURCES src/fineract_journal_adapter_bundle.cc
+  SYMBOLIC_NAME "Baudot_FineractJournalAdapter"
+  NAME "Baudot Synthetic Fineract Journal Adapter"
+  FILENAME "baudot_fineract_journal_adapter"
+  VERSION "0.1.0"
+  GROUP "baudot/celix-lab"
+)
+baudot_configure_bundle(FineractJournalAdapterBundle)
+
 function(baudot_add_probe target profile_definition)
   add_celix_bundle(${target}
     SOURCES src/composition_probe_bundle.cc
@@ -249,6 +269,25 @@ baudot_add_claim_probe(FundClaimCompensabilityPendingProbeBundle BAUDOT_CLAIM_CO
 baudot_add_claim_probe(FundClaimRateMissingProbeBundle BAUDOT_CLAIM_RATE_MISSING)
 baudot_add_claim_probe(FundClaimPendingProbeBundle BAUDOT_CLAIM_PENDING)
 baudot_add_claim_probe(FundClaimAmountMismatchProbeBundle BAUDOT_CLAIM_AMOUNT_MISMATCH)
+
+function(baudot_add_payable_probe target profile_definition)
+  add_celix_bundle(${target}
+    SOURCES src/provider_payable_composition_probe_bundle.cc
+    SYMBOLIC_NAME "Baudot_${target}"
+    NAME "Baudot ${target}"
+    FILENAME "baudot_${target}"
+    VERSION "0.1.0"
+    GROUP "baudot/celix-lab"
+  )
+  baudot_configure_bundle(${target})
+  target_compile_definitions(${target} PRIVATE ${profile_definition})
+endfunction()
+
+baudot_add_payable_probe(ProviderPayableReadyProbeBundle BAUDOT_PAYABLE_READY)
+baudot_add_payable_probe(ProviderPayableClaimPendingLedgerAcceptedProbeBundle BAUDOT_PAYABLE_CLAIM_PENDING_LEDGER_ACCEPTED)
+baudot_add_payable_probe(ProviderPayableMappingMismatchProbeBundle BAUDOT_PAYABLE_MAPPING_MISMATCH)
+baudot_add_payable_probe(ProviderPayableDuplicateReplayProbeBundle BAUDOT_PAYABLE_DUPLICATE_REPLAY)
+baudot_add_payable_probe(ProviderPayableClosedPeriodProbeBundle BAUDOT_PAYABLE_CLOSED_PERIOD)
 
 # A standalone framework driver is intentionally used for dependency lifecycle
 # evidence. It stops only the parser bundle while admission and RTT remain live.
@@ -446,3 +485,28 @@ baudot_add_claim_container(baudot_celix_fund_claim_compensability_pending FundCl
 baudot_add_claim_container(baudot_celix_fund_claim_rate_missing FundClaimRateMissingProbeBundle)
 baudot_add_claim_container(baudot_celix_fund_claim_pending FundClaimPendingProbeBundle)
 baudot_add_claim_container(baudot_celix_fund_claim_amount_mismatch FundClaimAmountMismatchProbeBundle)
+
+function(baudot_add_payable_container target probe_bundle)
+  add_celix_container(${target}
+    BUNDLES
+      EvidenceEmitterBundle
+      PjsipSignalingParserBundle
+      PjsipCallAdmissionBundle
+      AuthenticatedActorContextBundle
+      RangerAllowAuthorizationBundle
+      TrsBusinessAuthorityBundle
+      VrsCompensabilityBundle
+      FundClaimAuthorityBundle
+      ProviderPayableIntentBundle
+      FineractJournalAdapterBundle
+      ${probe_bundle}
+      Celix::shell
+      Celix::shell_tui
+  )
+endfunction()
+
+baudot_add_payable_container(baudot_celix_provider_payable_ready ProviderPayableReadyProbeBundle)
+baudot_add_payable_container(baudot_celix_provider_payable_claim_pending_ledger_accepted ProviderPayableClaimPendingLedgerAcceptedProbeBundle)
+baudot_add_payable_container(baudot_celix_provider_payable_mapping_mismatch ProviderPayableMappingMismatchProbeBundle)
+baudot_add_payable_container(baudot_celix_provider_payable_duplicate_replay ProviderPayableDuplicateReplayProbeBundle)
+baudot_add_payable_container(baudot_celix_provider_payable_closed_period ProviderPayableClosedPeriodProbeBundle)

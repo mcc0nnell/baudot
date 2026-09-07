@@ -91,6 +91,36 @@ struct FundClaimDecision {
     std::string detail{};
 };
 
+struct ProviderPayableIntentFacts {
+    std::string eventType{};
+    std::string postingDate{};
+    std::string amountUsd{};
+    std::string expectedDebitAccount{};
+    std::string expectedCreditAccount{};
+    bool priorPostingObservedForBusinessTransactionId{false};
+    bool accountingPeriodOpen{true};
+    bool authorizedOpenPostingDate{false};
+};
+
+struct ProviderPayableIntentDecision {
+    bool readyForPosting{false};
+    std::string syntheticBusinessTransactionId{};
+    std::string eventType{};
+    std::string amountUsd{};
+    std::string debitAccount{};
+    std::string creditAccount{};
+    std::string verdict{};
+    std::string detail{};
+};
+
+struct FineractJournalDecision {
+    bool posted{false};
+    std::string syntheticBusinessTransactionId{};
+    std::string fineractTransactionId{};
+    std::string verdict{};
+    std::string detail{};
+};
+
 class ISignalingParser {
 public:
     static constexpr const char* NAME = "baudot.signaling_parser";
@@ -173,6 +203,26 @@ public:
         const CompensabilityDecision& compensability,
         const RateDecision& rate,
         const FundClaimFacts& facts) = 0;
+};
+
+class IProviderPayableIntentService {
+public:
+    static constexpr const char* NAME = "baudot.provider_payable_intent";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~IProviderPayableIntentService() noexcept = default;
+    virtual ProviderPayableIntentDecision evaluate(
+        const FundClaimDecision& claim,
+        const ProviderPayableIntentFacts& facts) = 0;
+};
+
+class IFineractJournalAdapter {
+public:
+    static constexpr const char* NAME = "baudot.fineract_journal_adapter";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~IFineractJournalAdapter() noexcept = default;
+    virtual FineractJournalDecision post(const ProviderPayableIntentDecision& intent) = 0;
 };
 
 class IEvidenceEmitter {
