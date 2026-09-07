@@ -47,6 +47,28 @@ struct TrsCallFacts {
     std::string serviceType{};
 };
 
+struct VrsCompensabilityFacts {
+    bool completedInternetBasedTrsCall{false};
+    bool providerCommissionCertified{false};
+    bool upstreamUserValidated{false};
+    bool callRecordComplete{false};
+    bool prohibitedIncentiveKnown{false};
+    bool unauthorizedOrUnnecessaryUseKnown{false};
+    bool providerInvolvedRemoteTraining{false};
+    bool internationalIpOrigin{false};
+    bool executiveCertificationPresent{false};
+    bool auditPaymentSuspended{false};
+    std::string withholdingState{};
+    std::string administratorDetermination{};
+};
+
+struct CompensabilityDecision {
+    bool eligibleToSeekCompensation{false};
+    bool establishedCompensable{false};
+    std::string verdict{};
+    std::string detail{};
+};
+
 class ISignalingParser {
 public:
     static constexpr const char* NAME = "baudot.signaling_parser";
@@ -106,6 +128,17 @@ public:
         const ActorContext& actor,
         const CapabilityDecision& authorization,
         const TrsCallFacts& facts) = 0;
+};
+
+class ICompensabilityService {
+public:
+    static constexpr const char* NAME = "baudot.compensability";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~ICompensabilityService() noexcept = default;
+    virtual CompensabilityDecision evaluateVrs(
+        const CapabilityDecision& trsBusinessAuthority,
+        const VrsCompensabilityFacts& facts) = 0;
 };
 
 class IEvidenceEmitter {
