@@ -12,7 +12,9 @@
 namespace baudot::celixlab {
 namespace {
 
-constexpr std::string_view PJSIP_IDENTITY = "pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd";
+constexpr std::string_view PJSIP_IDENTITY =
+    "pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd";
+
 constexpr std::string_view INVITE_FIXTURE =
     "INVITE sip:callee@example.invalid SIP/2.0\r\n"
     "Via: SIP/2.0/UDP 127.0.0.1:5060;branch=z9hG4bK-baudot-celix-lifecycle\r\n"
@@ -22,7 +24,8 @@ constexpr std::string_view INVITE_FIXTURE =
     "Call-ID: baudot-celix-lifecycle@example.invalid\r\n"
     "CSeq: 1 INVITE\r\n"
     "Content-Type: application/sdp\r\n"
-    "Content-Length: 121\r\n\r\n"
+    "Content-Length: 121\r\n"
+    "\r\n"
     "v=0\r\n"
     "o=- 1 1 IN IP4 127.0.0.1\r\n"
     "s=Baudot Celix\r\n"
@@ -47,45 +50,75 @@ std::string jsonEscape(std::string_view input) {
     return escaped;
 }
 
-void emit(std::string_view phase, std::string_view capability, std::string_view verdict, std::string_view detail) {
-    std::cout << "{\"type\":\"baudot.celix.lifecycle-observation\""
-              << ",\"phase\":\"" << jsonEscape(phase) << "\""
-              << ",\"capability\":\"" << jsonEscape(capability) << "\""
-              << ",\"verdict\":\"" << jsonEscape(verdict) << "\""
-              << ",\"detail\":\"" << jsonEscape(detail) << "\"}" << std::endl;
+void emit(
+    std::string_view phase,
+    std::string_view capability,
+    std::string_view verdict,
+    std::string_view detail) {
+    std::cout
+        << "{\"type\":\"baudot.celix.lifecycle-observation\""
+        << ",\"phase\":\"" << jsonEscape(phase) << "\""
+        << ",\"capability\":\"" << jsonEscape(capability) << "\""
+        << ",\"verdict\":\"" << jsonEscape(verdict) << "\""
+        << ",\"detail\":\"" << jsonEscape(detail) << "\"}"
+        << std::endl;
 }
 
 void emitAuthorityBoundary(std::string_view phase) {
-    emit(phase, "AuthorityBoundary", "NOT_MODELED", "bundle lifecycle does not establish SIP/SDP/T.140 conformance, authentication, authorization, TRS business authority, or regulatory compliance");
+    emit(
+        phase,
+        "AuthorityBoundary",
+        "NOT_MODELED",
+        "bundle lifecycle does not establish SIP/SDP/T.140 conformance, authentication, authorization, TRS business authority, or regulatory compliance");
 }
 
 std::optional<CapabilityDecision> evaluateParser(const std::shared_ptr<celix::BundleContext>& ctx) {
     std::optional<CapabilityDecision> decision;
     const bool found = ctx->useService<ISignalingParser>()
-        .addUseCallback([&decision](ISignalingParser& parser) { decision = parser.parse(INVITE_FIXTURE); })
+        .addUseCallback([&decision](ISignalingParser& parser) {
+            decision = parser.parse(INVITE_FIXTURE);
+        })
         .build();
-    return found ? decision : std::nullopt;
+    if (!found) {
+        return std::nullopt;
+    }
+    return decision;
 }
 
 std::optional<CapabilityDecision> evaluateAdmission(const std::shared_ptr<celix::BundleContext>& ctx) {
     std::optional<CapabilityDecision> decision;
     const bool found = ctx->useService<ICallAdmission>()
-        .addUseCallback([&decision](ICallAdmission& admission) { decision = admission.evaluate(INVITE_FIXTURE); })
+        .addUseCallback([&decision](ICallAdmission& admission) {
+            decision = admission.evaluate(INVITE_FIXTURE);
+        })
         .build();
-    return found ? decision : std::nullopt;
+    if (!found) {
+        return std::nullopt;
+    }
+    return decision;
 }
 
-bool emitExpectedActiveCapabilities(const std::shared_ptr<celix::BundleContext>& ctx, std::string_view phase) {
+bool emitExpectedActiveCapabilities(
+    const std::shared_ptr<celix::BundleContext>& ctx,
+    std::string_view phase) {
     const auto parser = evaluateParser(ctx);
-    if (!parser.has_value() || parser->verdict != "PJSIP_PARSE_ACCEPTED") {
-        std::cerr << phase << ": parser capability missing or unexpected" << std::endl;
+    if (!parser.has_value()) {
+        std::cerr << phase << ": ISignalingParser service missing" << std::endl;
+        return false;
+    }
+    if (parser->verdict != "PJSIP_PARSE_ACCEPTED") {
+        std::cerr << phase << ": unexpected parser verdict " << parser->verdict << std::endl;
         return false;
     }
     emit(phase, "SignalingParser", parser->verdict, parser->detail);
 
     const auto admission = evaluateAdmission(ctx);
-    if (!admission.has_value() || admission->verdict != "PJSIP_UAS_TEXT_PROFILE_ADMITTED") {
-        std::cerr << phase << ": admission capability missing or unexpected" << std::endl;
+    if (!admission.has_value()) {
+        std::cerr << phase << ": ICallAdmission service missing" << std::endl;
+        return false;
+    }
+    if (admission->verdict != "PJSIP_UAS_TEXT_PROFILE_ADMITTED") {
+        std::cerr << phase << ": unexpected admission verdict " << admission->verdict << std::endl;
         return false;
     }
     emit(phase, "CallAdmission", admission->verdict, admission->detail);
@@ -98,6 +131,7 @@ bool emitExpectedActiveCapabilities(const std::shared_ptr<celix::BundleContext>&
 
 int main(int argc, char** argv) {
     using namespace baudot::celixlab;
+
     if (argc != 2) {
         std::cerr << "usage: baudot_celix_pjsip_lifecycle <pjsip-capability-bundle.zip>" << std::endl;
         return EXIT_FAILURE;
@@ -107,27 +141,54 @@ int main(int argc, char** argv) {
     properties.set("CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE", "true");
     properties.set("CELIX_FRAMEWORK_CACHE_DIR", ".baudot-celix-pjsip-lifecycle-cache");
     properties.set("CELIX_LOGGING_DEFAULT_ACTIVE_LOG_LEVEL", "warning");
+
     auto framework = celix::createFramework(properties);
     auto ctx = framework->getFrameworkBundleContext();
 
     const long capabilityBundleId = ctx->installBundle(argv[1], true);
-    if (capabilityBundleId < 0 || !emitExpectedActiveCapabilities(ctx, "active")) {
+    if (capabilityBundleId < 0) {
+        std::cerr << "failed to install/start PJSIP capability bundle" << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    if (!emitExpectedActiveCapabilities(ctx, "active")) {
         return EXIT_FAILURE;
     }
 
     if (!ctx->stopBundle(capabilityBundleId)) {
+        std::cerr << "failed to stop PJSIP capability bundle" << std::endl;
         return EXIT_FAILURE;
     }
-    if (ctx->findService<ISignalingParser>() >= 0 || ctx->findService<ICallAdmission>() >= 0) {
-        std::cerr << "PJSIP services remained registered after bundle stop" << std::endl;
+
+    if (ctx->findService<ISignalingParser>() >= 0) {
+        std::cerr << "ISignalingParser remained registered after bundle stop" << std::endl;
         return EXIT_FAILURE;
     }
-    emit("stopped", "SignalingParser", "CAPABILITY_MISSING", "PJSIP capability bundle stopped; no ISignalingParser service remains registered");
-    emit("stopped", "CallAdmission", "CAPABILITY_MISSING", "PJSIP capability bundle stopped; no ICallAdmission service remains registered");
+    if (ctx->findService<ICallAdmission>() >= 0) {
+        std::cerr << "ICallAdmission remained registered after bundle stop" << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    emit(
+        "stopped",
+        "SignalingParser",
+        "CAPABILITY_MISSING",
+        "PJSIP capability bundle stopped; no ISignalingParser service remains registered");
+    emit(
+        "stopped",
+        "CallAdmission",
+        "CAPABILITY_MISSING",
+        "PJSIP capability bundle stopped; no ICallAdmission service remains registered");
     emitAuthorityBoundary("stopped");
 
-    if (!ctx->startBundle(capabilityBundleId) || !emitExpectedActiveCapabilities(ctx, "restored")) {
+    if (!ctx->startBundle(capabilityBundleId)) {
+        std::cerr << "failed to restart PJSIP capability bundle" << std::endl;
         return EXIT_FAILURE;
     }
+
+    if (!emitExpectedActiveCapabilities(ctx, "restored")) {
+        return EXIT_FAILURE;
+    }
+
     return EXIT_SUCCESS;
 }

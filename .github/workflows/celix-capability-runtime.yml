@@ -17,7 +17,10 @@ on:
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
   workflow_dispatch:
-permissions: {contents: read}
+
+permissions:
+  contents: read
+
 jobs:
   qualify:
     runs-on: ubuntu-24.04
@@ -28,42 +31,131 @@ jobs:
       PJSIP_COMMIT: "5a457451fa2712ba18e12b01738e8ff3af2b26fd"
     steps:
       - uses: actions/checkout@v4
+
       - name: Install native build dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build curl zip uuid-dev libjansson-dev libcurl4-openssl-dev libffi-dev libzip-dev libxml2-dev libczmq-dev rapidjson-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            curl \
+            zip \
+            uuid-dev \
+            libjansson-dev \
+            libcurl4-openssl-dev \
+            libffi-dev \
+            libzip-dev \
+            libxml2-dev \
+            libczmq-dev \
+            rapidjson-dev
+
       - name: Fetch and verify Apache Celix source release
         run: |
           archive="/tmp/celix-${CELIX_VERSION}.tar.gz"
-          curl -fsSL "https://archive.apache.org/dist/celix/celix-${CELIX_VERSION}/celix-${CELIX_VERSION}.tar.gz" -o "${archive}"
+          curl -fsSL \
+            "https://archive.apache.org/dist/celix/celix-${CELIX_VERSION}/celix-${CELIX_VERSION}.tar.gz" \
+            -o "${archive}"
           printf '%s  %s\n' "${CELIX_SHA512}" "${archive}" | sha512sum --check --strict
           tar -xzf "${archive}" -C /tmp
+
       - name: Build and install pinned Apache Celix
         run: |
-          cmake -S "/tmp/celix-${CELIX_VERSION}" -B /tmp/celix-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/celix-install -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF -DBUILD_REMOTE_SERVICE_ADMIN=OFF -DBUILD_CXX_REMOTE_SERVICE_ADMIN=OFF -DBUILD_SHELL=ON
+          cmake \
+            -S "/tmp/celix-${CELIX_VERSION}" \
+            -B /tmp/celix-build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/tmp/celix-install \
+            -DBUILD_TESTING=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_REMOTE_SERVICE_ADMIN=OFF \
+            -DBUILD_CXX_REMOTE_SERVICE_ADMIN=OFF \
+            -DBUILD_SHELL=ON
           cmake --build /tmp/celix-build --target install --parallel 2
+
       - name: Fetch pinned PJSIP source
         run: |
           git clone --filter=blob:none --no-checkout https://github.com/pjsip/pjproject.git /tmp/baudot-pjproject
           git -C /tmp/baudot-pjproject checkout --detach "${PJSIP_COMMIT}"
           test "$(git -C /tmp/baudot-pjproject rev-parse HEAD)" = "${PJSIP_COMMIT}"
+
       - name: Build Baudot Celix capability containers
         run: |
-          cmake -S interop/celix -B build/celix -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/tmp/celix-install -DPJSIP_SOURCE_DIR=/tmp/baudot-pjproject
+          cmake \
+            -S interop/celix \
+            -B build/celix \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=/tmp/celix-install \
+            -DPJSIP_SOURCE_DIR=/tmp/baudot-pjproject
           cmake --build build/celix --parallel 2
+
       - name: Run runtime compositions
         run: |
           mkdir -p build/celix-evidence
-          run_profile() { local executable="$1"; local log="$2"; local status=0; local deploy_dir; local executable_name; deploy_dir="$(dirname "${executable}")"; executable_name="$(basename "${executable}")"; (cd "${deploy_dir}" && timeout --signal=TERM --kill-after=2s 3s "./${executable_name}") > "${log}" 2>&1 || status=$?; if [[ "${status}" -ne 0 && "${status}" -ne 124 ]]; then cat "${log}"; return "${status}"; fi; grep -q '"type":"baudot.celix.observation"' "${log}"; }
-          run_profile build/celix/deploy/baudot_celix_good/baudot_celix_good build/celix-evidence/good.log
-          run_profile build/celix/deploy/baudot_celix_fault_injected/baudot_celix_fault_injected build/celix-evidence/fault-injected.log
-          run_profile build/celix/deploy/baudot_celix_missing_rtt/baudot_celix_missing_rtt build/celix-evidence/missing-rtt.log
-          run_profile build/celix/deploy/baudot_celix_parsed_not_admitted/baudot_celix_parsed_not_admitted build/celix-evidence/parsed-not-admitted.log
+
+          run_profile() {
+            local executable="$1"
+            local log="$2"
+            local status=0
+            local deploy_dir
+            local executable_name
+
+            deploy_dir="$(dirname "${executable}")"
+            executable_name="$(basename "${executable}")"
+
+            (
+              cd "${deploy_dir}"
+              timeout --signal=TERM --kill-after=2s 3s "./${executable_name}"
+            ) > "${log}" 2>&1 || status=$?
+
+            if [[ "${status}" -ne 0 && "${status}" -ne 124 ]]; then
+              cat "${log}"
+              return "${status}"
+            fi
+
+            if ! grep -q '"type":"baudot.celix.observation"' "${log}"; then
+              cat "${log}"
+              echo "No Baudot Celix observations were emitted by ${executable}" >&2
+              return 1
+            fi
+          }
+
+          run_profile build/celix/deploy/baudot_celix_good/baudot_celix_good \
+            build/celix-evidence/good.log
+          run_profile build/celix/deploy/baudot_celix_fault_injected/baudot_celix_fault_injected \
+            build/celix-evidence/fault-injected.log
+          run_profile build/celix/deploy/baudot_celix_missing_rtt/baudot_celix_missing_rtt \
+            build/celix-evidence/missing-rtt.log
+          run_profile build/celix/deploy/baudot_celix_parsed_not_admitted/baudot_celix_parsed_not_admitted \
+            build/celix-evidence/parsed-not-admitted.log
+
       - name: Validate evidence boundaries
-        run: python3 scripts/validate_celix_capability_runtime.py --good build/celix-evidence/good.log --fault-injected build/celix-evidence/fault-injected.log --missing-rtt build/celix-evidence/missing-rtt.log --parsed-not-admitted build/celix-evidence/parsed-not-admitted.log | tee build/celix-evidence/summary.json
+        run: |
+          python3 scripts/validate_celix_capability_runtime.py \
+            --good build/celix-evidence/good.log \
+            --fault-injected build/celix-evidence/fault-injected.log \
+            --missing-rtt build/celix-evidence/missing-rtt.log \
+            --parsed-not-admitted build/celix-evidence/parsed-not-admitted.log \
+            | tee build/celix-evidence/summary.json
+
       - name: Exercise PJSIP capability lifecycle
-        run: build/celix/baudot_celix_pjsip_lifecycle build/celix/baudot_pjsip_call_admission.zip | tee build/celix-evidence/pjsip-lifecycle.log
+        run: |
+          build/celix/baudot_celix_pjsip_lifecycle \
+            build/celix/baudot_pjsip_call_admission.zip \
+            | tee build/celix-evidence/pjsip-lifecycle.log
+
       - name: Validate PJSIP lifecycle evidence
-        run: python3 scripts/validate_celix_pjsip_lifecycle.py --log build/celix-evidence/pjsip-lifecycle.log | tee build/celix-evidence/pjsip-lifecycle-summary.json
+        run: |
+          python3 scripts/validate_celix_pjsip_lifecycle.py \
+            --log build/celix-evidence/pjsip-lifecycle.log \
+            | tee build/celix-evidence/pjsip-lifecycle-summary.json
+
       - name: Preserve qualification evidence
         if: always()
         uses: actions/upload-artifact@v4
-        with: {name: celix-capability-runtime-evidence, path: build/celix-evidence, if-no-files-found: warn}
+        with:
+          name: celix-capability-runtime-evidence
+          path: build/celix-evidence
+          if-no-files-found: warn

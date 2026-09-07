@@ -1,31 +1,136 @@
 #!/usr/bin/env python3
+"""Validate controlled PJSIP parser/admission stop/start evidence in Apache Celix."""
+
 from __future__ import annotations
-import argparse, json
+
+import argparse
+import json
 from pathlib import Path
-PJSIP_IDENTITY="pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd"; TYPE="baudot.celix.lifecycle-observation"
-def load(path):
-    out=[]
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        try: item=json.loads(raw.strip())
-        except json.JSONDecodeError: continue
-        if item.get("type")==TYPE: out.append(item)
-    if not out: raise AssertionError("no lifecycle observations")
-    return out
-def one(obs,phase,cap,verdict):
-    m=[i for i in obs if i.get("phase")==phase and i.get("capability")==cap and i.get("verdict")==verdict]
-    if len(m)!=1: raise AssertionError(f"expected one {phase}/{cap}/{verdict}, saw {len(m)}")
-    return m[0]
-def main():
-    ap=argparse.ArgumentParser(); ap.add_argument("--log",type=Path,required=True); a=ap.parse_args(); obs=load(a.log)
-    if len(obs)!=9: raise AssertionError(f"expected nine lifecycle observations, saw {len(obs)}")
-    active_p=one(obs,"active","SignalingParser","PJSIP_PARSE_ACCEPTED"); active_a=one(obs,"active","CallAdmission","PJSIP_UAS_TEXT_PROFILE_ADMITTED"); one(obs,"active","AuthorityBoundary","NOT_MODELED")
-    stopped_p=one(obs,"stopped","SignalingParser","CAPABILITY_MISSING"); stopped_a=one(obs,"stopped","CallAdmission","CAPABILITY_MISSING"); one(obs,"stopped","AuthorityBoundary","NOT_MODELED")
-    restored_p=one(obs,"restored","SignalingParser","PJSIP_PARSE_ACCEPTED"); restored_a=one(obs,"restored","CallAdmission","PJSIP_UAS_TEXT_PROFILE_ADMITTED"); one(obs,"restored","AuthorityBoundary","NOT_MODELED")
-    for label,item in (("active parser",active_p),("active admission",active_a),("restored parser",restored_p),("restored admission",restored_a)):
-        if PJSIP_IDENTITY not in item.get("detail",""): raise AssertionError(f"{label}: missing PJSIP identity")
-    for item in (stopped_p,stopped_a):
-        if "stopped" not in item.get("detail",""): raise AssertionError("stopped observation lost cause")
-    forbidden={"AUTHORIZED","COMPLIANT","FCC_CERTIFIED","FUND_ELIGIBLE","PROTOCOL_CONFORMANT"}
-    if any(i.get("verdict") in forbidden for i in obs): raise AssertionError("lifecycle leaked authority/conformance verdict")
-    print(json.dumps({"schema":"baudot.celix.pjsip-lifecycle-summary.v2","pjsipImplementation":PJSIP_IDENTITY,"parserSequence":["PJSIP_PARSE_ACCEPTED","CAPABILITY_MISSING","PJSIP_PARSE_ACCEPTED"],"admissionSequence":["PJSIP_UAS_TEXT_PROFILE_ADMITTED","CAPABILITY_MISSING","PJSIP_UAS_TEXT_PROFILE_ADMITTED"],"authorizationClaimed":False,"protocolConformanceClaimed":False,"trsBusinessAuthorityClaimed":False,"observations":len(obs)},indent=2,sort_keys=True)); return 0
-if __name__=="__main__": raise SystemExit(main())
+
+PJSIP_IDENTITY = "pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd"
+TYPE = "baudot.celix.lifecycle-observation"
+
+
+def load(path: Path) -> list[dict[str, str]]:
+    observations: list[dict[str, str]] = []
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            candidate = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if candidate.get("type") == TYPE:
+            observations.append(candidate)
+    if not observations:
+        raise AssertionError(f"no lifecycle observations found in {path}")
+    return observations
+
+
+def one(
+    observations: list[dict[str, str]],
+    phase: str,
+    capability: str,
+    verdict: str,
+) -> dict[str, str]:
+    matches = [
+        item
+        for item in observations
+        if item.get("phase") == phase
+        and item.get("capability") == capability
+        and item.get("verdict") == verdict
+    ]
+    if len(matches) != 1:
+        raise AssertionError(
+            f"expected exactly one {phase}/{capability}/{verdict} observation, saw {len(matches)}"
+        )
+    return matches[0]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--log", type=Path, required=True)
+    args = parser.parse_args()
+
+    observations = load(args.log)
+    if len(observations) != 9:
+        raise AssertionError(f"expected exactly nine lifecycle observations, saw {len(observations)}")
+
+    active_parser = one(observations, "active", "SignalingParser", "PJSIP_PARSE_ACCEPTED")
+    active_admission = one(
+        observations,
+        "active",
+        "CallAdmission",
+        "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
+    )
+    one(observations, "active", "AuthorityBoundary", "NOT_MODELED")
+
+    stopped_parser = one(observations, "stopped", "SignalingParser", "CAPABILITY_MISSING")
+    stopped_admission = one(observations, "stopped", "CallAdmission", "CAPABILITY_MISSING")
+    one(observations, "stopped", "AuthorityBoundary", "NOT_MODELED")
+
+    restored_parser = one(observations, "restored", "SignalingParser", "PJSIP_PARSE_ACCEPTED")
+    restored_admission = one(
+        observations,
+        "restored",
+        "CallAdmission",
+        "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
+    )
+    one(observations, "restored", "AuthorityBoundary", "NOT_MODELED")
+
+    for label, item in (
+        ("active parser", active_parser),
+        ("active admission", active_admission),
+        ("restored parser", restored_parser),
+        ("restored admission", restored_admission),
+    ):
+        if PJSIP_IDENTITY not in item.get("detail", ""):
+            raise AssertionError(f"{label}: missing pinned PJSIP implementation identity")
+
+    for label, item in (
+        ("stopped parser", stopped_parser),
+        ("stopped admission", stopped_admission),
+    ):
+        if "stopped" not in item.get("detail", ""):
+            raise AssertionError(f"{label} observation does not preserve the lifecycle cause")
+
+    forbidden = {
+        "AUTHORIZED",
+        "COMPLIANT",
+        "FCC_CERTIFIED",
+        "FUND_ELIGIBLE",
+        "PROTOCOL_CONFORMANT",
+    }
+    leaked = [
+        (item.get("phase"), item.get("capability"), item.get("verdict"))
+        for item in observations
+        if item.get("verdict") in forbidden
+    ]
+    if leaked:
+        raise AssertionError(f"lifecycle evidence leaked authority/conformance verdicts: {leaked}")
+
+    summary = {
+        "schema": "baudot.celix.pjsip-lifecycle-summary.v2",
+        "pjsipImplementation": PJSIP_IDENTITY,
+        "parserSequence": [
+            "PJSIP_PARSE_ACCEPTED",
+            "CAPABILITY_MISSING",
+            "PJSIP_PARSE_ACCEPTED",
+        ],
+        "admissionSequence": [
+            "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
+            "CAPABILITY_MISSING",
+            "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
+        ],
+        "authorizationClaimed": False,
+        "protocolConformanceClaimed": False,
+        "trsBusinessAuthorityClaimed": False,
+        "observations": len(observations),
+    }
+    print(json.dumps(summary, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
