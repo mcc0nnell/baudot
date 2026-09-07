@@ -1,0 +1,51 @@
+name: shiro-user-session
+
+on:
+  pull_request:
+    paths:
+      - 'testkit/business/shiro-user-session-v1.json'
+      - 'scripts/validate_shiro_user_session.py'
+      - 'interop/shiro/user-session/**'
+      - 'docs/shiro-user-session.md'
+      - '.github/workflows/shiro-user-session.yml'
+  push:
+    paths:
+      - 'testkit/business/shiro-user-session-v1.json'
+      - 'scripts/validate_shiro_user_session.py'
+      - 'interop/shiro/user-session/**'
+      - 'docs/shiro-user-session.md'
+      - '.github/workflows/shiro-user-session.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Compile Shiro boundary validator
+        run: python -m py_compile scripts/validate_shiro_user_session.py
+      - name: Validate Shiro user/session authority boundary
+        run: python scripts/validate_shiro_user_session.py
+      - name: Verify pinned Shiro release source
+        run: |
+          git init --quiet target/shiro-source
+          git -C target/shiro-source remote add origin https://github.com/apache/shiro.git
+          git -C target/shiro-source fetch --quiet --depth=1 origin 3dcc3fc2a8ddae21ea76a8c55637aa165f368357
+          test "$(git -C target/shiro-source rev-parse FETCH_HEAD)" = "3dcc3fc2a8ddae21ea76a8c55637aa165f368357"
+
+  live-shiro:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Run real Shiro 3.0.1 user/session qualification
+        run: mvn -B -ntp -f interop/shiro/user-session/pom.xml test
