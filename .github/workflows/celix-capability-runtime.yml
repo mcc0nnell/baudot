@@ -6,20 +6,24 @@ on:
       - ".github/workflows/celix-capability-runtime.yml"
       - "docs/celix-capability-runtime.md"
       - "docs/celix-security-composition.md"
+      - "docs/celix-trs-business-authority.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
       - "scripts/validate_celix_security_composition.py"
+      - "scripts/validate_celix_trs_business_authority.py"
   push:
     branches: [main]
     paths:
       - ".github/workflows/celix-capability-runtime.yml"
       - "docs/celix-capability-runtime.md"
       - "docs/celix-security-composition.md"
+      - "docs/celix-trs-business-authority.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
       - "scripts/validate_celix_security_composition.py"
+      - "scripts/validate_celix_trs_business_authority.py"
   workflow_dispatch:
 
 permissions:
@@ -140,6 +144,12 @@ jobs:
             build/celix-evidence/security-authorization-deny.log
           run_profile build/celix/deploy/baudot_celix_security_remembered_only/baudot_celix_security_remembered_only \
             build/celix-evidence/security-remembered-only.log
+          run_profile build/celix/deploy/baudot_celix_business_good/baudot_celix_business_good \
+            build/celix-evidence/business-good.log
+          run_profile build/celix/deploy/baudot_celix_business_validation_fail/baudot_celix_business_validation_fail \
+            build/celix-evidence/business-validation-fail.log
+          run_profile build/celix/deploy/baudot_celix_business_authorization_deny/baudot_celix_business_authorization_deny \
+            build/celix-evidence/business-authorization-deny.log
 
       - name: Validate evidence boundaries
         run: |
@@ -157,6 +167,14 @@ jobs:
             --deny build/celix-evidence/security-authorization-deny.log \
             --remembered build/celix-evidence/security-remembered-only.log \
             | tee build/celix-evidence/security-composition-summary.json
+
+      - name: Validate TRS business-authority composition
+        run: |
+          python3 scripts/validate_celix_trs_business_authority.py \
+            --good build/celix-evidence/business-good.log \
+            --validation-fail build/celix-evidence/business-validation-fail.log \
+            --authorization-deny build/celix-evidence/business-authorization-deny.log \
+            | tee build/celix-evidence/trs-business-authority-summary.json
 
       - name: Exercise parser dependency lifecycle
         run: |

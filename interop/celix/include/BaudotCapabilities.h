@@ -38,6 +38,15 @@ struct ActorContextDecision {
     std::string detail{};
 };
 
+struct TrsCallFacts {
+    bool routePresent{false};
+    bool registered{false};
+    bool identityVerified{false};
+    bool perCallValidated{false};
+    bool emergencyException{false};
+    std::string serviceType{};
+};
+
 class ISignalingParser {
 public:
     static constexpr const char* NAME = "baudot.signaling_parser";
@@ -85,6 +94,18 @@ public:
         std::string_view resourceType,
         std::string_view action,
         std::string_view permission) = 0;
+};
+
+class ITrsBusinessAuthority {
+public:
+    static constexpr const char* NAME = "baudot.trs_business_authority";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~ITrsBusinessAuthority() noexcept = default;
+    virtual CapabilityDecision evaluateOrdinaryCallPlacement(
+        const ActorContext& actor,
+        const CapabilityDecision& authorization,
+        const TrsCallFacts& facts) = 0;
 };
 
 class IEvidenceEmitter {
