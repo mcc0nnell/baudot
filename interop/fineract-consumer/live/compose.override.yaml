@@ -1,0 +1,22 @@
+services:
+  fineract-proxy:
+    image: nginx:1.28-alpine
+    container_name: fineract-proxy
+    depends_on:
+      fineract:
+        condition: service_healthy
+    volumes:
+      - ./baudot-fineract-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    mem_limit: 64m
+
+  bff:
+    depends_on:
+      fineract-proxy:
+        condition: service_healthy
+    environment:
+      FINERACT_BASE_URL: http://fineract-proxy:8080/fineract-provider/api
