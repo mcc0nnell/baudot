@@ -5,17 +5,21 @@ on:
     paths:
       - ".github/workflows/celix-capability-runtime.yml"
       - "docs/celix-capability-runtime.md"
+      - "docs/celix-security-composition.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
+      - "scripts/validate_celix_security_composition.py"
   push:
     branches: [main]
     paths:
       - ".github/workflows/celix-capability-runtime.yml"
       - "docs/celix-capability-runtime.md"
+      - "docs/celix-security-composition.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
+      - "scripts/validate_celix_security_composition.py"
   workflow_dispatch:
 
 permissions:
@@ -130,6 +134,12 @@ jobs:
             build/celix-evidence/missing-rtt.log
           run_profile build/celix/deploy/baudot_celix_parsed_not_admitted/baudot_celix_parsed_not_admitted \
             build/celix-evidence/parsed-not-admitted.log
+          run_profile build/celix/deploy/baudot_celix_security_good/baudot_celix_security_good \
+            build/celix-evidence/security-good.log
+          run_profile build/celix/deploy/baudot_celix_security_authorization_deny/baudot_celix_security_authorization_deny \
+            build/celix-evidence/security-authorization-deny.log
+          run_profile build/celix/deploy/baudot_celix_security_remembered_only/baudot_celix_security_remembered_only \
+            build/celix-evidence/security-remembered-only.log
 
       - name: Validate evidence boundaries
         run: |
@@ -139,6 +149,14 @@ jobs:
             --missing-rtt build/celix-evidence/missing-rtt.log \
             --parsed-not-admitted build/celix-evidence/parsed-not-admitted.log \
             | tee build/celix-evidence/summary.json
+
+      - name: Validate authentication and authorization composition
+        run: |
+          python3 scripts/validate_celix_security_composition.py \
+            --good build/celix-evidence/security-good.log \
+            --deny build/celix-evidence/security-authorization-deny.log \
+            --remembered build/celix-evidence/security-remembered-only.log \
+            | tee build/celix-evidence/security-composition-summary.json
 
       - name: Exercise parser dependency lifecycle
         run: |

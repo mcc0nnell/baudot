@@ -2,6 +2,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace baudot::celixlab {
 
@@ -14,6 +15,25 @@ struct CapabilityDecision {
 struct EvidenceObservation {
     std::string profile{};
     std::string capability{};
+    std::string verdict{};
+    std::string detail{};
+};
+
+struct ActorContext {
+    bool authenticated{false};
+    bool remembered{false};
+    std::string actorId{};
+    std::string actorType{};
+    std::string tenantId{};
+    std::string providerId{};
+    std::vector<std::string> roles{};
+    std::string sessionId{};
+    std::string authenticatedAt{};
+    std::string authenticationStrength{};
+};
+
+struct ActorContextDecision {
+    ActorContext actor{};
     std::string verdict{};
     std::string detail{};
 };
@@ -43,6 +63,28 @@ public:
 
     virtual ~IRealtimeTextTransport() noexcept = default;
     virtual CapabilityDecision evaluate(std::string_view payload) = 0;
+};
+
+class IActorContextProvider {
+public:
+    static constexpr const char* NAME = "baudot.actor_context";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~IActorContextProvider() noexcept = default;
+    virtual ActorContextDecision current() = 0;
+};
+
+class IAuthorizationService {
+public:
+    static constexpr const char* NAME = "baudot.authorization";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~IAuthorizationService() noexcept = default;
+    virtual CapabilityDecision authorize(
+        const ActorContext& actor,
+        std::string_view resourceType,
+        std::string_view action,
+        std::string_view permission) = 0;
 };
 
 class IEvidenceEmitter {
