@@ -14,6 +14,8 @@ namespace {
 
 constexpr std::string_view PJSIP_IDENTITY =
     "pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd";
+constexpr std::string_view ADMISSION_IDENTITY =
+    "baudot/native-pjsip-uas-text-profile-v1";
 
 constexpr std::string_view INVITE_FIXTURE =
     "INVITE sip:callee@example.invalid SIP/2.0\r\n"
@@ -69,7 +71,7 @@ void emitAuthorityBoundary(std::string_view phase) {
         phase,
         "AuthorityBoundary",
         "NOT_MODELED",
-        "bundle lifecycle does not establish SIP/SDP/T.140 conformance, authentication, authorization, TRS business authority, or regulatory compliance");
+        "parser dependency lifecycle does not establish SIP/SDP/T.140 conformance, authentication, authorization, TRS business authority, or regulatory compliance");
 }
 
 std::optional<CapabilityDecision> evaluateParser(const std::shared_ptr<celix::BundleContext>& ctx) {
@@ -79,10 +81,7 @@ std::optional<CapabilityDecision> evaluateParser(const std::shared_ptr<celix::Bu
             decision = parser.parse(INVITE_FIXTURE);
         })
         .build();
-    if (!found) {
-        return std::nullopt;
-    }
-    return decision;
+    return found ? decision : std::nullopt;
 }
 
 std::optional<CapabilityDecision> evaluateAdmission(const std::shared_ptr<celix::BundleContext>& ctx) {
@@ -92,36 +91,42 @@ std::optional<CapabilityDecision> evaluateAdmission(const std::shared_ptr<celix:
             decision = admission.evaluate(INVITE_FIXTURE);
         })
         .build();
-    if (!found) {
-        return std::nullopt;
-    }
-    return decision;
+    return found ? decision : std::nullopt;
 }
 
-bool emitExpectedActiveCapabilities(
+std::optional<CapabilityDecision> evaluateRtt(const std::shared_ptr<celix::BundleContext>& ctx) {
+    std::optional<CapabilityDecision> decision;
+    const bool found = ctx->useService<IRealtimeTextTransport>()
+        .addUseCallback([&decision](IRealtimeTextTransport& rtt) {
+            decision = rtt.evaluate("hello");
+        })
+        .build();
+    return found ? decision : std::nullopt;
+}
+
+bool emitExpectedHealthyCapabilities(
     const std::shared_ptr<celix::BundleContext>& ctx,
     std::string_view phase) {
     const auto parser = evaluateParser(ctx);
-    if (!parser.has_value()) {
-        std::cerr << phase << ": ISignalingParser service missing" << std::endl;
-        return false;
-    }
-    if (parser->verdict != "PJSIP_PARSE_ACCEPTED") {
-        std::cerr << phase << ": unexpected parser verdict " << parser->verdict << std::endl;
-        return false;
-    }
-    emit(phase, "SignalingParser", parser->verdict, parser->detail);
-
     const auto admission = evaluateAdmission(ctx);
-    if (!admission.has_value()) {
-        std::cerr << phase << ": ICallAdmission service missing" << std::endl;
+    const auto rtt = evaluateRtt(ctx);
+
+    if (!parser.has_value() || parser->verdict != "PJSIP_PARSE_ACCEPTED") {
+        std::cerr << phase << ": expected healthy parser" << std::endl;
         return false;
     }
-    if (admission->verdict != "PJSIP_UAS_TEXT_PROFILE_ADMITTED") {
-        std::cerr << phase << ": unexpected admission verdict " << admission->verdict << std::endl;
+    if (!admission.has_value() || admission->verdict != "PJSIP_UAS_TEXT_PROFILE_ADMITTED") {
+        std::cerr << phase << ": expected healthy admission" << std::endl;
         return false;
     }
+    if (!rtt.has_value() || rtt->verdict != "RTT_FIXTURE_ACCEPTED") {
+        std::cerr << phase << ": expected healthy RTT" << std::endl;
+        return false;
+    }
+
+    emit(phase, "SignalingParser", parser->verdict, parser->detail);
     emit(phase, "CallAdmission", admission->verdict, admission->detail);
+    emit(phase, "RealtimeTextTransport", rtt->verdict, rtt->detail);
     emitAuthorityBoundary(phase);
     return true;
 }
@@ -132,8 +137,10 @@ bool emitExpectedActiveCapabilities(
 int main(int argc, char** argv) {
     using namespace baudot::celixlab;
 
-    if (argc != 2) {
-        std::cerr << "usage: baudot_celix_pjsip_lifecycle <pjsip-capability-bundle.zip>" << std::endl;
+    if (argc != 4) {
+        std::cerr
+            << "usage: baudot_celix_pjsip_lifecycle <parser-bundle.zip> <admission-bundle.zip> <rtt-bundle.zip>"
+            << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -145,48 +152,83 @@ int main(int argc, char** argv) {
     auto framework = celix::createFramework(properties);
     auto ctx = framework->getFrameworkBundleContext();
 
-    const long capabilityBundleId = ctx->installBundle(argv[1], true);
-    if (capabilityBundleId < 0) {
-        std::cerr << "failed to install/start PJSIP capability bundle" << std::endl;
+    const long parserBundleId = ctx->installBundle(argv[1], true);
+    const long admissionBundleId = ctx->installBundle(argv[2], true);
+    const long rttBundleId = ctx->installBundle(argv[3], true);
+    if (parserBundleId < 0 || admissionBundleId < 0 || rttBundleId < 0) {
+        std::cerr << "failed to install/start parser, admission, or RTT bundle" << std::endl;
         return EXIT_FAILURE;
     }
 
-    if (!emitExpectedActiveCapabilities(ctx, "active")) {
+    const long admissionServiceId = ctx->findService<ICallAdmission>();
+    const long rttServiceId = ctx->findService<IRealtimeTextTransport>();
+    if (admissionServiceId < 0 || rttServiceId < 0) {
+        std::cerr << "admission or RTT service missing before parser lifecycle test" << std::endl;
         return EXIT_FAILURE;
     }
 
-    if (!ctx->stopBundle(capabilityBundleId)) {
-        std::cerr << "failed to stop PJSIP capability bundle" << std::endl;
+    if (!emitExpectedHealthyCapabilities(ctx, "active")) {
+        return EXIT_FAILURE;
+    }
+
+    if (!ctx->stopBundle(parserBundleId)) {
+        std::cerr << "failed to stop only the PJSIP parser bundle" << std::endl;
         return EXIT_FAILURE;
     }
 
     if (ctx->findService<ISignalingParser>() >= 0) {
-        std::cerr << "ISignalingParser remained registered after bundle stop" << std::endl;
+        std::cerr << "ISignalingParser remained registered after parser bundle stop" << std::endl;
         return EXIT_FAILURE;
     }
-    if (ctx->findService<ICallAdmission>() >= 0) {
-        std::cerr << "ICallAdmission remained registered after bundle stop" << std::endl;
+    if (ctx->findService<ICallAdmission>() != admissionServiceId) {
+        std::cerr << "ICallAdmission service changed or disappeared when parser stopped" << std::endl;
+        return EXIT_FAILURE;
+    }
+    if (ctx->findService<IRealtimeTextTransport>() != rttServiceId) {
+        std::cerr << "RTT service changed or disappeared when parser stopped" << std::endl;
         return EXIT_FAILURE;
     }
 
     emit(
-        "stopped",
+        "parser-stopped",
         "SignalingParser",
         "CAPABILITY_MISSING",
-        "PJSIP capability bundle stopped; no ISignalingParser service remains registered");
-    emit(
-        "stopped",
-        "CallAdmission",
-        "CAPABILITY_MISSING",
-        "PJSIP capability bundle stopped; no ICallAdmission service remains registered");
-    emitAuthorityBoundary("stopped");
+        "PJSIP parser bundle stopped; ISignalingParser is absent while admission and RTT bundles remain active");
 
-    if (!ctx->startBundle(capabilityBundleId)) {
-        std::cerr << "failed to restart PJSIP capability bundle" << std::endl;
+    const auto failClosedAdmission = evaluateAdmission(ctx);
+    if (!failClosedAdmission.has_value() || failClosedAdmission->verdict != "PARSER_CAPABILITY_MISSING") {
+        std::cerr << "admission did not fail closed when parser disappeared" << std::endl;
+        return EXIT_FAILURE;
+    }
+    emit(
+        "parser-stopped",
+        "CallAdmission",
+        failClosedAdmission->verdict,
+        failClosedAdmission->detail);
+
+    const auto liveRtt = evaluateRtt(ctx);
+    if (!liveRtt.has_value() || liveRtt->verdict != "RTT_FIXTURE_ACCEPTED") {
+        std::cerr << "RTT did not remain live while parser was stopped" << std::endl;
+        return EXIT_FAILURE;
+    }
+    emit("parser-stopped", "RealtimeTextTransport", liveRtt->verdict, liveRtt->detail);
+    emitAuthorityBoundary("parser-stopped");
+
+    if (!ctx->startBundle(parserBundleId)) {
+        std::cerr << "failed to restart PJSIP parser bundle" << std::endl;
         return EXIT_FAILURE;
     }
 
-    if (!emitExpectedActiveCapabilities(ctx, "restored")) {
+    if (ctx->findService<ICallAdmission>() != admissionServiceId) {
+        std::cerr << "ICallAdmission service changed across parser restoration" << std::endl;
+        return EXIT_FAILURE;
+    }
+    if (ctx->findService<IRealtimeTextTransport>() != rttServiceId) {
+        std::cerr << "RTT service changed across parser restoration" << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    if (!emitExpectedHealthyCapabilities(ctx, "restored")) {
         return EXIT_FAILURE;
     }
 
