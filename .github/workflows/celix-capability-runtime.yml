@@ -7,11 +7,13 @@ on:
       - "docs/celix-capability-runtime.md"
       - "docs/celix-security-composition.md"
       - "docs/celix-trs-business-authority.md"
+      - "docs/celix-vrs-compensability.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
       - "scripts/validate_celix_security_composition.py"
       - "scripts/validate_celix_trs_business_authority.py"
+      - "scripts/validate_celix_vrs_compensability.py"
   push:
     branches: [main]
     paths:
@@ -19,11 +21,13 @@ on:
       - "docs/celix-capability-runtime.md"
       - "docs/celix-security-composition.md"
       - "docs/celix-trs-business-authority.md"
+      - "docs/celix-vrs-compensability.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
       - "scripts/validate_celix_security_composition.py"
       - "scripts/validate_celix_trs_business_authority.py"
+      - "scripts/validate_celix_vrs_compensability.py"
   workflow_dispatch:
 
 permissions:
@@ -150,6 +154,12 @@ jobs:
             build/celix-evidence/business-validation-fail.log
           run_profile build/celix/deploy/baudot_celix_business_authorization_deny/baudot_celix_business_authorization_deny \
             build/celix-evidence/business-authorization-deny.log
+          run_profile build/celix/deploy/baudot_celix_compensability_established/baudot_celix_compensability_established \
+            build/celix-evidence/compensability-established.log
+          run_profile build/celix/deploy/baudot_celix_compensability_pending/baudot_celix_compensability_pending \
+            build/celix-evidence/compensability-pending.log
+          run_profile build/celix/deploy/baudot_celix_compensability_placement_only/baudot_celix_compensability_placement_only \
+            build/celix-evidence/compensability-placement-only.log
 
       - name: Validate evidence boundaries
         run: |
@@ -175,6 +185,14 @@ jobs:
             --validation-fail build/celix-evidence/business-validation-fail.log \
             --authorization-deny build/celix-evidence/business-authorization-deny.log \
             | tee build/celix-evidence/trs-business-authority-summary.json
+
+      - name: Validate VRS compensability composition
+        run: |
+          python3 scripts/validate_celix_vrs_compensability.py \
+            --established build/celix-evidence/compensability-established.log \
+            --pending build/celix-evidence/compensability-pending.log \
+            --placement-only build/celix-evidence/compensability-placement-only.log \
+            | tee build/celix-evidence/vrs-compensability-summary.json
 
       - name: Exercise parser dependency lifecycle
         run: |
