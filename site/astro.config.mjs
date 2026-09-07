@@ -10,6 +10,9 @@ export default defineConfig({
       description: 'Evidence-first proving grounds for accessible communications and synthetic TRS Fund systems.',
       favicon: '/baudot/favicon.svg',
       customCss: ['./src/styles/custom.css'],
+      components: {
+        PageTitle: './src/components/PageTitle.astro',
+      },
       social: [
         {
           icon: 'github',
