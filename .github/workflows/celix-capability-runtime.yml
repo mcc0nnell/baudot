@@ -8,12 +8,14 @@ on:
       - "docs/celix-security-composition.md"
       - "docs/celix-trs-business-authority.md"
       - "docs/celix-vrs-compensability.md"
+      - "docs/celix-fund-claim-authority.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
       - "scripts/validate_celix_security_composition.py"
       - "scripts/validate_celix_trs_business_authority.py"
       - "scripts/validate_celix_vrs_compensability.py"
+      - "scripts/validate_celix_fund_claim_authority.py"
   push:
     branches: [main]
     paths:
@@ -22,12 +24,14 @@ on:
       - "docs/celix-security-composition.md"
       - "docs/celix-trs-business-authority.md"
       - "docs/celix-vrs-compensability.md"
+      - "docs/celix-fund-claim-authority.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
       - "scripts/validate_celix_security_composition.py"
       - "scripts/validate_celix_trs_business_authority.py"
       - "scripts/validate_celix_vrs_compensability.py"
+      - "scripts/validate_celix_fund_claim_authority.py"
   workflow_dispatch:
 
 permissions:
@@ -160,6 +164,16 @@ jobs:
             build/celix-evidence/compensability-pending.log
           run_profile build/celix/deploy/baudot_celix_compensability_placement_only/baudot_celix_compensability_placement_only \
             build/celix-evidence/compensability-placement-only.log
+          run_profile build/celix/deploy/baudot_celix_fund_claim_approved/baudot_celix_fund_claim_approved \
+            build/celix-evidence/fund-claim-approved.log
+          run_profile build/celix/deploy/baudot_celix_fund_claim_compensability_pending/baudot_celix_fund_claim_compensability_pending \
+            build/celix-evidence/fund-claim-compensability-pending.log
+          run_profile build/celix/deploy/baudot_celix_fund_claim_rate_missing/baudot_celix_fund_claim_rate_missing \
+            build/celix-evidence/fund-claim-rate-missing.log
+          run_profile build/celix/deploy/baudot_celix_fund_claim_pending/baudot_celix_fund_claim_pending \
+            build/celix-evidence/fund-claim-pending.log
+          run_profile build/celix/deploy/baudot_celix_fund_claim_amount_mismatch/baudot_celix_fund_claim_amount_mismatch \
+            build/celix-evidence/fund-claim-amount-mismatch.log
 
       - name: Validate evidence boundaries
         run: |
@@ -193,6 +207,16 @@ jobs:
             --pending build/celix-evidence/compensability-pending.log \
             --placement-only build/celix-evidence/compensability-placement-only.log \
             | tee build/celix-evidence/vrs-compensability-summary.json
+
+      - name: Validate Fund claim authority composition
+        run: |
+          python3 scripts/validate_celix_fund_claim_authority.py \
+            --approved build/celix-evidence/fund-claim-approved.log \
+            --compensability-pending build/celix-evidence/fund-claim-compensability-pending.log \
+            --rate-missing build/celix-evidence/fund-claim-rate-missing.log \
+            --claim-pending build/celix-evidence/fund-claim-pending.log \
+            --amount-mismatch build/celix-evidence/fund-claim-amount-mismatch.log \
+            | tee build/celix-evidence/fund-claim-authority-summary.json
 
       - name: Exercise parser dependency lifecycle
         run: |

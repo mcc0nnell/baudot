@@ -69,6 +69,28 @@ struct CompensabilityDecision {
     std::string detail{};
 };
 
+struct RateDecision {
+    bool calculated{false};
+    std::string scenario{};
+    std::string amountUsd{};
+    std::string verdict{};
+    std::string detail{};
+};
+
+struct FundClaimFacts {
+    std::string syntheticBusinessTransactionId{};
+    std::string claimDecision{};
+    std::string approvedClaimAmountUsd{};
+};
+
+struct FundClaimDecision {
+    bool approved{false};
+    std::string syntheticBusinessTransactionId{};
+    std::string approvedAmountUsd{};
+    std::string verdict{};
+    std::string detail{};
+};
+
 class ISignalingParser {
 public:
     static constexpr const char* NAME = "baudot.signaling_parser";
@@ -139,6 +161,18 @@ public:
     virtual CompensabilityDecision evaluateVrs(
         const CapabilityDecision& trsBusinessAuthority,
         const VrsCompensabilityFacts& facts) = 0;
+};
+
+class IFundClaimAuthority {
+public:
+    static constexpr const char* NAME = "baudot.fund_claim_authority";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~IFundClaimAuthority() noexcept = default;
+    virtual FundClaimDecision evaluateVrsClaim(
+        const CompensabilityDecision& compensability,
+        const RateDecision& rate,
+        const FundClaimFacts& facts) = 0;
 };
 
 class IEvidenceEmitter {
