@@ -318,6 +318,7 @@ public:
         std::optional<ProviderDisbursementIntentDecision> disbursementIntent;
         if (paymentDecision.has_value()) {
             ProviderDisbursementIntentFacts facts{};
+            facts.syntheticBusinessTransactionId = "disburse-vrs-celix-payment-001";
             facts.eventType = "providerDisbursement";
             facts.postingDate = "2026-09-07";
             facts.amountUsd = "8830.00";
@@ -342,6 +343,9 @@ public:
                 disbursementIntent->verdict,
                 disbursementIntent->detail +
                     "; readyForPosting=" + (disbursementIntent->readyForPosting ? "true" : "false") +
+                    "; businessTransactionId=" + disbursementIntent->syntheticBusinessTransactionId +
+                    "; sourceProviderPayableBusinessTransactionId=" + disbursementIntent->sourceProviderPayableBusinessTransactionId +
+                    "; paymentAuthorizationId=" + disbursementIntent->paymentAuthorizationId +
                     "; eventType=" + disbursementIntent->eventType +
                     "; debit=" + disbursementIntent->debitAccount +
                     "; credit=" + disbursementIntent->creditAccount +
