@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate controlled PJSIP parser/admission stop/start evidence in Apache Celix."""
+"""Validate parser-only stop/start evidence across separate Celix bundles."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 PJSIP_IDENTITY = "pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd"
+ADMISSION_IDENTITY = "baudot/native-pjsip-uas-text-profile-v1"
 TYPE = "baudot.celix.lifecycle-observation"
 
 
@@ -54,21 +55,28 @@ def main() -> int:
     args = parser.parse_args()
 
     observations = load(args.log)
-    if len(observations) != 9:
-        raise AssertionError(f"expected exactly nine lifecycle observations, saw {len(observations)}")
+    if len(observations) != 12:
+        raise AssertionError(f"expected exactly twelve lifecycle observations, saw {len(observations)}")
 
     active_parser = one(observations, "active", "SignalingParser", "PJSIP_PARSE_ACCEPTED")
-    active_admission = one(
-        observations,
-        "active",
-        "CallAdmission",
-        "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
-    )
+    active_admission = one(observations, "active", "CallAdmission", "PJSIP_UAS_TEXT_PROFILE_ADMITTED")
+    one(observations, "active", "RealtimeTextTransport", "RTT_FIXTURE_ACCEPTED")
     one(observations, "active", "AuthorityBoundary", "NOT_MODELED")
 
-    stopped_parser = one(observations, "stopped", "SignalingParser", "CAPABILITY_MISSING")
-    stopped_admission = one(observations, "stopped", "CallAdmission", "CAPABILITY_MISSING")
-    one(observations, "stopped", "AuthorityBoundary", "NOT_MODELED")
+    stopped_parser = one(observations, "parser-stopped", "SignalingParser", "CAPABILITY_MISSING")
+    stopped_admission = one(
+        observations,
+        "parser-stopped",
+        "CallAdmission",
+        "PARSER_CAPABILITY_MISSING",
+    )
+    stopped_rtt = one(
+        observations,
+        "parser-stopped",
+        "RealtimeTextTransport",
+        "RTT_FIXTURE_ACCEPTED",
+    )
+    one(observations, "parser-stopped", "AuthorityBoundary", "NOT_MODELED")
 
     restored_parser = one(observations, "restored", "SignalingParser", "PJSIP_PARSE_ACCEPTED")
     restored_admission = one(
@@ -77,23 +85,25 @@ def main() -> int:
         "CallAdmission",
         "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
     )
+    one(observations, "restored", "RealtimeTextTransport", "RTT_FIXTURE_ACCEPTED")
     one(observations, "restored", "AuthorityBoundary", "NOT_MODELED")
 
-    for label, item in (
-        ("active parser", active_parser),
-        ("active admission", active_admission),
-        ("restored parser", restored_parser),
-        ("restored admission", restored_admission),
+    for label, item, identity in (
+        ("active parser", active_parser, PJSIP_IDENTITY),
+        ("restored parser", restored_parser, PJSIP_IDENTITY),
+        ("active admission", active_admission, ADMISSION_IDENTITY),
+        ("parser-stopped admission", stopped_admission, ADMISSION_IDENTITY),
+        ("restored admission", restored_admission, ADMISSION_IDENTITY),
     ):
-        if PJSIP_IDENTITY not in item.get("detail", ""):
-            raise AssertionError(f"{label}: missing pinned PJSIP implementation identity")
+        if identity not in item.get("detail", ""):
+            raise AssertionError(f"{label}: missing implementation identity {identity}")
 
-    for label, item in (
-        ("stopped parser", stopped_parser),
-        ("stopped admission", stopped_admission),
-    ):
-        if "stopped" not in item.get("detail", ""):
-            raise AssertionError(f"{label} observation does not preserve the lifecycle cause")
+    if "stopped" not in stopped_parser.get("detail", ""):
+        raise AssertionError("parser-stopped observation does not preserve parser lifecycle cause")
+    if "failed closed" not in stopped_admission.get("detail", ""):
+        raise AssertionError("admission did not preserve fail-closed dependency cause")
+    if "synthetic realtime-text fixture accepted" not in stopped_rtt.get("detail", ""):
+        raise AssertionError("RTT liveness observation lost its independent fixture evidence")
 
     forbidden = {
         "AUTHORIZED",
@@ -111,8 +121,9 @@ def main() -> int:
         raise AssertionError(f"lifecycle evidence leaked authority/conformance verdicts: {leaked}")
 
     summary = {
-        "schema": "baudot.celix.pjsip-lifecycle-summary.v2",
-        "pjsipImplementation": PJSIP_IDENTITY,
+        "schema": "baudot.celix.pjsip-lifecycle-summary.v3",
+        "pjsipParserImplementation": PJSIP_IDENTITY,
+        "admissionImplementation": ADMISSION_IDENTITY,
         "parserSequence": [
             "PJSIP_PARSE_ACCEPTED",
             "CAPABILITY_MISSING",
@@ -120,9 +131,16 @@ def main() -> int:
         ],
         "admissionSequence": [
             "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
-            "CAPABILITY_MISSING",
+            "PARSER_CAPABILITY_MISSING",
             "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
         ],
+        "rttSequence": [
+            "RTT_FIXTURE_ACCEPTED",
+            "RTT_FIXTURE_ACCEPTED",
+            "RTT_FIXTURE_ACCEPTED",
+        ],
+        "admissionServiceRemainedLiveWhileParserMissing": True,
+        "rttServiceRemainedLiveWhileParserMissing": True,
         "authorizationClaimed": False,
         "protocolConformanceClaimed": False,
         "trsBusinessAuthorityClaimed": False,
