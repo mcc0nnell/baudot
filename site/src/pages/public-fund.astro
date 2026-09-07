@@ -1,0 +1,13 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import PublicFundOversight from '../components/PublicFundOversight.astro';
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Public TRS Fund overview',
+    description: 'An aggregate public-source view of the synthetic TRS Fund proving ground, isolated from provider, machine, and operator authority.',
+  }}
+>
+  <PublicFundOversight />
+</StarlightPage>
