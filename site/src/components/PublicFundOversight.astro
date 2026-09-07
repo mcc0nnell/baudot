@@ -1,0 +1,565 @@
+---
+import projection from '../../public/data/trs-fund-public-2025-26.json';
+
+const usd = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0,
+});
+
+const percent = new Intl.NumberFormat('en-US', {
+  style: 'percent',
+  minimumFractionDigits: 3,
+  maximumFractionDigits: 3,
+});
+
+const rateLabels = {
+  TTY: 'TTY',
+  STS: 'Speech-to-Speech',
+  CTS: 'Captioned Telephone Service',
+  IP_RELAY: 'IP Relay',
+  IP_CTS_CA_BASE: 'IP CTS CA base',
+  IP_CTS_CA_SUPPLEMENTAL: 'IP CTS CA supplemental',
+  IP_CTS_ASR: 'IP CTS ASR',
+  VRS_EMERGENT: 'VRS emergent',
+  VRS_TIER_I: 'VRS Tier I',
+  VRS_TIER_II: 'VRS Tier II',
+  VTS_ADDITIVE: 'VTS additive',
+};
+
+const bridgeRows = [
+  {
+    label: 'Service revenue requirement',
+    change: projection.fund.totalServiceRevenueRequirement,
+    cumulative: projection.fund.totalServiceRevenueRequirement,
+  },
+  {
+    label: 'NDBEDP',
+    change: projection.fund.ndbedp,
+    cumulative: projection.fund.totalServiceRevenueRequirement + projection.fund.ndbedp,
+  },
+  {
+    label: 'Administrative costs',
+    change: projection.fund.administrativeCosts,
+    cumulative: projection.fund.grossFundRequirement,
+  },
+  {
+    label: 'Gross Fund requirement',
+    change: null,
+    cumulative: projection.fund.grossFundRequirement,
+  },
+  {
+    label: 'Less projected Fund balance',
+    change: -projection.fund.lessProjectedFundBalance,
+    cumulative: projection.fund.netFundRequirement,
+  },
+  {
+    label: 'Net Fund requirement',
+    change: null,
+    cumulative: projection.fund.netFundRequirement,
+  },
+];
+
+const programYear = `${projection.programYear.start} through ${projection.programYear.end}`;
+---
+
+<section class="oversight" aria-labelledby="public-fund-overview-title">
+  <p class="eyebrow">Public / oversight projection</p>
+  <h2 id="public-fund-overview-title">How the published Fund requirement resolves to net</h2>
+  <p class="lede">
+    This view is generated only from Baudot's checked-in public aggregate projection for {programYear}.
+    It has no provider credential, Open Banking consent, operator session, or hidden API fallback.
+  </p>
+
+  <div class="metrics" aria-label="Published aggregate Fund metrics">
+    <article>
+      <span>Gross requirement</span>
+      <strong>{usd.format(projection.fund.grossFundRequirement)}</strong>
+    </article>
+    <article>
+      <span>Projected Fund balance</span>
+      <strong>{usd.format(projection.fund.lessProjectedFundBalance)}</strong>
+    </article>
+    <article>
+      <span>Net requirement</span>
+      <strong>{usd.format(projection.fund.netFundRequirement)}</strong>
+    </article>
+  </div>
+
+  <div
+    id="baudot-public-fund-chart"
+    class="chart"
+    role="img"
+    aria-describedby="public-fund-chart-summary"
+    data-projection={JSON.stringify(projection)}
+  ></div>
+  <p id="public-fund-chart-summary" class="sr-only">
+    Public aggregate Fund requirement bridge. Service revenue requirement is {usd.format(projection.fund.totalServiceRevenueRequirement)}.
+    NDBEDP adds {usd.format(projection.fund.ndbedp)} and administrative costs add {usd.format(projection.fund.administrativeCosts)},
+    producing a gross Fund requirement of {usd.format(projection.fund.grossFundRequirement)}. The projected Fund balance of
+    {usd.format(projection.fund.lessProjectedFundBalance)} is then subtracted, producing a net Fund requirement of
+    {usd.format(projection.fund.netFundRequirement)}.
+  </p>
+
+  <h3>Fund requirement bridge</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Stage</th>
+          <th scope="col">Change</th>
+          <th scope="col">Resulting amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bridgeRows.map((row) => (
+          <tr>
+            <th scope="row">{row.label}</th>
+            <td>{row.change === null ? 'Subtotal' : `${row.change >= 0 ? '+' : '−'}${usd.format(Math.abs(row.change))}`}</td>
+            <td>{usd.format(row.cumulative)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="split-grid">
+    <section aria-labelledby="service-requirements-title">
+      <h3 id="service-requirements-title">Net requirement by broad service class</h3>
+      <dl>
+        <div>
+          <dt>Analog</dt>
+          <dd>{usd.format(projection.serviceRequirements.analogNetFundRequirement)}</dd>
+        </div>
+        <div>
+          <dt>IP-based</dt>
+          <dd>{usd.format(projection.serviceRequirements.ipBasedNetFundRequirement)}</dd>
+        </div>
+      </dl>
+      <p class="boundary-note">
+        These are aggregate requirements, not provider allocations or provider entitlements.
+      </p>
+    </section>
+
+    <section aria-labelledby="contribution-title">
+      <h3 id="contribution-title">Published contribution factors</h3>
+      <div class="table-wrap compact">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Class</th>
+              <th scope="col">Revenue base</th>
+              <th scope="col">Factor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Analog</th>
+              <td>{usd.format(projection.contribution.analog.revenueBase)}</td>
+              <td>{percent.format(Number(projection.contribution.analog.reportedFactor))}</td>
+            </tr>
+            <tr>
+              <th scope="row">IP-based</th>
+              <td>{usd.format(projection.contribution.ipBased.revenueBase)}</td>
+              <td>{percent.format(Number(projection.contribution.ipBased.reportedFactor))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <details>
+    <summary>Published program-year service rates</summary>
+    <div class="table-wrap rates-table">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Service / tier</th>
+            <th scope="col">Published rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(projection.rates).map(([key, value]) => (
+            <tr>
+              <th scope="row">{rateLabels[key] ?? key}</th>
+              <td>{value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <aside class="boundary" aria-labelledby="public-boundary-title">
+    <h3 id="public-boundary-title">Publication boundary</h3>
+    <p>
+      This is a Baudot public-source projection, not an official FCC publication and not a claim of production Fund state.
+      Public visibility does not establish provider entitlement, machine consent, Baudot operator authority, TRS program authority,
+      claim approval, payment authorization, or Fineract ledger authority.
+    </p>
+  </aside>
+
+  <details>
+    <summary>Sources and projection provenance</summary>
+    <ul>
+      {projection.sources.map((source) => (
+        <li>
+          <strong>{source.title}</strong>: {source.use} — <a href={source.url}>{source.url}</a>
+        </li>
+      ))}
+    </ul>
+    <p>
+      Data artifact: <code>/data/trs-fund-public-2025-26.json</code>. The same checked-in JSON drives this chart and the textual tables above.
+    </p>
+  </details>
+</section>
+
+<script>
+  import * as echarts from 'echarts/core';
+  import { BarChart } from 'echarts/charts';
+  import { AriaComponent, GridComponent, TooltipComponent } from 'echarts/components';
+  import { SVGRenderer } from 'echarts/renderers';
+
+  echarts.use([BarChart, AriaComponent, GridComponent, TooltipComponent, SVGRenderer]);
+
+  const element = document.getElementById('baudot-public-fund-chart');
+
+  if (element) {
+    const projection = JSON.parse(element.dataset.projection || '{}');
+    const fund = projection.fund;
+
+    const service = fund.totalServiceRevenueRequirement;
+    const ndbedp = fund.ndbedp;
+    const administration = fund.administrativeCosts;
+    const gross = fund.grossFundRequirement;
+    const balance = fund.lessProjectedFundBalance;
+    const net = fund.netFundRequirement;
+
+    const labels = [
+      'Service\nrevenue',
+      '+ NDBEDP',
+      '+ Admin',
+      'Gross',
+      '− Projected\nbalance',
+      'Net',
+    ];
+
+    const baseData = [0, service, service + ndbedp, 0, net, 0];
+    const visibleData = [
+      { value: service, delta: service, kind: 'start' },
+      { value: ndbedp, delta: ndbedp, kind: 'increase' },
+      { value: administration, delta: administration, kind: 'increase' },
+      { value: gross, delta: null, kind: 'subtotal' },
+      { value: balance, delta: -balance, kind: 'decrease' },
+      { value: net, delta: null, kind: 'subtotal' },
+    ];
+
+    const usd = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    });
+
+    const compact = new Intl.NumberFormat('en-US', {
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    });
+
+    const css = (name, fallback) =>
+      getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
+    const option = () => {
+      const accent = css('--sl-color-accent', '#35c8e8');
+      const accentHigh = css('--sl-color-accent-high', '#8ce9fb');
+      const text = css('--sl-color-text', '#e4eef1');
+      const muted = css('--sl-color-gray-3', '#7e949c');
+      const grid = css('--sl-color-gray-5', '#334a53');
+      const panel = css('--sl-color-bg-nav', '#172b32');
+
+      const styled = visibleData.map((item) => ({
+        ...item,
+        itemStyle: {
+          color: item.kind === 'decrease' ? muted : item.kind === 'subtotal' ? accentHigh : accent,
+          borderColor: item.kind === 'subtotal' ? accent : 'transparent',
+          borderWidth: item.kind === 'subtotal' ? 1.5 : 0,
+        },
+      }));
+
+      return {
+        aria: {
+          show: true,
+          description:
+            `Public aggregate TRS Fund requirement bridge. Service revenue requirement ${usd.format(service)}, ` +
+            `plus NDBEDP ${usd.format(ndbedp)} and administration ${usd.format(administration)} equals gross ` +
+            `${usd.format(gross)}. Subtract projected Fund balance ${usd.format(balance)} to reach net ${usd.format(net)}.`,
+        },
+        grid: { left: 78, right: 28, top: 30, bottom: 72 },
+        tooltip: {
+          trigger: 'item',
+          formatter: (params) => {
+            const data = params.data || {};
+            const delta = data.delta;
+            const headline = String(params.name || '').replaceAll('\n', ' ');
+            if (delta === null || delta === undefined) {
+              return `<strong>${headline}</strong><br>${usd.format(data.value || 0)}`;
+            }
+            const sign = delta >= 0 ? '+' : '−';
+            return `<strong>${headline}</strong><br>${sign}${usd.format(Math.abs(delta))}`;
+          },
+        },
+        xAxis: {
+          type: 'category',
+          data: labels,
+          axisLine: { lineStyle: { color: grid } },
+          axisTick: { show: false },
+          axisLabel: { color: text, interval: 0, lineHeight: 15 },
+        },
+        yAxis: {
+          type: 'value',
+          min: 0,
+          axisLabel: { color: muted, formatter: (value) => `$${compact.format(value)}` },
+          splitLine: { lineStyle: { color: grid, type: 'dashed' } },
+        },
+        series: [
+          {
+            name: 'Bridge base',
+            type: 'bar',
+            stack: 'fund',
+            silent: true,
+            data: baseData,
+            itemStyle: { color: 'transparent' },
+            emphasis: { disabled: true },
+          },
+          {
+            name: 'Fund requirement',
+            type: 'bar',
+            stack: 'fund',
+            data: styled,
+            barMaxWidth: 74,
+            label: {
+              show: true,
+              position: 'top',
+              color: text,
+              formatter: (params) => {
+                const data = params.data || {};
+                if (data.kind === 'subtotal') return `$${compact.format(data.value || 0)}`;
+                const delta = data.delta || 0;
+                return `${delta < 0 ? '−' : '+'}$${compact.format(Math.abs(delta))}`;
+              },
+            },
+          },
+        ],
+        backgroundColor: 'transparent',
+        textStyle: { color: text },
+        animationDuration: 350,
+      };
+    };
+
+    const chart = echarts.init(element, undefined, { renderer: 'svg' });
+    chart.setOption(option());
+
+    const resizeObserver = new ResizeObserver(() => chart.resize());
+    resizeObserver.observe(element);
+
+    const themeObserver = new MutationObserver(() => chart.setOption(option(), true));
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        resizeObserver.disconnect();
+        themeObserver.disconnect();
+        chart.dispose();
+      },
+      { once: true },
+    );
+  }
+</script>
+
+<style>
+  .oversight {
+    max-width: 72rem;
+  }
+
+  .eyebrow {
+    margin: 0;
+    color: var(--sl-color-accent-high);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .oversight h2 {
+    margin-block: 0.25rem 0.4rem;
+    font-size: clamp(1.55rem, 3vw, 2.2rem);
+  }
+
+  .lede {
+    max-width: 72ch;
+    color: var(--sl-color-gray-2);
+    font-size: 1.02rem;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-block: 1.25rem;
+  }
+
+  .metrics article {
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--sl-color-bg-nav) 88%, transparent);
+  }
+
+  .metrics span {
+    display: block;
+    color: var(--sl-color-gray-2);
+    font-size: 0.82rem;
+  }
+
+  .metrics strong {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+  }
+
+  .chart {
+    width: 100%;
+    height: 430px;
+    margin-block: 1rem 1.6rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.8rem;
+    background: color-mix(in srgb, var(--sl-color-bg-nav) 72%, transparent);
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    margin-block: 0.6rem 1.5rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 0.55rem 0.65rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    color: var(--sl-color-gray-2);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  tbody td:nth-child(n + 2),
+  .compact td,
+  .rates-table td {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .split-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-block: 1.25rem;
+  }
+
+  .split-grid > section {
+    padding: 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+  }
+
+  .split-grid h3 {
+    margin-top: 0;
+  }
+
+  dl {
+    margin: 0;
+  }
+
+  dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 0.45rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+  }
+
+  .boundary-note {
+    margin-bottom: 0;
+    color: var(--sl-color-gray-2);
+    font-size: 0.86rem;
+  }
+
+  .boundary {
+    margin-block: 1.35rem;
+    padding: 0.95rem 1rem;
+    border-left: 3px solid var(--sl-color-accent);
+    background: color-mix(in srgb, var(--sl-color-accent-low) 52%, transparent);
+  }
+
+  .boundary h3 {
+    margin-top: 0;
+  }
+
+  details {
+    margin-block: 1rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: 650;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 46rem) {
+    .metrics,
+    .split-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .chart {
+      height: 520px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chart {
+      scroll-behavior: auto;
+    }
+  }
+</style>
