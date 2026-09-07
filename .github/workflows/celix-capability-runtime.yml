@@ -9,6 +9,7 @@ on:
       - "docs/celix-trs-business-authority.md"
       - "docs/celix-vrs-compensability.md"
       - "docs/celix-fund-claim-authority.md"
+      - "docs/celix-provider-payable-intent.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
@@ -16,6 +17,7 @@ on:
       - "scripts/validate_celix_trs_business_authority.py"
       - "scripts/validate_celix_vrs_compensability.py"
       - "scripts/validate_celix_fund_claim_authority.py"
+      - "scripts/validate_celix_provider_payable_intent.py"
   push:
     branches: [main]
     paths:
@@ -25,6 +27,7 @@ on:
       - "docs/celix-trs-business-authority.md"
       - "docs/celix-vrs-compensability.md"
       - "docs/celix-fund-claim-authority.md"
+      - "docs/celix-provider-payable-intent.md"
       - "interop/celix/**"
       - "scripts/validate_celix_capability_runtime.py"
       - "scripts/validate_celix_pjsip_lifecycle.py"
@@ -32,6 +35,7 @@ on:
       - "scripts/validate_celix_trs_business_authority.py"
       - "scripts/validate_celix_vrs_compensability.py"
       - "scripts/validate_celix_fund_claim_authority.py"
+      - "scripts/validate_celix_provider_payable_intent.py"
   workflow_dispatch:
 
 permissions:
@@ -174,6 +178,16 @@ jobs:
             build/celix-evidence/fund-claim-pending.log
           run_profile build/celix/deploy/baudot_celix_fund_claim_amount_mismatch/baudot_celix_fund_claim_amount_mismatch \
             build/celix-evidence/fund-claim-amount-mismatch.log
+          run_profile build/celix/deploy/baudot_celix_provider_payable_ready/baudot_celix_provider_payable_ready \
+            build/celix-evidence/provider-payable-ready.log
+          run_profile build/celix/deploy/baudot_celix_provider_payable_claim_pending_ledger_accepted/baudot_celix_provider_payable_claim_pending_ledger_accepted \
+            build/celix-evidence/provider-payable-claim-pending-ledger-accepted.log
+          run_profile build/celix/deploy/baudot_celix_provider_payable_mapping_mismatch/baudot_celix_provider_payable_mapping_mismatch \
+            build/celix-evidence/provider-payable-mapping-mismatch.log
+          run_profile build/celix/deploy/baudot_celix_provider_payable_duplicate_replay/baudot_celix_provider_payable_duplicate_replay \
+            build/celix-evidence/provider-payable-duplicate-replay.log
+          run_profile build/celix/deploy/baudot_celix_provider_payable_closed_period/baudot_celix_provider_payable_closed_period \
+            build/celix-evidence/provider-payable-closed-period.log
 
       - name: Validate evidence boundaries
         run: |
@@ -217,6 +231,16 @@ jobs:
             --claim-pending build/celix-evidence/fund-claim-pending.log \
             --amount-mismatch build/celix-evidence/fund-claim-amount-mismatch.log \
             | tee build/celix-evidence/fund-claim-authority-summary.json
+
+      - name: Validate provider-payable and Fineract composition
+        run: |
+          python3 scripts/validate_celix_provider_payable_intent.py \
+            --ready build/celix-evidence/provider-payable-ready.log \
+            --claim-pending-ledger-accepted build/celix-evidence/provider-payable-claim-pending-ledger-accepted.log \
+            --mapping-mismatch build/celix-evidence/provider-payable-mapping-mismatch.log \
+            --duplicate-replay build/celix-evidence/provider-payable-duplicate-replay.log \
+            --closed-period build/celix-evidence/provider-payable-closed-period.log \
+            | tee build/celix-evidence/provider-payable-intent-summary.json
 
       - name: Exercise parser dependency lifecycle
         run: |
