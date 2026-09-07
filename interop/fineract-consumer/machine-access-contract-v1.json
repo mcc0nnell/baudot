@@ -1,0 +1,100 @@
+{
+  "schema": "baudot.fineract-consumer-machine-access-contract@1",
+  "description": "A synthetic machine-to-machine read boundary over Apache Fineract Consumer-Facing Open Banking. It grants consent-scoped visibility only and creates no TRS program, claim, payment, provider, or operator authority.",
+  "upstream": {
+    "repository": "apache/fineract-consumer-facing",
+    "commit": "58eacf7338126aa0de2b2a2ef70319f45d403fbf",
+    "component": "consumer BFF open banking",
+    "apiPrefix": "/api/v1"
+  },
+  "machineSurface": {
+    "actorType": "third-party-system",
+    "credentialType": "oauth2-bearer",
+    "tokenPurpose": "openbanking",
+    "requiredScope": "openbanking:accounts.read",
+    "allowedMethods": ["GET"],
+    "allowedEndpoints": [
+      "/api/v1/openbanking/accounts",
+      "/api/v1/openbanking/accounts/{accountId}/balances"
+    ],
+    "requiredConsentPermissions": [
+      "ReadAccountsBasic",
+      "ReadBalances"
+    ]
+  },
+  "consentLifecycle": {
+    "authoritativeStore": "consumer-bff-open-banking-consent-row",
+    "authorizedStatus": "AUTHORISED",
+    "terminalDenyStatuses": ["REJECTED", "REVOKED"],
+    "expiryCheckedAtUse": true,
+    "consentRecheckedOnEveryRead": true,
+    "revocationTakesEffectBeforeTokenExpiry": true
+  },
+  "accessDecision": {
+    "requiredFacts": [
+      "registeredTppActive",
+      "oauthPurposeIsOpenBanking",
+      "scopeIncludesAccountsRead",
+      "consentAuthorized",
+      "consentUnexpired",
+      "consentTppMatchesTokenAudience",
+      "consentUserMatchesTokenSubject",
+      "requestedPermissionGranted",
+      "boundCustomerStandingValid"
+    ],
+    "cannotBeSatisfiedBy": [
+      "consumerSessionAuthenticated",
+      "providerAccessAuthorized",
+      "operatorAuthenticated",
+      "rangerAllowed",
+      "trsBusinessAuthorityAllowed",
+      "claimApproved",
+      "paymentAuthorized",
+      "ledgerAccepted"
+    ]
+  },
+  "tokenSeparation": {
+    "consumerSessionAcceptedOnMachineSurface": false,
+    "openBankingBearerAcceptedOnConsumerSurface": false,
+    "operatorCredentialAcceptedOnMachineSurface": false
+  },
+  "forbiddenCapabilities": [
+    "money-movement",
+    "consumer-transfer-mutation",
+    "loan-mutation",
+    "claim-creation",
+    "claim-approval",
+    "rate-selection",
+    "payment-authorization",
+    "provider-certification",
+    "trs-eligibility-decision",
+    "ledger-journal-mutation",
+    "baudot-operator-authority"
+  ],
+  "authorityInvariants": [
+    "machine access authorized != provider access authorized",
+    "machine access authorized != Baudot operator authorized",
+    "machine access authorized != TRS program authorized",
+    "open banking consent authorized != claim approved",
+    "open banking consent authorized != payment authorized",
+    "revoked machine consent != revoked provider session",
+    "provider session active != machine consent active"
+  ],
+  "claimBoundary": {
+    "establishes": [
+      "a deterministic consent-scoped machine access contract",
+      "a source-pinned mapping to documented Consumer-Facing Open Banking reads",
+      "independent lifecycle boundaries for provider sessions and machine consent"
+    ],
+    "doesNotEstablish": [
+      "a production TPP onboarding process",
+      "production OAuth client security",
+      "production consent policy correctness",
+      "real TRS provider entitlement",
+      "TRS claim or payment authority",
+      "Baudot operator authority",
+      "production Fineract suitability",
+      "regulatory compliance"
+    ]
+  }
+}
