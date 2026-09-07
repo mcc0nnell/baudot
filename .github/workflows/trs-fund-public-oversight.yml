@@ -1,0 +1,31 @@
+name: trs-fund-public-oversight
+
+on:
+  pull_request:
+    paths:
+      - 'site/src/components/PublicFundOversight.astro'
+      - 'site/src/pages/public-fund.astro'
+      - 'site/public/data/trs-fund-public-2025-26.json'
+      - 'site/package.json'
+      - 'site/astro.config.mjs'
+      - 'scripts/validate_trs_fund_public_oversight.py'
+      - '.github/workflows/trs-fund-public-oversight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Validate public-only oversight surface
+        run: python scripts/validate_trs_fund_public_oversight.py
