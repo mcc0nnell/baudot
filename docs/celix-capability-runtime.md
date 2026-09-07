@@ -1,10 +1,10 @@
 # Apache Celix native capability runtime
 
-This lane proves one narrow architectural claim: Baudot can compose replaceable native telecom capabilities as Apache Celix services without allowing service presence or service output to become an authentication, authorization, TRS business-authority, or regulatory-compliance verdict.
+This lane proves one narrow architectural claim: Baudot can compose replaceable native telecom capabilities as Apache Celix services without allowing parser success, service presence, or service output to become an authentication, authorization, TRS business-authority, or regulatory-compliance verdict.
 
 ## Runtime pins
 
-The CI lane builds Apache Celix 2.4.0 from the Apache source distribution and verifies its published SHA-512 before building the Baudot bundles. The call-admission provider is now backed by the same pinned PJSIP/PJPROJECT 2.17 identity used by Baudot's existing native RTT lane.
+The CI lane builds Apache Celix 2.4.0 from the Apache source distribution and verifies its published SHA-512 before building the Baudot bundles. The native signaling provider is backed by the same pinned PJSIP/PJPROJECT 2.17 identity used by Baudot's existing native RTT lane.
 
 ```text
 Apache Celix release     2.4.0
@@ -18,96 +18,155 @@ PJSIP commit             5a457451fa2712ba18e12b01738e8ff3af2b26fd
 
 ## Capability contract
 
-The contract still contains exactly three service interfaces:
+The contract now contains four service interfaces:
 
 ```text
-ICallAdmission
-IRealtimeTextTransport
-IEvidenceEmitter
+ISignalingParser       1.0.0
+ICallAdmission         2.0.0
+IRealtimeTextTransport 1.0.0
+IEvidenceEmitter       1.0.0
 ```
 
-No Shiro actor/session context, Ranger policy decision, iTRS business rule, provider eligibility decision, Fund entitlement, or FCC compliance state is represented inside these services.
+`ISignalingParser` owns only the native parser observation. `ICallAdmission` owns only the bounded synthetic UAS admission profile. No Shiro actor/session context, Ranger policy decision, iTRS business rule, provider eligibility decision, Fund entitlement, or FCC compliance state is represented inside either service.
 
-## PJSIP admission adapter
+The version change on `ICallAdmission` is intentional. Its v1 behavior was still parser-shaped. v2 makes admission a distinct decision and prevents downstream consumers from treating `PJSIP_PARSE_ACCEPTED` as a call-admission verdict.
 
-`ICallAdmission` is satisfied in the positive compositions by a Celix bundle linked to the pinned PJPROJECT `pjsip` target. The adapter calls PJSIP's native `pjsip_parse_msg()` parser against a complete synthetic INVITE fixture and accepts only a clean parsed INVITE request.
+## PJSIP parser service
 
-PJSIP's parser tables are initialized through the public `pjsip_endpt_create()` / `pjsip_endpt_destroy()` lifecycle. Endpoint creation constructs PJSIP's internal runtime managers, including its transport manager, but this adapter does not register or start a UDP/TCP transport, bind a listening socket, create an account or dialog, or initialize media/PJSUA2.
+The PJSIP bundle exposes `ISignalingParser` and calls the pinned PJPROJECT `pjsip_parse_msg()` implementation against the supplied signaling bytes.
 
-That observation is intentionally narrow:
+PJSIP's parser tables are initialized through the public `pjsip_endpt_create()` / `pjsip_endpt_destroy()` lifecycle. Endpoint creation constructs PJSIP's internal runtime managers, but this adapter does not register or start a UDP/TCP transport, bind a listening socket, create an account or dialog, or initialize PJSUA2 media.
+
+A clean parsed INVITE emits:
+
+```text
+SignalingParser = PJSIP_PARSE_ACCEPTED
+```
+
+That means only that the pinned native parser produced a clean INVITE request.
+
+## PJSIP UAS admission profile
+
+The same bundle exposes a separate `ICallAdmission` service. It first requires native parser success, then applies the narrow signaling shape already exercised by Baudot's existing PJSIP native-text UAS seam:
+
+```text
+audioCount = 0
+videoCount = 0
+textCount  = 1
+```
+
+For the Celix proving lane, the synthetic admission fixture must therefore declare SDP, contain exactly one `m=text` media line, contain a `t140/1000` mapping, and contain no audio or video media line.
+
+A matching fixture emits:
+
+```text
+CallAdmission = PJSIP_UAS_TEXT_PROFILE_ADMITTED
+```
+
+A clean INVITE that does not match that profile emits:
+
+```text
+CallAdmission = PJSIP_UAS_TEXT_PROFILE_NOT_ADMITTED
+```
+
+The profile matcher is intentionally not a SIP, SDP, RFC 4103, or T.140 conformance oracle. Its only role is to preserve the native UAS's text-only admission shape as a decision distinct from parser success.
+
+The core boundary is now executable:
 
 ```text
 PJSIP_PARSE_ACCEPTED
-!= SIP protocol conformance established
-!= signaling policy satisfied
+!= PJSIP_UAS_TEXT_PROFILE_ADMITTED
+!= SIP/SDP/T.140 conformance
 != actor authenticated
 != operation authorized
 != TRS business authority established
+!= regulatory compliance established
 ```
 
-The endpoint exists only to establish the supported PJSIP parser/runtime lifecycle. The adapter proves that an existing native Baudot dependency can satisfy the Celix capability contract without moving any authority boundary into Celix.
-
-## Three compositions
+## Four compositions
 
 ### Good control
 
-The good composition registers the real PJSIP-backed call-admission service and the existing synthetic realtime-text service. The probe must observe:
+The good composition uses the pinned PJSIP bundle and a synthetic RTT fixture:
 
 ```text
-CallAdmission           PJSIP_PARSE_ACCEPTED
+SignalingParser         PJSIP_PARSE_ACCEPTED
+CallAdmission           PJSIP_UAS_TEXT_PROFILE_ADMITTED
 RealtimeTextTransport   RTT_FIXTURE_ACCEPTED
 AuthorityBoundary       NOT_MODELED
 ```
 
-The call-admission evidence preserves the exact PJPROJECT release commit in its detail field. The RTT observation remains a fixture result rather than T.140, RFC 4103, media, or accessibility conformance evidence.
+Both PJSIP observations preserve the exact release/commit identity.
+
+### Parsed but not admitted
+
+This is the new threshold proof. A syntactically clean INVITE with no text-only SDP profile must produce:
+
+```text
+SignalingParser         PJSIP_PARSE_ACCEPTED
+CallAdmission           PJSIP_UAS_TEXT_PROFILE_NOT_ADMITTED
+RealtimeTextTransport   RTT_FIXTURE_ACCEPTED
+AuthorityBoundary       NOT_MODELED
+```
+
+Green CI therefore mechanically proves:
+
+```text
+parser success != admission
+```
+
+No policy or authority layer is permitted to fill that gap.
 
 ### Fault-injected negative control
 
-The fault-injected composition deliberately keeps the unsafe synthetic providers. Both fail open for malformed synthetic inputs and must emit:
+The fault-injected composition deliberately keeps the unsafe synthetic call-admission and RTT providers. The PJSIP parser service is absent:
 
 ```text
+SignalingParser         CAPABILITY_MISSING
 CallAdmission           FAULT_INJECTED_FAIL_OPEN
 RealtimeTextTransport   FAULT_INJECTED_FAIL_OPEN
 AuthorityBoundary       NOT_MODELED
 ```
 
-A green CI result means Baudot detected the expected negative control. It does not bless fail-open behavior.
+This is deliberate evidence that a replacement admission provider can bypass the parser boundary and that Baudot detects that unsafe shape. Green CI does not bless fail-open behavior.
 
-### Missing capability control
+### Missing RTT control
 
-The third composition uses the same PJSIP-backed admission provider but omits the realtime-text bundle entirely:
+The missing-RTT composition keeps both native PJSIP services but omits the RTT capability:
 
 ```text
-CallAdmission           PJSIP_PARSE_ACCEPTED
+SignalingParser         PJSIP_PARSE_ACCEPTED
+CallAdmission           PJSIP_UAS_TEXT_PROFILE_ADMITTED
 RealtimeTextTransport   CAPABILITY_MISSING
 AuthorityBoundary       NOT_MODELED
 ```
 
-This preserves the distinction between a native signaling capability and an absent RTT capability without inferring authority from the remaining service.
+Native signaling admission does not manufacture an RTT capability or any authority verdict.
 
 ## Controlled PJSIP lifecycle
 
-A separate qualification executable creates a fresh Celix framework using `celix::createFramework()`, installs the already-built PJSIP admission bundle, and performs synchronous bundle lifecycle operations from the process thread.
+A standalone qualification executable creates a fresh Celix framework, installs the already-built PJSIP capability bundle, and performs synchronous bundle lifecycle operations from the process thread.
 
-The required sequence is:
+Because the parser and admission contracts are exported by the same native bundle in this slice, both must disappear and reappear together:
 
 ```text
 active:
-  CallAdmission       PJSIP_PARSE_ACCEPTED
-  AuthorityBoundary   NOT_MODELED
+  SignalingParser   PJSIP_PARSE_ACCEPTED
+  CallAdmission     PJSIP_UAS_TEXT_PROFILE_ADMITTED
+  AuthorityBoundary NOT_MODELED
 
 stopped:
-  CallAdmission       CAPABILITY_MISSING
-  AuthorityBoundary   NOT_MODELED
+  SignalingParser   CAPABILITY_MISSING
+  CallAdmission     CAPABILITY_MISSING
+  AuthorityBoundary NOT_MODELED
 
 restored:
-  CallAdmission       PJSIP_PARSE_ACCEPTED
-  AuthorityBoundary   NOT_MODELED
+  SignalingParser   PJSIP_PARSE_ACCEPTED
+  CallAdmission     PJSIP_UAS_TEXT_PROFILE_ADMITTED
+  AuthorityBoundary NOT_MODELED
 ```
 
-The stopped phase must have no registered `ICallAdmission` service. The restored phase must again preserve the exact pinned PJPROJECT identity. The lifecycle validator rejects authority or protocol-conformance verdicts in any phase.
-
-This proves a stronger runtime property than the static missing-RTT composition: the same native capability can disappear and reappear in one running Celix framework without another subsystem filling the gap or inferring authority from absence/presence.
+The stopped phase must have neither service registered. The restored phase must preserve the exact pinned PJPROJECT identity again. Lifecycle evidence may not promote restored service presence into restored authorization, protocol conformance, TRS business authority, or regulatory compliance.
 
 ## Core invariants
 
@@ -121,7 +180,10 @@ service registered
 != regulatory compliance established
 
 native parser accepted fixture
-!= protocol conformance established
+!= call admitted
+
+call admitted by synthetic UAS profile
+!= SIP/SDP/T.140 conformance established
 
 fault injected and observed
 != fault accepted as valid behavior
@@ -135,8 +197,10 @@ bundle restarted
 
 ## Why Celix belongs here
 
-Celix remains only the native modular runtime. PJSIP remains the native SIP implementation. Camel, NiFi, Kafka, Shiro, Ranger, Fineract, and the iTRS/Fund planes retain their own responsibilities. The service contract does not change when a synthetic provider is replaced, stopped, or restored.
+Celix remains the native modular runtime. PJSIP remains the native SIP implementation. Camel, NiFi, Kafka, Shiro, Ranger, Fineract, and the iTRS/Fund planes retain their own responsibilities.
+
+This slice does not rewrite those systems. It establishes a versioned native contract where parser evidence and admission evidence are independently observable and can later be supplied by separate bundles without changing the consuming composition.
 
 ## Next threshold
 
-Move one real admission decision from the existing native PJSIP UAS seam behind `ICallAdmission` while retaining `PJSIP_PARSE_ACCEPTED` as parser evidence only. The next provider should distinguish native parser success from the UAS's own signaling-admission decision, and both must remain separate from Shiro authentication, Ranger authorization, iTRS business authority, and regulatory compliance.
+Split parser and admission into separate Celix bundles and make `ICallAdmission` dynamically depend on `ISignalingParser`, so stopping only the parser removes or fail-closes admission without stopping unrelated capabilities. After that lifecycle dependency is proven, compose Shiro actor/session context and Ranger authorization as separate services without allowing either to alter parser/admission evidence.

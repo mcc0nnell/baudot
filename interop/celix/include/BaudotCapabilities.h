@@ -18,10 +18,19 @@ struct EvidenceObservation {
     std::string detail{};
 };
 
+class ISignalingParser {
+public:
+    static constexpr const char* NAME = "baudot.signaling_parser";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~ISignalingParser() noexcept = default;
+    virtual CapabilityDecision parse(std::string_view signaling) = 0;
+};
+
 class ICallAdmission {
 public:
     static constexpr const char* NAME = "baudot.call_admission";
-    static constexpr const char* VERSION = "1.0.0";
+    static constexpr const char* VERSION = "2.0.0";
 
     virtual ~ICallAdmission() noexcept = default;
     virtual CapabilityDecision evaluate(std::string_view signaling) = 0;

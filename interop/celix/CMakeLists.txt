@@ -8,7 +8,8 @@ if(NOT PJSIP_SOURCE_DIR)
 endif()
 
 # Keep the PJSIP dependency closure narrow and static. The Celix adapter uses
-# only the native SIP parser; it does not start transports, media, or a UA.
+# only the native SIP parser plus a Baudot-owned admission profile; it does not
+# start transports, media, or a UA.
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -51,9 +52,9 @@ baudot_configure_bundle(EvidenceEmitterBundle)
 add_celix_bundle(PjsipCallAdmissionBundle
   SOURCES src/pjsip_call_admission_bundle.cc
   SYMBOLIC_NAME "Baudot_PjsipCallAdmission"
-  NAME "Baudot PJSIP Call Admission"
+  NAME "Baudot PJSIP Parser and Call Admission"
   FILENAME "baudot_pjsip_call_admission"
-  VERSION "0.1.0"
+  VERSION "0.2.0"
   GROUP "baudot/celix-lab"
 )
 baudot_configure_bundle(PjsipCallAdmissionBundle)
@@ -108,6 +109,7 @@ endfunction()
 baudot_add_probe(GoodCompositionProbeBundle BAUDOT_PROFILE_GOOD)
 baudot_add_probe(FaultInjectedCompositionProbeBundle BAUDOT_PROFILE_FAULT_INJECTED)
 baudot_add_probe(MissingRttCompositionProbeBundle BAUDOT_PROFILE_MISSING_RTT)
+baudot_add_probe(ParsedNotAdmittedCompositionProbeBundle BAUDOT_PROFILE_PARSED_NOT_ADMITTED)
 
 # A standalone framework driver is intentionally used for lifecycle evidence.
 # It runs from a normal process thread, so Celix startBundle/stopBundle calls are
@@ -145,6 +147,16 @@ add_celix_container(baudot_celix_missing_rtt
     EvidenceEmitterBundle
     PjsipCallAdmissionBundle
     MissingRttCompositionProbeBundle
+    Celix::shell
+    Celix::shell_tui
+)
+
+add_celix_container(baudot_celix_parsed_not_admitted
+  BUNDLES
+    EvidenceEmitterBundle
+    PjsipCallAdmissionBundle
+    GoodRealtimeTextBundle
+    ParsedNotAdmittedCompositionProbeBundle
     Celix::shell
     Celix::shell_tui
 )

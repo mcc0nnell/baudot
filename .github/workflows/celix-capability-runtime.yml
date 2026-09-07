@@ -128,6 +128,8 @@ jobs:
             build/celix-evidence/fault-injected.log
           run_profile build/celix/deploy/baudot_celix_missing_rtt/baudot_celix_missing_rtt \
             build/celix-evidence/missing-rtt.log
+          run_profile build/celix/deploy/baudot_celix_parsed_not_admitted/baudot_celix_parsed_not_admitted \
+            build/celix-evidence/parsed-not-admitted.log
 
       - name: Validate evidence boundaries
         run: |
@@ -135,6 +137,7 @@ jobs:
             --good build/celix-evidence/good.log \
             --fault-injected build/celix-evidence/fault-injected.log \
             --missing-rtt build/celix-evidence/missing-rtt.log \
+            --parsed-not-admitted build/celix-evidence/parsed-not-admitted.log \
             | tee build/celix-evidence/summary.json
 
       - name: Exercise PJSIP capability lifecycle

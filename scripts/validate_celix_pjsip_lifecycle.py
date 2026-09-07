@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate controlled PJSIP capability stop/start evidence in Apache Celix."""
+"""Validate controlled PJSIP parser/admission stop/start evidence in Apache Celix."""
 
 from __future__ import annotations
 
@@ -54,26 +54,54 @@ def main() -> int:
     args = parser.parse_args()
 
     observations = load(args.log)
-    if len(observations) != 6:
-        raise AssertionError(f"expected exactly six lifecycle observations, saw {len(observations)}")
+    if len(observations) != 9:
+        raise AssertionError(f"expected exactly nine lifecycle observations, saw {len(observations)}")
 
-    active = one(observations, "active", "CallAdmission", "PJSIP_PARSE_ACCEPTED")
+    active_parser = one(observations, "active", "SignalingParser", "PJSIP_PARSE_ACCEPTED")
+    active_admission = one(
+        observations,
+        "active",
+        "CallAdmission",
+        "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
+    )
     one(observations, "active", "AuthorityBoundary", "NOT_MODELED")
 
-    stopped = one(observations, "stopped", "CallAdmission", "CAPABILITY_MISSING")
+    stopped_parser = one(observations, "stopped", "SignalingParser", "CAPABILITY_MISSING")
+    stopped_admission = one(observations, "stopped", "CallAdmission", "CAPABILITY_MISSING")
     one(observations, "stopped", "AuthorityBoundary", "NOT_MODELED")
 
-    restored = one(observations, "restored", "CallAdmission", "PJSIP_PARSE_ACCEPTED")
+    restored_parser = one(observations, "restored", "SignalingParser", "PJSIP_PARSE_ACCEPTED")
+    restored_admission = one(
+        observations,
+        "restored",
+        "CallAdmission",
+        "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
+    )
     one(observations, "restored", "AuthorityBoundary", "NOT_MODELED")
 
-    for label, item in (("active", active), ("restored", restored)):
+    for label, item in (
+        ("active parser", active_parser),
+        ("active admission", active_admission),
+        ("restored parser", restored_parser),
+        ("restored admission", restored_admission),
+    ):
         if PJSIP_IDENTITY not in item.get("detail", ""):
             raise AssertionError(f"{label}: missing pinned PJSIP implementation identity")
 
-    if "stopped" not in stopped.get("detail", ""):
-        raise AssertionError("stopped observation does not preserve the lifecycle cause")
+    for label, item in (
+        ("stopped parser", stopped_parser),
+        ("stopped admission", stopped_admission),
+    ):
+        if "stopped" not in item.get("detail", ""):
+            raise AssertionError(f"{label} observation does not preserve the lifecycle cause")
 
-    forbidden = {"AUTHORIZED", "COMPLIANT", "FCC_CERTIFIED", "FUND_ELIGIBLE", "PROTOCOL_CONFORMANT"}
+    forbidden = {
+        "AUTHORIZED",
+        "COMPLIANT",
+        "FCC_CERTIFIED",
+        "FUND_ELIGIBLE",
+        "PROTOCOL_CONFORMANT",
+    }
     leaked = [
         (item.get("phase"), item.get("capability"), item.get("verdict"))
         for item in observations
@@ -83,9 +111,18 @@ def main() -> int:
         raise AssertionError(f"lifecycle evidence leaked authority/conformance verdicts: {leaked}")
 
     summary = {
-        "schema": "baudot.celix.pjsip-lifecycle-summary.v1",
-        "callAdmissionImplementation": PJSIP_IDENTITY,
-        "sequence": ["PJSIP_PARSE_ACCEPTED", "CAPABILITY_MISSING", "PJSIP_PARSE_ACCEPTED"],
+        "schema": "baudot.celix.pjsip-lifecycle-summary.v2",
+        "pjsipImplementation": PJSIP_IDENTITY,
+        "parserSequence": [
+            "PJSIP_PARSE_ACCEPTED",
+            "CAPABILITY_MISSING",
+            "PJSIP_PARSE_ACCEPTED",
+        ],
+        "admissionSequence": [
+            "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
+            "CAPABILITY_MISSING",
+            "PJSIP_UAS_TEXT_PROFILE_ADMITTED",
+        ],
         "authorizationClaimed": False,
         "protocolConformanceClaimed": False,
         "trsBusinessAuthorityClaimed": False,
