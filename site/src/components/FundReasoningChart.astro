@@ -1,0 +1,533 @@
+---
+const events = [
+  {
+    label: 'Opening',
+    shortLabel: 'Opening',
+    cash: 0,
+    payable: 0,
+    owner: 'Baudot synthetic scenario',
+    evidence: 'Declared opening state for the synthetic dollar loop.',
+    why: 'Nothing has been assessed, collected, accrued, or disbursed yet.',
+    notEstablished: 'No real Fund balance, contributor liability, provider entitlement, or production state is represented.',
+  },
+  {
+    label: 'Assessment',
+    shortLabel: 'Assessment',
+    cash: 0,
+    payable: 0,
+    owner: 'Synthetic Fund domain',
+    evidence: 'Contributor assessment intent: Dr 1200 Contributor Receivable / Cr 4100 Contribution Revenue.',
+    why: 'The assessment creates a receivable and revenue recognition in the synthetic contract, but it does not move cash.',
+    notEstablished: 'Ledger acceptance would not by itself establish real contributor liability or filing correctness.',
+  },
+  {
+    label: 'Receipt',
+    shortLabel: 'Receipt',
+    cash: 10000,
+    payable: 0,
+    owner: 'Synthetic Fund domain → Fineract accounting boundary',
+    evidence: 'Contributor receipt: Dr 1100 TRS Fund Cash / Cr 1200 Contributor Receivable.',
+    why: 'Cash rises to $10,000 because the synthetic contributor receipt clears the receivable.',
+    notEstablished: 'The journal does not prove a production collection, bank settlement, or contributor authority.',
+  },
+  {
+    label: 'Claim approved',
+    shortLabel: 'Claim',
+    cash: 10000,
+    payable: 6000,
+    owner: 'Synthetic claim authority → Fineract accounting boundary',
+    evidence: 'Approved synthetic provider claim: Dr 5100 TRS Provider Compensation Expense / Cr 2100 Provider Payable.',
+    why: 'Provider payable rises to $6,000 while cash stays at $10,000. Claim approval accrues an obligation; it is not a payment.',
+    notEstablished: 'A payable does not establish real provider eligibility, compensability, rate correctness, or payment authorization.',
+  },
+  {
+    label: 'Disbursement',
+    shortLabel: 'Disburse',
+    cash: 4000,
+    payable: 0,
+    owner: 'Synthetic payment authorization → Fineract accounting boundary',
+    evidence: 'Authorized disbursement: Dr 2100 Provider Payable / Cr 1100 TRS Fund Cash.',
+    why: 'Cash falls by $6,000 and the payable clears. This is the first event in the loop that spends Fund cash.',
+    notEstablished: 'Accounting execution does not establish bank settlement, real administrator approval, or production payment correctness.',
+  },
+  {
+    label: 'Explicit reversal',
+    shortLabel: 'Reverse',
+    cash: 10000,
+    payable: 6000,
+    owner: 'Fineract reversal behavior observed by Baudot',
+    evidence: 'The original disbursement remains preserved and an explicit equal-and-opposite correction restores cash and payable state.',
+    why: 'Cash returns to $10,000 and the $6,000 payable returns because the payment was reversed rather than erased.',
+    notEstablished: 'A successful reversal proves only the declared synthetic accounting behavior of the pinned implementation run.',
+  },
+  {
+    label: 'Distinct repost',
+    shortLabel: 'Repost',
+    cash: 4000,
+    payable: 0,
+    owner: 'Synthetic payment authorization → Fineract accounting boundary',
+    evidence: 'A new, distinct disbursement transaction re-clears the $6,000 payable; the original and reversal remain in history.',
+    why: 'Ending Fund cash is $4,000 because the corrected payment is posted as a distinct transaction after the preserved reversal.',
+    notEstablished: 'The $4,000 ending state is a synthetic scenario result, not a statement about the real Interstate TRS Fund.',
+  },
+];
+
+const selected = events[events.length - 1];
+const formatMoney = (value) => `$${value.toLocaleString('en-US')}`;
+---
+
+<section
+  id="fund-reasoning"
+  class="fund-reasoning"
+  data-events={JSON.stringify(events)}
+  aria-labelledby="fund-reasoning-title"
+>
+  <p class="eyebrow">Interactive synthetic Fund trace</p>
+  <h2 id="fund-reasoning-title">Follow the money. Then ask why.</h2>
+  <p class="lede">
+    The chart shows state across Baudot's current $10,000 synthetic dollar loop. Select an event to see which boundary owns the decision, what evidence explains the change, and what the result still does not prove.
+  </p>
+
+  <div
+    id="baudot-fund-reasoning-chart"
+    class="chart"
+    role="img"
+    aria-describedby="fund-reasoning-summary"
+  ></div>
+  <p id="fund-reasoning-summary" class="sr-only">
+    Synthetic TRS Fund state across opening, contributor assessment, receipt, provider claim approval, disbursement, explicit reversal, and distinct repost. Fund cash ends at four thousand dollars and provider payable ends at zero. A separate detail panel explains the authority and evidence for each event.
+  </p>
+
+  <div class="event-picker" aria-label="Explain a Fund event">
+    {events.map((event, index) => (
+      <button
+        type="button"
+        class:list={['event-button', index === events.length - 1 && 'is-selected']}
+        data-event-index={index}
+        aria-pressed={index === events.length - 1 ? 'true' : 'false'}
+      >
+        {event.shortLabel}
+      </button>
+    ))}
+  </div>
+
+  <article class="explanation" aria-live="polite" aria-atomic="true">
+    <p class="explanation-kicker">Selected event</p>
+    <h3 data-detail="label">{selected.label}</h3>
+    <dl>
+      <div>
+        <dt>Fund cash</dt>
+        <dd data-detail="cash">{formatMoney(selected.cash)}</dd>
+      </div>
+      <div>
+        <dt>Provider payable</dt>
+        <dd data-detail="payable">{formatMoney(selected.payable)}</dd>
+      </div>
+      <div class="wide">
+        <dt>Decision owner</dt>
+        <dd data-detail="owner">{selected.owner}</dd>
+      </div>
+      <div class="wide">
+        <dt>Evidence</dt>
+        <dd data-detail="evidence">{selected.evidence}</dd>
+      </div>
+      <div class="wide">
+        <dt>Why the numbers changed</dt>
+        <dd data-detail="why">{selected.why}</dd>
+      </div>
+      <div class="wide boundary">
+        <dt>Still not established</dt>
+        <dd data-detail="notEstablished">{selected.notEstablished}</dd>
+      </div>
+    </dl>
+  </article>
+
+  <details>
+    <summary>Read the complete trace as text</summary>
+    <div class="trace-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Fund cash</th>
+            <th>Provider payable</th>
+            <th>Explanation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((event) => (
+            <tr>
+              <th scope="row">{event.label}</th>
+              <td>{formatMoney(event.cash)}</td>
+              <td>{formatMoney(event.payable)}</td>
+              <td>{event.why}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </details>
+</section>
+
+<script>
+  import * as echarts from 'echarts/core';
+  import { LineChart } from 'echarts/charts';
+  import {
+    AriaComponent,
+    GridComponent,
+    LegendComponent,
+    TooltipComponent,
+  } from 'echarts/components';
+  import { SVGRenderer } from 'echarts/renderers';
+
+  echarts.use([
+    LineChart,
+    AriaComponent,
+    GridComponent,
+    LegendComponent,
+    TooltipComponent,
+    SVGRenderer,
+  ]);
+
+  const root = document.getElementById('fund-reasoning');
+  const element = document.getElementById('baudot-fund-reasoning-chart');
+
+  if (root instanceof HTMLElement && element instanceof HTMLElement) {
+    const events = JSON.parse(root.dataset.events || '[]');
+    const money = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    });
+
+    const readVar = (name, fallback) =>
+      getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
+    const setText = (key, value) => {
+      const target = root.querySelector(`[data-detail="${key}"]`);
+      if (target) target.textContent = value;
+    };
+
+    const selectEvent = (index, showTip = false) => {
+      const event = events[index];
+      if (!event) return;
+
+      setText('label', event.label);
+      setText('cash', money.format(event.cash));
+      setText('payable', money.format(event.payable));
+      setText('owner', event.owner);
+      setText('evidence', event.evidence);
+      setText('why', event.why);
+      setText('notEstablished', event.notEstablished);
+
+      root.querySelectorAll('[data-event-index]').forEach((button) => {
+        const selected = Number(button.getAttribute('data-event-index')) === index;
+        button.classList.toggle('is-selected', selected);
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      });
+
+      if (showTip) {
+        chart.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: index });
+      }
+    };
+
+    const option = () => {
+      const accent = readVar('--sl-color-accent', '#24c8db');
+      const text = readVar('--sl-color-text', '#e8f0f2');
+      const muted = readVar('--sl-color-gray-2', '#a9b8bd');
+      const line = readVar('--sl-color-gray-5', '#34464d');
+      const panel = readVar('--sl-color-bg-nav', '#13262c');
+
+      return {
+        aria: {
+          show: true,
+          description:
+            'Synthetic TRS Fund state trace. Fund cash is zero at opening and assessment, ten thousand dollars after receipt and claim approval, four thousand after disbursement, ten thousand after reversal, and four thousand after distinct repost. Provider payable is six thousand dollars after claim approval and reversal, and zero after disbursement and repost.',
+        },
+        animationDuration: 220,
+        grid: {
+          left: 20,
+          right: 18,
+          top: 54,
+          bottom: 56,
+          containLabel: true,
+        },
+        legend: {
+          top: 8,
+          textStyle: { color: text },
+        },
+        tooltip: {
+          trigger: 'axis',
+          backgroundColor: panel,
+          borderColor: line,
+          textStyle: { color: text },
+          formatter: (params) => {
+            const points = Array.isArray(params) ? params : [params];
+            const index = points[0]?.dataIndex ?? 0;
+            const event = events[index];
+            if (!event) return '';
+            return [
+              `<strong>${event.label}</strong>`,
+              `Fund cash: ${money.format(event.cash)}`,
+              `Provider payable: ${money.format(event.payable)}`,
+              event.why,
+            ].join('<br/>');
+          },
+        },
+        xAxis: {
+          type: 'category',
+          boundaryGap: false,
+          data: events.map((event) => event.shortLabel),
+          axisLine: { lineStyle: { color: line } },
+          axisTick: { show: false },
+          axisLabel: {
+            color: muted,
+            interval: 0,
+            fontSize: 11,
+          },
+        },
+        yAxis: {
+          type: 'value',
+          min: 0,
+          max: 10000,
+          interval: 2000,
+          axisLabel: {
+            color: muted,
+            formatter: (value) => `$${value / 1000}k`,
+          },
+          splitLine: { lineStyle: { color: line, opacity: 0.45 } },
+        },
+        series: [
+          {
+            name: 'Fund cash',
+            type: 'line',
+            data: events.map((event) => event.cash),
+            symbol: 'circle',
+            symbolSize: 10,
+            showSymbol: true,
+            lineStyle: { color: accent, width: 3 },
+            itemStyle: { color: accent },
+            emphasis: { focus: 'series', scale: 1.35 },
+          },
+          {
+            name: 'Provider payable',
+            type: 'line',
+            data: events.map((event) => event.payable),
+            symbol: 'diamond',
+            symbolSize: 10,
+            showSymbol: true,
+            lineStyle: { color: muted, width: 2, type: 'dashed' },
+            itemStyle: { color: muted },
+            emphasis: { focus: 'series', scale: 1.35 },
+          },
+        ],
+      };
+    };
+
+    const chart = echarts.init(element, undefined, { renderer: 'svg' });
+    chart.setOption(option());
+
+    chart.on('click', (params) => {
+      if (typeof params.dataIndex === 'number') selectEvent(params.dataIndex);
+    });
+
+    root.querySelectorAll('[data-event-index]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const index = Number(button.getAttribute('data-event-index'));
+        selectEvent(index, true);
+      });
+    });
+
+    const resizeObserver = new ResizeObserver(() => chart.resize());
+    resizeObserver.observe(element);
+
+    const themeObserver = new MutationObserver(() => chart.setOption(option(), true));
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        resizeObserver.disconnect();
+        themeObserver.disconnect();
+        chart.dispose();
+      },
+      { once: true },
+    );
+  }
+</script>
+
+<style>
+  .fund-reasoning {
+    margin-block: 1.25rem 2rem;
+    padding: 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.8rem;
+    background: color-mix(in srgb, var(--sl-color-bg-nav) 86%, transparent);
+  }
+
+  .eyebrow,
+  .explanation-kicker {
+    margin: 0;
+    color: var(--sl-color-accent-high);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .fund-reasoning h2 {
+    margin-block: 0.25rem 0.35rem;
+    font-size: clamp(1.15rem, 2vw, 1.5rem);
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 72ch;
+    color: var(--sl-color-gray-2);
+  }
+
+  .chart {
+    width: 100%;
+    height: 370px;
+    margin-block: 0.8rem 0.55rem;
+  }
+
+  .event-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-block: 0.4rem 0.9rem;
+  }
+
+  .event-button {
+    appearance: none;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 999px;
+    padding: 0.35rem 0.65rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-gray-2);
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+
+  .event-button:hover,
+  .event-button:focus-visible {
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-text);
+  }
+
+  .event-button:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+
+  .event-button.is-selected {
+    border-color: var(--sl-color-accent);
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-accent-high);
+    font-weight: 700;
+  }
+
+  .explanation {
+    padding: 0.9rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.65rem;
+    background: var(--sl-color-bg);
+  }
+
+  .explanation h3 {
+    margin-block: 0.15rem 0.75rem;
+    font-size: 1.05rem;
+  }
+
+  .explanation dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    margin: 0;
+  }
+
+  .explanation dl > div {
+    min-width: 0;
+  }
+
+  .explanation .wide {
+    grid-column: 1 / -1;
+  }
+
+  .explanation dt {
+    color: var(--sl-color-gray-3);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .explanation dd {
+    margin: 0.15rem 0 0;
+    color: var(--sl-color-text);
+  }
+
+  .explanation .boundary {
+    padding-top: 0.7rem;
+    border-top: 1px dashed var(--sl-color-gray-5);
+  }
+
+  details {
+    margin-top: 0.9rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  summary {
+    cursor: pointer;
+    color: var(--sl-color-text);
+    font-weight: 600;
+  }
+
+  .trace-table-wrap {
+    overflow-x: auto;
+    margin-top: 0.7rem;
+  }
+
+  table {
+    min-width: 680px;
+    font-size: 0.82rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 50rem) {
+    .chart {
+      height: 420px;
+    }
+
+    .explanation dl {
+      grid-template-columns: 1fr;
+    }
+
+    .explanation .wide {
+      grid-column: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .event-button {
+      transition: none;
+    }
+  }
+</style>
