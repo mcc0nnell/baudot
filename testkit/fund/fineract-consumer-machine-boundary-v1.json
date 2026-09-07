@@ -1,0 +1,116 @@
+{
+  "schema": "baudot.fineract-consumer-machine-boundary-fixture@1",
+  "description": "Synthetic controls for consent-scoped machine access through Apache Fineract Consumer-Facing Open Banking.",
+  "controls": [
+    {
+      "id": "machine-authorized-read",
+      "facts": {
+        "registeredTppActive": true,
+        "oauthPurposeIsOpenBanking": true,
+        "scopeIncludesAccountsRead": true,
+        "consentAuthorized": true,
+        "consentUnexpired": true,
+        "consentTppMatchesTokenAudience": true,
+        "consentUserMatchesTokenSubject": true,
+        "requestedPermissionGranted": true,
+        "boundCustomerStandingValid": true,
+        "providerSessionActive": true
+      },
+      "expectedMachineAccess": "AUTHORIZED",
+      "expectedProviderAccess": "UNCHANGED",
+      "expectedTrsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "consent-revoked-provider-session-survives",
+      "facts": {
+        "registeredTppActive": true,
+        "oauthPurposeIsOpenBanking": true,
+        "scopeIncludesAccountsRead": true,
+        "consentAuthorized": false,
+        "consentRevoked": true,
+        "consentUnexpired": true,
+        "consentTppMatchesTokenAudience": true,
+        "consentUserMatchesTokenSubject": true,
+        "requestedPermissionGranted": true,
+        "boundCustomerStandingValid": true,
+        "providerSessionActive": true
+      },
+      "expectedMachineAccess": "DENIED",
+      "expectedProviderAccess": "AUTHORIZED",
+      "expectedTrsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "consumer-cookie-on-machine-surface",
+      "facts": {
+        "consumerSessionPresented": true,
+        "oauthPurposeIsOpenBanking": false,
+        "providerSessionActive": true
+      },
+      "expectedMachineAccess": "UNAUTHENTICATED",
+      "expectedProviderAccess": "AUTHORIZED",
+      "expectedTrsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "openbanking-token-on-consumer-surface",
+      "facts": {
+        "openBankingBearerPresentedToConsumerSurface": true,
+        "oauthPurposeIsOpenBanking": true,
+        "consentAuthorized": true
+      },
+      "expectedMachineAccess": "NOT_APPLICABLE",
+      "expectedProviderAccess": "UNAUTHENTICATED",
+      "expectedTrsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "wrong-tpp-consent-binding",
+      "facts": {
+        "registeredTppActive": true,
+        "oauthPurposeIsOpenBanking": true,
+        "scopeIncludesAccountsRead": true,
+        "consentAuthorized": true,
+        "consentUnexpired": true,
+        "consentTppMatchesTokenAudience": false,
+        "consentUserMatchesTokenSubject": true,
+        "requestedPermissionGranted": true,
+        "boundCustomerStandingValid": true
+      },
+      "expectedMachineAccess": "DENIED",
+      "expectedProviderAccess": "UNCHANGED",
+      "expectedTrsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "expired-consent",
+      "facts": {
+        "registeredTppActive": true,
+        "oauthPurposeIsOpenBanking": true,
+        "scopeIncludesAccountsRead": true,
+        "consentAuthorized": true,
+        "consentUnexpired": false,
+        "consentTppMatchesTokenAudience": true,
+        "consentUserMatchesTokenSubject": true,
+        "requestedPermissionGranted": true,
+        "boundCustomerStandingValid": true
+      },
+      "expectedMachineAccess": "DENIED",
+      "expectedProviderAccess": "UNCHANGED",
+      "expectedTrsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "permission-not-granted",
+      "facts": {
+        "registeredTppActive": true,
+        "oauthPurposeIsOpenBanking": true,
+        "scopeIncludesAccountsRead": true,
+        "consentAuthorized": true,
+        "consentUnexpired": true,
+        "consentTppMatchesTokenAudience": true,
+        "consentUserMatchesTokenSubject": true,
+        "requestedPermissionGranted": false,
+        "boundCustomerStandingValid": true
+      },
+      "expectedMachineAccess": "DENIED",
+      "expectedProviderAccess": "UNCHANGED",
+      "expectedTrsProgramAuthority": "NOT_DERIVED"
+    }
+  ]
+}
