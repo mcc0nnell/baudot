@@ -25,7 +25,7 @@
     {
       "id": "ledger",
       "path": "interop/fineract/journal-contract-v1.json",
-      "schema": "baudot.fineract-journal-contract@1"
+      "schema": "baudot.fineract-trs-journal-contract@1"
     }
   ],
   "domains": {
