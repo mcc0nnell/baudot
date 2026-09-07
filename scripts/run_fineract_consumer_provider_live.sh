@@ -9,6 +9,8 @@ UPSTREAM_COMMIT="58eacf7338126aa0de2b2a2ef70319f45d403fbf"
 CROSS_PROVIDER_EXTERNAL_ID="demo-client-4"
 
 mkdir -p "$EVIDENCE_DIR"
+printf '{"schema":"baudot.fineract-consumer-provider-live-startup@1","status":"STARTING","upstreamCommit":"%s"}\n' \
+  "$UPSTREAM_COMMIT" > "$EVIDENCE_DIR/startup.json"
 
 require() {
   local name="$1"
@@ -53,11 +55,19 @@ cd "$CONSUMER"
 
 compose=(docker compose -f compose.yaml -f baudot-provider-proxy.override.yaml)
 cleanup() {
+  local rc=$?
+  "${compose[@]}" ps -a >"$EVIDENCE_DIR/compose-ps.txt" 2>&1 || true
+  docker inspect fineract-proxy >"$EVIDENCE_DIR/fineract-proxy-inspect.json" 2>&1 || true
+  docker logs fineract-proxy >"$EVIDENCE_DIR/fineract-proxy-container.log" 2>&1 || true
   "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+  exit "$rc"
 }
 trap cleanup EXIT
 
 "${compose[@]}" up -d --build --wait
+printf '{"schema":"baudot.fineract-consumer-provider-live-startup@1","status":"STACK_HEALTHY","upstreamCommit":"%s"}\n' \
+  "$UPSTREAM_COMMIT" > "$EVIDENCE_DIR/startup.json"
+
 ./scripts/seed-demo.sh | tee "$EVIDENCE_DIR/seed-demo.log"
 
 # Reuse the exact pinned upstream fixture contracts without executing their mains.
