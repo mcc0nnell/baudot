@@ -121,6 +121,43 @@ struct FineractJournalDecision {
     std::string detail{};
 };
 
+struct PaymentAuthorizationFacts {
+    std::string paymentDecision{};
+    std::string authorizationId{};
+    std::string authorizedAmountUsd{};
+};
+
+struct PaymentAuthorizationDecision {
+    bool authorized{false};
+    std::string syntheticBusinessTransactionId{};
+    std::string authorizationId{};
+    std::string authorizedAmountUsd{};
+    std::string verdict{};
+    std::string detail{};
+};
+
+struct ProviderDisbursementIntentFacts {
+    std::string eventType{};
+    std::string postingDate{};
+    std::string amountUsd{};
+    std::string expectedDebitAccount{};
+    std::string expectedCreditAccount{};
+    bool priorDisbursementObservedForBusinessTransactionId{false};
+    bool accountingPeriodOpen{true};
+    bool authorizedOpenPostingDate{false};
+};
+
+struct ProviderDisbursementIntentDecision {
+    bool readyForPosting{false};
+    std::string syntheticBusinessTransactionId{};
+    std::string eventType{};
+    std::string amountUsd{};
+    std::string debitAccount{};
+    std::string creditAccount{};
+    std::string verdict{};
+    std::string detail{};
+};
+
 class ISignalingParser {
 public:
     static constexpr const char* NAME = "baudot.signaling_parser";
@@ -223,6 +260,29 @@ public:
 
     virtual ~IFineractJournalAdapter() noexcept = default;
     virtual FineractJournalDecision post(const ProviderPayableIntentDecision& intent) = 0;
+};
+
+class IPaymentAuthorizationService {
+public:
+    static constexpr const char* NAME = "baudot.payment_authorization";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~IPaymentAuthorizationService() noexcept = default;
+    virtual PaymentAuthorizationDecision evaluate(
+        const ProviderPayableIntentDecision& payableIntent,
+        const FineractJournalDecision& journal,
+        const PaymentAuthorizationFacts& facts) = 0;
+};
+
+class IProviderDisbursementIntentService {
+public:
+    static constexpr const char* NAME = "baudot.provider_disbursement_intent";
+    static constexpr const char* VERSION = "1.0.0";
+
+    virtual ~IProviderDisbursementIntentService() noexcept = default;
+    virtual ProviderDisbursementIntentDecision evaluate(
+        const PaymentAuthorizationDecision& authorization,
+        const ProviderDisbursementIntentFacts& facts) = 0;
 };
 
 class IEvidenceEmitter {
