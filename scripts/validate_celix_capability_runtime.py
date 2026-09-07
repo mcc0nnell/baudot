@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Iterable
 
 PJSIP_IDENTITY = "pjsip/pjproject-2.17@5a457451fa2712ba18e12b01738e8ff3af2b26fd"
+ADMISSION_IDENTITY = "baudot/native-pjsip-uas-text-profile-v1"
 
 
 def load_observations(path: Path) -> list[dict[str, str]]:
@@ -61,10 +62,11 @@ def require_profile(path: Path, profile: str, required: set[tuple[str, str]]) ->
     return observations
 
 
-def require_pjsip_identity(
+def require_identity(
     observations: Iterable[dict[str, str]],
     capability: str,
     verdict: str,
+    identity: str,
 ) -> None:
     matches = [
         item
@@ -75,8 +77,8 @@ def require_pjsip_identity(
         raise AssertionError(
             f"expected exactly one {capability}/{verdict} observation, saw {len(matches)}"
         )
-    if PJSIP_IDENTITY not in matches[0].get("detail", ""):
-        raise AssertionError(f"{capability}/{verdict} did not preserve the pinned PJSIP identity")
+    if identity not in matches[0].get("detail", ""):
+        raise AssertionError(f"{capability}/{verdict} did not preserve implementation identity {identity}")
 
 
 def main() -> int:
@@ -97,8 +99,8 @@ def main() -> int:
             ("AuthorityBoundary", "NOT_MODELED"),
         },
     )
-    require_pjsip_identity(good, "SignalingParser", "PJSIP_PARSE_ACCEPTED")
-    require_pjsip_identity(good, "CallAdmission", "PJSIP_UAS_TEXT_PROFILE_ADMITTED")
+    require_identity(good, "SignalingParser", "PJSIP_PARSE_ACCEPTED", PJSIP_IDENTITY)
+    require_identity(good, "CallAdmission", "PJSIP_UAS_TEXT_PROFILE_ADMITTED", ADMISSION_IDENTITY)
 
     fault_injected = require_profile(
         args.fault_injected,
@@ -121,8 +123,8 @@ def main() -> int:
             ("AuthorityBoundary", "NOT_MODELED"),
         },
     )
-    require_pjsip_identity(missing_rtt, "SignalingParser", "PJSIP_PARSE_ACCEPTED")
-    require_pjsip_identity(missing_rtt, "CallAdmission", "PJSIP_UAS_TEXT_PROFILE_ADMITTED")
+    require_identity(missing_rtt, "SignalingParser", "PJSIP_PARSE_ACCEPTED", PJSIP_IDENTITY)
+    require_identity(missing_rtt, "CallAdmission", "PJSIP_UAS_TEXT_PROFILE_ADMITTED", ADMISSION_IDENTITY)
 
     parsed_not_admitted = require_profile(
         args.parsed_not_admitted,
@@ -134,26 +136,19 @@ def main() -> int:
             ("AuthorityBoundary", "NOT_MODELED"),
         },
     )
-    require_pjsip_identity(
-        parsed_not_admitted,
-        "SignalingParser",
-        "PJSIP_PARSE_ACCEPTED",
-    )
-    require_pjsip_identity(
+    require_identity(parsed_not_admitted, "SignalingParser", "PJSIP_PARSE_ACCEPTED", PJSIP_IDENTITY)
+    require_identity(
         parsed_not_admitted,
         "CallAdmission",
         "PJSIP_UAS_TEXT_PROFILE_NOT_ADMITTED",
+        ADMISSION_IDENTITY,
     )
 
-    if ("SignalingParser", "PJSIP_PARSE_ACCEPTED") not in observed_pairs(parsed_not_admitted):
-        raise AssertionError("parsed-not-admitted control lost parser success")
-    if ("CallAdmission", "PJSIP_UAS_TEXT_PROFILE_NOT_ADMITTED") not in observed_pairs(parsed_not_admitted):
-        raise AssertionError("parsed-not-admitted control failed to preserve the admission boundary")
-
     summary = {
-        "schema": "baudot.celix.capability-runtime-summary.v3",
-        "celixRuntimeClaim": "dynamic native capability composition with parser/admission separation only",
-        "pjsipImplementation": PJSIP_IDENTITY,
+        "schema": "baudot.celix.capability-runtime-summary.v4",
+        "celixRuntimeClaim": "separate parser and admission bundles with runtime service dependency",
+        "pjsipParserImplementation": PJSIP_IDENTITY,
+        "admissionImplementation": ADMISSION_IDENTITY,
         "parserSuccessImpliesAdmission": False,
         "authorizationClaimed": False,
         "protocolConformanceClaimed": False,

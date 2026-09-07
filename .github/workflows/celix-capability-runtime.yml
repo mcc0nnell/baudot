@@ -140,13 +140,15 @@ jobs:
             --parsed-not-admitted build/celix-evidence/parsed-not-admitted.log \
             | tee build/celix-evidence/summary.json
 
-      - name: Exercise PJSIP capability lifecycle
+      - name: Exercise parser dependency lifecycle
         run: |
           build/celix/baudot_celix_pjsip_lifecycle \
+            build/celix/baudot_pjsip_signaling_parser.zip \
             build/celix/baudot_pjsip_call_admission.zip \
+            build/celix/baudot_good_realtime_text.zip \
             | tee build/celix-evidence/pjsip-lifecycle.log
 
-      - name: Validate PJSIP lifecycle evidence
+      - name: Validate parser dependency lifecycle evidence
         run: |
           python3 scripts/validate_celix_pjsip_lifecycle.py \
             --log build/celix-evidence/pjsip-lifecycle.log \
