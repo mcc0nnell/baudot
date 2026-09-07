@@ -1,0 +1,45 @@
+name: fineract-consumer-provider-boundary
+
+on:
+  pull_request:
+    paths:
+      - "docs/fineract-consumer-provider-boundary.md"
+      - "interop/fineract-consumer/**"
+      - "testkit/fund/fineract-consumer-provider-boundary-v1.json"
+      - "scripts/validate_fineract_consumer_provider_boundary.py"
+      - ".github/workflows/fineract-consumer-provider-boundary.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/fineract-consumer-provider-boundary.md"
+      - "interop/fineract-consumer/**"
+      - "testkit/fund/fineract-consumer-provider-boundary-v1.json"
+      - "scripts/validate_fineract_consumer_provider_boundary.py"
+      - ".github/workflows/fineract-consumer-provider-boundary.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  provider-boundary:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Baudot
+        uses: actions/checkout@v5
+
+      - name: Checkout pinned Apache Fineract Consumer-Facing
+        uses: actions/checkout@v5
+        with:
+          repository: apache/fineract-consumer-facing
+          ref: 58eacf7338126aa0de2b2a2ef70319f45d403fbf
+          path: .upstream/fineract-consumer-facing
+          persist-credentials: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Validate provider-facing authority boundary and upstream contract pin
+        run: >-
+          python scripts/validate_fineract_consumer_provider_boundary.py
+          --upstream-root .upstream/fineract-consumer-facing
