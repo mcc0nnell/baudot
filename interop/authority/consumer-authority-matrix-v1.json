@@ -1,0 +1,227 @@
+{
+  "schema": "baudot.consumer-authority-matrix@1",
+  "description": "Cross-surface non-interference contract for Baudot's provider, machine, program/control, ledger, and public visibility domains. A positive fact in one domain cannot manufacture authority in another.",
+  "sourceContracts": [
+    {
+      "id": "provider",
+      "path": "interop/fineract-consumer/provider-access-contract-v1.json",
+      "schema": "baudot.fineract-consumer-provider-access-contract@1"
+    },
+    {
+      "id": "machine",
+      "path": "interop/fineract-consumer/machine-access-contract-v1.json",
+      "schema": "baudot.fineract-consumer-machine-access-contract@1"
+    },
+    {
+      "id": "program-control",
+      "path": "testkit/fund/governance-boundaries-v1.json",
+      "schema": "baudot.trs-fund-governance-boundaries@1"
+    },
+    {
+      "id": "public",
+      "path": "interop/publication/trs-fund-publication-contract-v1.json",
+      "schema": "baudot.trs-fund-publication-contract@1"
+    },
+    {
+      "id": "ledger",
+      "path": "interop/fineract/journal-contract-v1.json",
+      "schema": "baudot.fineract-journal-contract@1"
+    }
+  ],
+  "domains": {
+    "providerVisibility": {
+      "owner": "fineract-consumer-facing-bff",
+      "positiveFact": "providerAccessAuthorized",
+      "positiveVerdict": "AUTHORIZED"
+    },
+    "machineVisibility": {
+      "owner": "fineract-consumer-facing-open-banking",
+      "positiveFact": "machineAccessAuthorized",
+      "positiveVerdict": "AUTHORIZED"
+    },
+    "operatorAuthority": {
+      "owner": "baudot-control-plane",
+      "positiveFact": null,
+      "positiveVerdict": null,
+      "note": "No operator authentication/authorization implementation contract is established by this stack; other domains must therefore never derive it."
+    },
+    "programCompensability": {
+      "owner": "trs-program-policy-boundary",
+      "positiveFact": "programEligible",
+      "positiveVerdict": "AUTHORIZED"
+    },
+    "paymentAuthorization": {
+      "owner": "fund-business-authority-boundary",
+      "positiveFact": "paymentAuthorized",
+      "positiveVerdict": "AUTHORIZED"
+    },
+    "accountingExecution": {
+      "owner": "apache-fineract-external-kernel",
+      "positiveFact": "ledgerAccepted",
+      "positiveVerdict": "OBSERVED"
+    },
+    "publicVisibility": {
+      "owner": "aggregate-publication-boundary",
+      "positiveFact": "publicProjectionPublished",
+      "positiveVerdict": "VISIBLE"
+    }
+  },
+  "globalInvariants": [
+    "provider access != machine consent",
+    "provider access != operator authority",
+    "provider access != TRS program authority",
+    "machine access != provider entitlement",
+    "machine access != operator authority",
+    "machine access != TRS program authority",
+    "program compensability != payment authorization",
+    "payment authorization != accounting execution",
+    "ledger acceptance != program compensability",
+    "ledger acceptance != payment authorization",
+    "public visibility != provider entitlement",
+    "public visibility != machine consent",
+    "public visibility != operator authority",
+    "public visibility != TRS program authority",
+    "public visibility != payment authorization"
+  ],
+  "cases": [
+    {
+      "id": "AUTH-MATRIX-001",
+      "description": "Provider self-service access is positive without promoting any other authority.",
+      "facts": {
+        "providerAccessAuthorized": true
+      },
+      "expected": {
+        "providerVisibility": "AUTHORIZED",
+        "machineVisibility": "NOT_DERIVED",
+        "operatorAuthority": "NOT_DERIVED",
+        "programCompensability": "NOT_DERIVED",
+        "paymentAuthorization": "NOT_DERIVED",
+        "accountingExecution": "NOT_DERIVED",
+        "publicVisibility": "NOT_DERIVED"
+      }
+    },
+    {
+      "id": "AUTH-MATRIX-002",
+      "description": "Machine consent-scoped access is positive without promoting provider, operator, program, payment, ledger, or public authority.",
+      "facts": {
+        "machineAccessAuthorized": true
+      },
+      "expected": {
+        "providerVisibility": "NOT_DERIVED",
+        "machineVisibility": "AUTHORIZED",
+        "operatorAuthority": "NOT_DERIVED",
+        "programCompensability": "NOT_DERIVED",
+        "paymentAuthorization": "NOT_DERIVED",
+        "accountingExecution": "NOT_DERIVED",
+        "publicVisibility": "NOT_DERIVED"
+      }
+    },
+    {
+      "id": "AUTH-MATRIX-003",
+      "description": "Program compensability alone cannot create payment, ledger, provider, machine, operator, or public authority.",
+      "facts": {
+        "programEligible": true
+      },
+      "expected": {
+        "providerVisibility": "NOT_DERIVED",
+        "machineVisibility": "NOT_DERIVED",
+        "operatorAuthority": "NOT_DERIVED",
+        "programCompensability": "AUTHORIZED",
+        "paymentAuthorization": "NOT_DERIVED",
+        "accountingExecution": "NOT_DERIVED",
+        "publicVisibility": "NOT_DERIVED"
+      }
+    },
+    {
+      "id": "AUTH-MATRIX-004",
+      "description": "Payment authorization can be positive while accounting execution remains a separate observation.",
+      "facts": {
+        "programEligible": true,
+        "paymentAuthorized": true
+      },
+      "expected": {
+        "providerVisibility": "NOT_DERIVED",
+        "machineVisibility": "NOT_DERIVED",
+        "operatorAuthority": "NOT_DERIVED",
+        "programCompensability": "AUTHORIZED",
+        "paymentAuthorization": "AUTHORIZED",
+        "accountingExecution": "NOT_DERIVED",
+        "publicVisibility": "NOT_DERIVED"
+      }
+    },
+    {
+      "id": "AUTH-MATRIX-005",
+      "description": "An accepted ledger action is evidence of accounting execution only and cannot manufacture upstream authority.",
+      "facts": {
+        "ledgerAccepted": true
+      },
+      "expected": {
+        "providerVisibility": "NOT_DERIVED",
+        "machineVisibility": "NOT_DERIVED",
+        "operatorAuthority": "NOT_DERIVED",
+        "programCompensability": "NOT_DERIVED",
+        "paymentAuthorization": "NOT_DERIVED",
+        "accountingExecution": "OBSERVED",
+        "publicVisibility": "NOT_DERIVED"
+      }
+    },
+    {
+      "id": "AUTH-MATRIX-006",
+      "description": "Public aggregate publication grants visibility only.",
+      "facts": {
+        "publicProjectionPublished": true
+      },
+      "expected": {
+        "providerVisibility": "NOT_DERIVED",
+        "machineVisibility": "NOT_DERIVED",
+        "operatorAuthority": "NOT_DERIVED",
+        "programCompensability": "NOT_DERIVED",
+        "paymentAuthorization": "NOT_DERIVED",
+        "accountingExecution": "NOT_DERIVED",
+        "publicVisibility": "VISIBLE"
+      }
+    },
+    {
+      "id": "AUTH-MATRIX-007",
+      "description": "Revoking machine consent can deny the machine while leaving a provider session authorized.",
+      "facts": {
+        "providerAccessAuthorized": true,
+        "machineConsentRevoked": true
+      },
+      "expected": {
+        "providerVisibility": "AUTHORIZED",
+        "machineVisibility": "DENIED",
+        "operatorAuthority": "NOT_DERIVED",
+        "programCompensability": "NOT_DERIVED",
+        "paymentAuthorization": "NOT_DERIVED",
+        "accountingExecution": "NOT_DERIVED",
+        "publicVisibility": "NOT_DERIVED"
+      }
+    },
+    {
+      "id": "AUTH-MATRIX-008",
+      "description": "A fully authorized program/payment decision plus accepted ledger action still does not create provider, machine, operator, or public access.",
+      "facts": {
+        "programEligible": true,
+        "paymentAuthorized": true,
+        "ledgerAccepted": true
+      },
+      "expected": {
+        "providerVisibility": "NOT_DERIVED",
+        "machineVisibility": "NOT_DERIVED",
+        "operatorAuthority": "NOT_DERIVED",
+        "programCompensability": "AUTHORIZED",
+        "paymentAuthorization": "AUTHORIZED",
+        "accountingExecution": "OBSERVED",
+        "publicVisibility": "NOT_DERIVED"
+      }
+    }
+  ],
+  "claimBoundary": {
+    "operatorAuthenticationImplemented": false,
+    "productionIdentityBindingClaimed": false,
+    "productionAuthorizationPolicyClaimed": false,
+    "productionFundStateClaimed": false,
+    "regulatoryComplianceClaimed": false
+  }
+}
