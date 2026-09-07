@@ -142,6 +142,16 @@ add_celix_bundle(TrsBusinessAuthorityBundle
 )
 baudot_configure_bundle(TrsBusinessAuthorityBundle)
 
+add_celix_bundle(VrsCompensabilityBundle
+  SOURCES src/vrs_compensability_bundle.cc
+  SYMBOLIC_NAME "Baudot_VrsCompensability"
+  NAME "Baudot VRS Compensability"
+  FILENAME "baudot_vrs_compensability"
+  VERSION "0.1.0"
+  GROUP "baudot/celix-lab"
+)
+baudot_configure_bundle(VrsCompensabilityBundle)
+
 function(baudot_add_probe target profile_definition)
   add_celix_bundle(${target}
     SOURCES src/composition_probe_bundle.cc
@@ -193,6 +203,23 @@ endfunction()
 baudot_add_business_probe(TrsBusinessGoodProbeBundle BAUDOT_BUSINESS_GOOD)
 baudot_add_business_probe(TrsBusinessValidationFailProbeBundle BAUDOT_BUSINESS_VALIDATION_FAIL)
 baudot_add_business_probe(TrsBusinessAuthorizationDenyProbeBundle BAUDOT_BUSINESS_AUTHORIZATION_DENY)
+
+function(baudot_add_compensability_probe target profile_definition)
+  add_celix_bundle(${target}
+    SOURCES src/vrs_compensability_composition_probe_bundle.cc
+    SYMBOLIC_NAME "Baudot_${target}"
+    NAME "Baudot ${target}"
+    FILENAME "baudot_${target}"
+    VERSION "0.1.0"
+    GROUP "baudot/celix-lab"
+  )
+  baudot_configure_bundle(${target})
+  target_compile_definitions(${target} PRIVATE ${profile_definition})
+endfunction()
+
+baudot_add_compensability_probe(VrsCompensabilityEstablishedProbeBundle BAUDOT_COMP_EXTERNALLY_ESTABLISHED)
+baudot_add_compensability_probe(VrsCompensabilityPendingProbeBundle BAUDOT_COMP_PENDING)
+baudot_add_compensability_probe(VrsCompensabilityPlacementOnlyProbeBundle BAUDOT_COMP_PLACEMENT_ONLY)
 
 # A standalone framework driver is intentionally used for dependency lifecycle
 # evidence. It stops only the parser bundle while admission and RTT remain live.
@@ -322,6 +349,48 @@ add_celix_container(baudot_celix_business_authorization_deny
     RangerDenyAuthorizationBundle
     TrsBusinessAuthorityBundle
     TrsBusinessAuthorizationDenyProbeBundle
+    Celix::shell
+    Celix::shell_tui
+)
+
+add_celix_container(baudot_celix_compensability_established
+  BUNDLES
+    EvidenceEmitterBundle
+    PjsipSignalingParserBundle
+    PjsipCallAdmissionBundle
+    AuthenticatedActorContextBundle
+    RangerAllowAuthorizationBundle
+    TrsBusinessAuthorityBundle
+    VrsCompensabilityBundle
+    VrsCompensabilityEstablishedProbeBundle
+    Celix::shell
+    Celix::shell_tui
+)
+
+add_celix_container(baudot_celix_compensability_pending
+  BUNDLES
+    EvidenceEmitterBundle
+    PjsipSignalingParserBundle
+    PjsipCallAdmissionBundle
+    AuthenticatedActorContextBundle
+    RangerAllowAuthorizationBundle
+    TrsBusinessAuthorityBundle
+    VrsCompensabilityBundle
+    VrsCompensabilityPendingProbeBundle
+    Celix::shell
+    Celix::shell_tui
+)
+
+add_celix_container(baudot_celix_compensability_placement_only
+  BUNDLES
+    EvidenceEmitterBundle
+    PjsipSignalingParserBundle
+    PjsipCallAdmissionBundle
+    AuthenticatedActorContextBundle
+    RangerAllowAuthorizationBundle
+    TrsBusinessAuthorityBundle
+    VrsCompensabilityBundle
+    VrsCompensabilityPlacementOnlyProbeBundle
     Celix::shell
     Celix::shell_tui
 )
