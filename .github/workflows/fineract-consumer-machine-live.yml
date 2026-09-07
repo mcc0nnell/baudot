@@ -1,0 +1,52 @@
+name: fineract-consumer-machine-live
+
+on:
+  pull_request:
+    paths:
+      - "docs/fineract-consumer-machine-live.md"
+      - "interop/fineract-consumer/**"
+      - "scripts/run_fineract_consumer_machine_live.sh"
+      - ".github/workflows/fineract-consumer-machine-live.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/fineract-consumer-machine-live.md"
+      - "interop/fineract-consumer/**"
+      - "scripts/run_fineract_consumer_machine_live.sh"
+      - ".github/workflows/fineract-consumer-machine-live.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  live-machine-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout Baudot
+        uses: actions/checkout@v5
+
+      - name: Checkout pinned Apache Fineract Consumer-Facing
+        uses: actions/checkout@v5
+        with:
+          repository: apache/fineract-consumer-facing
+          ref: 58eacf7338126aa0de2b2a2ef70319f45d403fbf
+          path: .upstream/fineract-consumer-facing
+          persist-credentials: false
+
+      - name: Verify Consumer-Facing source pin
+        run: test "$(git -C .upstream/fineract-consumer-facing rev-parse HEAD)" = "58eacf7338126aa0de2b2a2ef70319f45d403fbf"
+
+      - name: Exercise live consent-scoped machine lifecycle
+        run: >-
+          bash scripts/run_fineract_consumer_machine_live.sh
+          .upstream/fineract-consumer-facing
+          "${RUNNER_TEMP}/fineract-consumer-machine-live"
+
+      - name: Preserve live machine boundary evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fineract-consumer-machine-live-evidence
+          path: ${{ runner.temp }}/fineract-consumer-machine-live
+          if-no-files-found: warn
