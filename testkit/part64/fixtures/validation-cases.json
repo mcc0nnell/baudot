@@ -1,0 +1,65 @@
+{
+  "schema": "baudot.synthetic-vrs-validation-cases@1",
+  "cases": [
+    {
+      "scenario": "ITRS-VAL-001",
+      "calledNumber": "+12025550102",
+      "videoSideUser": "user-001",
+      "routeExists": true,
+      "eligibility": "eligible",
+      "identityVerification": "verified",
+      "emergency": false,
+      "expected": {
+        "validated": true,
+        "ordinaryCallPlacementAllowed": true,
+        "compensable": "not-determined"
+      }
+    },
+    {
+      "scenario": "ITRS-VAL-002",
+      "calledNumber": "+12025550102",
+      "videoSideUser": "user-unverified",
+      "routeExists": true,
+      "eligibility": "unvalidated",
+      "identityVerification": "failed",
+      "emergency": false,
+      "expected": {
+        "validated": false,
+        "ordinaryCallPlacementAllowed": false,
+        "compensable": false
+      }
+    },
+    {
+      "scenario": "ITRS-VAL-911",
+      "calledNumber": "911",
+      "videoSideUser": "user-unverified",
+      "routeExists": false,
+      "eligibility": "unvalidated",
+      "identityVerification": "pending",
+      "emergency": true,
+      "offlineOnly": true,
+      "expected": {
+        "validationRequiredForPlacement": false,
+        "realEmergencyRoutingExercised": false,
+        "compensable": "not-determined"
+      }
+    },
+    {
+      "scenario": "ITRS-VAL-PORT-PENDING",
+      "calledNumber": "+12025550101",
+      "videoSideUser": "user-porting-001",
+      "routeExists": true,
+      "routeState": "provisional-porting-in",
+      "identityVerification": "pending",
+      "submittedWithinDays": 14,
+      "emergency": false,
+      "expected": {
+        "serviceProvisionallyAllowed": true,
+        "routingMayBeProvisionallyEntered": true,
+        "compensationBeforeVerification": false,
+        "retroactiveCompensationAfterVerification": "per-rule-condition"
+      }
+    }
+  ],
+  "provenance": "baudot-authored-synthetic-fixture"
+}
