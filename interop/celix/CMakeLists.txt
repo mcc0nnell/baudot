@@ -58,9 +58,6 @@ add_celix_bundle(PjsipSignalingParserBundle
   GROUP "baudot/celix-lab"
 )
 baudot_configure_bundle(PjsipSignalingParserBundle)
-# pjproject's pjsip target keeps pjlib-util private even though public PJSIP
-# parser headers include pjlib-util/scanner.h. Make that compile-time/runtime
-# dependency explicit at the parser seam instead of duplicating include paths.
 target_link_libraries(PjsipSignalingParserBundle PRIVATE pjsip pjlib-util)
 
 add_celix_bundle(PjsipCallAdmissionBundle
@@ -103,6 +100,38 @@ add_celix_bundle(FaultInjectedRealtimeTextBundle
 )
 baudot_configure_bundle(FaultInjectedRealtimeTextBundle)
 
+function(baudot_add_actor_context target profile_definition)
+  add_celix_bundle(${target}
+    SOURCES src/actor_context_bundle.cc
+    SYMBOLIC_NAME "Baudot_${target}"
+    NAME "Baudot ${target}"
+    FILENAME "baudot_${target}"
+    VERSION "0.1.0"
+    GROUP "baudot/celix-lab"
+  )
+  baudot_configure_bundle(${target})
+  target_compile_definitions(${target} PRIVATE ${profile_definition})
+endfunction()
+
+baudot_add_actor_context(AuthenticatedActorContextBundle BAUDOT_ACTOR_AUTHENTICATED)
+baudot_add_actor_context(RememberedActorContextBundle BAUDOT_ACTOR_REMEMBERED_ONLY)
+
+function(baudot_add_ranger_authorization target profile_definition)
+  add_celix_bundle(${target}
+    SOURCES src/ranger_authorization_bundle.cc
+    SYMBOLIC_NAME "Baudot_${target}"
+    NAME "Baudot ${target}"
+    FILENAME "baudot_${target}"
+    VERSION "0.1.0"
+    GROUP "baudot/celix-lab"
+  )
+  baudot_configure_bundle(${target})
+  target_compile_definitions(${target} PRIVATE ${profile_definition})
+endfunction()
+
+baudot_add_ranger_authorization(RangerAllowAuthorizationBundle BAUDOT_RANGER_ALLOW)
+baudot_add_ranger_authorization(RangerDenyAuthorizationBundle BAUDOT_RANGER_DENY)
+
 function(baudot_add_probe target profile_definition)
   add_celix_bundle(${target}
     SOURCES src/composition_probe_bundle.cc
@@ -120,6 +149,23 @@ baudot_add_probe(GoodCompositionProbeBundle BAUDOT_PROFILE_GOOD)
 baudot_add_probe(FaultInjectedCompositionProbeBundle BAUDOT_PROFILE_FAULT_INJECTED)
 baudot_add_probe(MissingRttCompositionProbeBundle BAUDOT_PROFILE_MISSING_RTT)
 baudot_add_probe(ParsedNotAdmittedCompositionProbeBundle BAUDOT_PROFILE_PARSED_NOT_ADMITTED)
+
+function(baudot_add_security_probe target profile_definition)
+  add_celix_bundle(${target}
+    SOURCES src/security_composition_probe_bundle.cc
+    SYMBOLIC_NAME "Baudot_${target}"
+    NAME "Baudot ${target}"
+    FILENAME "baudot_${target}"
+    VERSION "0.1.0"
+    GROUP "baudot/celix-lab"
+  )
+  baudot_configure_bundle(${target})
+  target_compile_definitions(${target} PRIVATE ${profile_definition})
+endfunction()
+
+baudot_add_security_probe(SecurityGoodProbeBundle BAUDOT_SECURITY_GOOD)
+baudot_add_security_probe(SecurityAuthorizationDenyProbeBundle BAUDOT_SECURITY_DENY)
+baudot_add_security_probe(SecurityRememberedProbeBundle BAUDOT_SECURITY_REMEMBERED)
 
 # A standalone framework driver is intentionally used for dependency lifecycle
 # evidence. It stops only the parser bundle while admission and RTT remain live.
@@ -174,6 +220,42 @@ add_celix_container(baudot_celix_parsed_not_admitted
     PjsipCallAdmissionBundle
     GoodRealtimeTextBundle
     ParsedNotAdmittedCompositionProbeBundle
+    Celix::shell
+    Celix::shell_tui
+)
+
+add_celix_container(baudot_celix_security_good
+  BUNDLES
+    EvidenceEmitterBundle
+    PjsipSignalingParserBundle
+    PjsipCallAdmissionBundle
+    AuthenticatedActorContextBundle
+    RangerAllowAuthorizationBundle
+    SecurityGoodProbeBundle
+    Celix::shell
+    Celix::shell_tui
+)
+
+add_celix_container(baudot_celix_security_authorization_deny
+  BUNDLES
+    EvidenceEmitterBundle
+    PjsipSignalingParserBundle
+    PjsipCallAdmissionBundle
+    AuthenticatedActorContextBundle
+    RangerDenyAuthorizationBundle
+    SecurityAuthorizationDenyProbeBundle
+    Celix::shell
+    Celix::shell_tui
+)
+
+add_celix_container(baudot_celix_security_remembered_only
+  BUNDLES
+    EvidenceEmitterBundle
+    PjsipSignalingParserBundle
+    PjsipCallAdmissionBundle
+    RememberedActorContextBundle
+    RangerAllowAuthorizationBundle
+    SecurityRememberedProbeBundle
     Celix::shell
     Celix::shell_tui
 )
