@@ -1,0 +1,105 @@
+{
+  "schema": "baudot.fineract-consumer-provider-access-contract@1",
+  "description": "A synthetic, read-only provider-facing financial access boundary over Apache Fineract Consumer-Facing. It defines access shape only and creates no TRS program, claim, payment, or accounting authority.",
+  "upstream": {
+    "repository": "apache/fineract-consumer-facing",
+    "commit": "58eacf7338126aa0de2b2a2ef70319f45d403fbf",
+    "component": "consumer BFF",
+    "apiPrefix": "/api/v1"
+  },
+  "surfaces": [
+    {
+      "id": "provider-self-service",
+      "actorType": "provider-user",
+      "owner": "fineract-consumer-facing-bff",
+      "purpose": "provider-scoped financial visibility",
+      "mayConferTrsProgramAuthority": false
+    },
+    {
+      "id": "operator-control-plane",
+      "actorType": "operator",
+      "owner": "baudot",
+      "purpose": "cross-provider reasoning, evidence, exceptions, reconciliation, and program decisions",
+      "mayConferTrsProgramAuthority": false
+    },
+    {
+      "id": "machine-integration",
+      "actorType": "system",
+      "owner": "separate-machine-api-boundary",
+      "purpose": "constrained system-to-system exchange",
+      "mayConferTrsProgramAuthority": false
+    },
+    {
+      "id": "public-oversight",
+      "actorType": "public",
+      "owner": "separate-aggregate-publication-boundary",
+      "purpose": "aggregated or otherwise releasable information",
+      "mayConferTrsProgramAuthority": false
+    }
+  ],
+  "providerReadSurface": {
+    "allowedMethods": [
+      "GET"
+    ],
+    "allowedEndpoints": [
+      "/api/v1/summary/accounts",
+      "/api/v1/savings",
+      "/api/v1/savings/{savingsId}",
+      "/api/v1/savings/{savingsId}/transactions",
+      "/api/v1/savings/{savingsId}/transactions/{transactionId}"
+    ],
+    "forbiddenCapabilities": [
+      "claim-creation",
+      "claim-approval",
+      "rate-selection",
+      "payment-authorization",
+      "provider-certification",
+      "trs-eligibility-decision",
+      "ledger-journal-mutation",
+      "consumer-transfer-mutation",
+      "consumer-loan-mutation"
+    ]
+  },
+  "accessDecision": {
+    "requiredFacts": [
+      "providerUserActor",
+      "authenticated",
+      "providerAccessActive",
+      "providerScopeMatchesResource",
+      "bffAbacAllowed",
+      "readOnlyEndpointAllowed"
+    ],
+    "cannotBeSatisfiedBy": [
+      "ledgerAccepted",
+      "journalBalanced",
+      "claimApproved",
+      "paymentAuthorized",
+      "rangerAllowed",
+      "trsBusinessAuthorityAllowed"
+    ]
+  },
+  "authorityInvariants": [
+    "provider access authorized != TRS program authorized",
+    "consumer BFF ABAC allow != claim approved",
+    "consumer BFF ABAC allow != payment authorized",
+    "Fineract ledger state != provider visibility entitlement",
+    "provider visibility != operator authority",
+    "operator authority != provider visibility entitlement"
+  ],
+  "claimBoundary": {
+    "establishes": [
+      "a deterministic synthetic provider-access contract",
+      "a source-pinned mapping to documented Consumer-Facing read endpoints",
+      "separation between provider visibility and Baudot operator authority"
+    ],
+    "doesNotEstablish": [
+      "a live Consumer-Facing BFF integration",
+      "production identity binding",
+      "production ABAC policy correctness",
+      "real TRS provider entitlement",
+      "TRS claim or payment authority",
+      "production Fineract suitability",
+      "regulatory compliance"
+    ]
+  }
+}
