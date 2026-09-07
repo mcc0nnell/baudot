@@ -7,9 +7,9 @@ if(NOT PJSIP_SOURCE_DIR)
   message(FATAL_ERROR "Set PJSIP_SOURCE_DIR to the pinned clean pjsip/pjproject 2.17 checkout")
 endif()
 
-# Keep the PJSIP dependency closure narrow and static. The Celix adapter uses
-# only the native SIP parser plus a Baudot-owned admission profile; it does not
-# start transports, media, or a UA.
+# Keep the PJSIP dependency closure narrow and static. Only the signaling-parser
+# bundle links PJPROJECT. Admission is a separate Celix service which depends on
+# ISignalingParser dynamically and fails closed when that service is absent.
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -49,19 +49,29 @@ add_celix_bundle(EvidenceEmitterBundle
 )
 baudot_configure_bundle(EvidenceEmitterBundle)
 
+add_celix_bundle(PjsipSignalingParserBundle
+  SOURCES src/pjsip_signaling_parser_bundle.cc
+  SYMBOLIC_NAME "Baudot_PjsipSignalingParser"
+  NAME "Baudot PJSIP Signaling Parser"
+  FILENAME "baudot_pjsip_signaling_parser"
+  VERSION "0.1.0"
+  GROUP "baudot/celix-lab"
+)
+baudot_configure_bundle(PjsipSignalingParserBundle)
+# pjproject's pjsip target keeps pjlib-util private even though public PJSIP
+# parser headers include pjlib-util/scanner.h. Make that compile-time/runtime
+# dependency explicit at the parser seam instead of duplicating include paths.
+target_link_libraries(PjsipSignalingParserBundle PRIVATE pjsip pjlib-util)
+
 add_celix_bundle(PjsipCallAdmissionBundle
   SOURCES src/pjsip_call_admission_bundle.cc
   SYMBOLIC_NAME "Baudot_PjsipCallAdmission"
-  NAME "Baudot PJSIP Parser and Call Admission"
+  NAME "Baudot PJSIP-backed Call Admission"
   FILENAME "baudot_pjsip_call_admission"
-  VERSION "0.2.0"
+  VERSION "0.3.0"
   GROUP "baudot/celix-lab"
 )
 baudot_configure_bundle(PjsipCallAdmissionBundle)
-# pjproject's pjsip target keeps pjlib-util private even though public PJSIP
-# parser headers include pjlib-util/scanner.h. Make that compile-time/runtime
-# dependency explicit at the adapter seam instead of duplicating include paths.
-target_link_libraries(PjsipCallAdmissionBundle PRIVATE pjsip pjlib-util)
 
 add_celix_bundle(FaultInjectedCallAdmissionBundle
   SOURCES src/fault_injected_call_admission_bundle.cc
@@ -111,20 +121,25 @@ baudot_add_probe(FaultInjectedCompositionProbeBundle BAUDOT_PROFILE_FAULT_INJECT
 baudot_add_probe(MissingRttCompositionProbeBundle BAUDOT_PROFILE_MISSING_RTT)
 baudot_add_probe(ParsedNotAdmittedCompositionProbeBundle BAUDOT_PROFILE_PARSED_NOT_ADMITTED)
 
-# A standalone framework driver is intentionally used for lifecycle evidence.
-# It runs from a normal process thread, so Celix startBundle/stopBundle calls are
-# synchronous and the capability presence checks are deterministic.
+# A standalone framework driver is intentionally used for dependency lifecycle
+# evidence. It stops only the parser bundle while admission and RTT remain live.
 add_executable(baudot_celix_pjsip_lifecycle
   src/pjsip_lifecycle_probe.cc
 )
 target_include_directories(baudot_celix_pjsip_lifecycle PRIVATE "${BAUDOT_CELIX_INCLUDE_DIR}")
 target_compile_features(baudot_celix_pjsip_lifecycle PRIVATE cxx_std_17)
 target_link_libraries(baudot_celix_pjsip_lifecycle PRIVATE Celix::framework)
-add_dependencies(baudot_celix_pjsip_lifecycle PjsipCallAdmissionBundle)
+add_dependencies(
+  baudot_celix_pjsip_lifecycle
+  PjsipSignalingParserBundle
+  PjsipCallAdmissionBundle
+  GoodRealtimeTextBundle
+)
 
 add_celix_container(baudot_celix_good
   BUNDLES
     EvidenceEmitterBundle
+    PjsipSignalingParserBundle
     PjsipCallAdmissionBundle
     GoodRealtimeTextBundle
     GoodCompositionProbeBundle
@@ -145,6 +160,7 @@ add_celix_container(baudot_celix_fault_injected
 add_celix_container(baudot_celix_missing_rtt
   BUNDLES
     EvidenceEmitterBundle
+    PjsipSignalingParserBundle
     PjsipCallAdmissionBundle
     MissingRttCompositionProbeBundle
     Celix::shell
@@ -154,6 +170,7 @@ add_celix_container(baudot_celix_missing_rtt
 add_celix_container(baudot_celix_parsed_not_admitted
   BUNDLES
     EvidenceEmitterBundle
+    PjsipSignalingParserBundle
     PjsipCallAdmissionBundle
     GoodRealtimeTextBundle
     ParsedNotAdmittedCompositionProbeBundle
