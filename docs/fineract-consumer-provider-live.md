@@ -11,7 +11,7 @@ apache/fineract-consumer-facing
 58eacf7338126aa0de2b2a2ef70319f45d403fbf
 ```
 
-The lane uses the upstream development stack and its own synthetic demo seeder. Baudot does not copy Consumer authentication or ABAC logic into its authority core.
+The lane uses the upstream development stack and its own synthetic demo seeder. Baudot does not copy Consumer authentication or ABAC logic into its authority core. The live probe also reuses the pinned upstream fixture helpers for login, Mailpit 2FA, and Fineract fixture access rather than duplicating their demo credentials in Baudot.
 
 ## What runs
 
@@ -35,24 +35,25 @@ The probe:
 1. generates the upstream development JWT signing key;
 2. starts the pinned Consumer-Facing compose stack;
 3. runs upstream `seed-demo.sh` to create the synthetic clients and BFF bindings;
-4. logs in as the upstream `demo3@example.com` fixture using password plus Mailpit-delivered 2FA;
+4. uses the pinned upstream headless-login helpers to establish the `demo3@example.com` password + Mailpit 2FA session;
 5. reads `GET /api/v1/savings` through the Consumer BFF;
-6. resolves one savings-account ID belonging to the separate `demo-client-4` synthetic client directly from the Fineract test fixture;
-7. snapshots the recording proxy after the provider's ownership cache has been primed;
-8. requests `GET /api/v1/savings/{otherProviderSavingsId}` with the first provider's authenticated session; and
-9. requires both HTTP 403 and zero new downstream proxy requests.
+6. reads one account from that returned set with `GET /api/v1/savings/{ownedSavingsId}`, exercising the owned-resource ABAC path and populating `OwnedAccountsCache`;
+7. resolves one savings-account ID belonging to the separate `demo-client-4` synthetic client directly from the Fineract test fixture;
+8. snapshots the recording proxy;
+9. requests `GET /api/v1/savings/{otherProviderSavingsId}` with the first provider's authenticated session; and
+10. requires both HTTP 403 and zero new downstream proxy requests.
 
 ## Why prime the ownership cache
 
-Consumer-Facing ownership resolution can obtain the caller's owned account IDs through Fineract before applying an owned-resource decision. A first request may therefore create a legitimate downstream lookup of the caller's own account set.
+Consumer-Facing's list path and owned-resource path are not identical. `GET /api/v1/savings` resolves the caller's client and lists accounts, but an owned-resource request such as `GET /api/v1/savings/{id}` authorizes through `OwnedAccountsCache`. On the cache's first load, Consumer-Facing may legitimately call Fineract to learn the caller's owned account IDs.
 
-The live negative control intentionally performs an authorized provider read first. That primes the ownership cache. The cross-provider request is then measured in isolation.
+The live negative control therefore performs one known-good **owned account detail** request before measurement. That gives the same owned-resource authorization path a legitimate chance to populate its cache. Only then is the cross-provider request measured in isolation.
 
 The required invariant is:
 
 ```text
 provider A authenticated
-+ provider A ownership cache established
++ provider A owned-resource cache established
 + provider A requests provider B savings account
 =
 HTTP 403 at Consumer BFF
@@ -66,9 +67,10 @@ The probe also counts the exact protected Fineract resource path and requires th
 The workflow preserves an artifact containing:
 
 - `evidence.json` — machine-readable verdict and source pin;
-- `provider-own-savings.json` — the provider-visible authorized response;
+- `provider-own-savings.json` — the authorized provider account list;
+- `provider-own-savings-detail.json` — the authorized owned-resource read used to establish the ABAC/cache path;
 - `cross-provider-denial.json` — the Consumer denial response;
-- `fineract-proxy.log` — downstream request evidence;
+- `fineract-proxy-before.log` and `fineract-proxy.log` — downstream request evidence around the negative control;
 - `provider-audit-events.json` when the upstream audit-query endpoint is available; and
 - `seed-demo.log` — synthetic fixture construction evidence.
 
@@ -76,7 +78,7 @@ Hashes of the principal response and log artifacts are recorded in `evidence.jso
 
 ## Authority boundary
 
-A passing lane establishes only that this pinned Consumer-Facing implementation admitted one synthetic authenticated self-read and denied one synthetic cross-provider read under the measured conditions.
+A passing lane establishes only that this pinned Consumer-Facing implementation admitted the measured synthetic authenticated self-reads and denied one synthetic cross-provider read under the measured conditions.
 
 It does not establish:
 
