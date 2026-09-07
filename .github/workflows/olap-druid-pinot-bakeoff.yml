@@ -1,0 +1,64 @@
+name: olap-druid-pinot-bakeoff
+
+on:
+  pull_request:
+    paths:
+      - 'testkit/business/olap-bakeoff-v1.json'
+      - 'interop/olap/**'
+      - 'scripts/validate_olap_bakeoff.py'
+      - 'scripts/validate_olap_live_harness.py'
+      - 'scripts/generate_olap_live_corpus.py'
+      - 'scripts/run_olap_live_benchmark.py'
+      - 'scripts/summarize_olap_live_bakeoff.py'
+      - 'docs/olap-druid-pinot-bakeoff.md'
+      - '.github/workflows/olap-druid-pinot-bakeoff.yml'
+      - '.github/workflows/olap-live-bakeoff.yml'
+  push:
+    paths:
+      - 'testkit/business/olap-bakeoff-v1.json'
+      - 'interop/olap/**'
+      - 'scripts/validate_olap_bakeoff.py'
+      - 'scripts/validate_olap_live_harness.py'
+      - 'scripts/generate_olap_live_corpus.py'
+      - 'scripts/run_olap_live_benchmark.py'
+      - 'scripts/summarize_olap_live_bakeoff.py'
+      - 'docs/olap-druid-pinot-bakeoff.md'
+      - '.github/workflows/olap-druid-pinot-bakeoff.yml'
+      - '.github/workflows/olap-live-bakeoff.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Compile benchmark harness
+        run: |
+          python -m py_compile \
+            scripts/validate_olap_bakeoff.py \
+            scripts/validate_olap_live_harness.py \
+            scripts/generate_olap_live_corpus.py \
+            scripts/run_olap_live_benchmark.py \
+            scripts/summarize_olap_live_bakeoff.py
+      - name: Validate Druid vs Pinot bakeoff contract
+        run: python scripts/validate_olap_bakeoff.py
+      - name: Validate live engine configs and privacy boundary
+        run: python scripts/validate_olap_live_harness.py
+      - name: Generate deterministic smoke corpus
+        run: python scripts/generate_olap_live_corpus.py --rows 1000
+      - name: Verify smoke corpus Cartesian coverage
+        run: |
+          python - <<'PY'
+          import json
+          meta = json.load(open('target/olap-live/corpus-metadata.json'))
+          assert meta['rows'] == 1000
+          assert meta['providerServiceCombinations'] == 16
+          assert meta['providerOutcomeCombinations'] == 16
+          assert meta['synthetic'] is True
+          print('OLAP smoke corpus: PASS')
+          PY

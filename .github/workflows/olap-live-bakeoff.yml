@@ -1,0 +1,297 @@
+name: olap-live-bakeoff
+
+on:
+  pull_request:
+    paths:
+      - 'interop/olap/**'
+      - 'scripts/generate_olap_live_corpus.py'
+      - 'scripts/run_olap_live_benchmark.py'
+      - 'scripts/summarize_olap_live_bakeoff.py'
+      - 'scripts/validate_olap_live_harness.py'
+      - '.github/workflows/olap-live-bakeoff.yml'
+  workflow_dispatch:
+    inputs:
+      rows:
+        description: 'Synthetic privacy-reduced CDR rows'
+        required: true
+        default: '20000'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-harness:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Compile live harness scripts
+        run: |
+          python -m py_compile \
+            scripts/generate_olap_live_corpus.py \
+            scripts/run_olap_live_benchmark.py \
+            scripts/summarize_olap_live_bakeoff.py \
+            scripts/validate_olap_live_harness.py
+      - name: Validate engine configs and privacy boundary
+        run: python scripts/validate_olap_live_harness.py
+      - name: Generate deterministic smoke corpus
+        run: python scripts/generate_olap_live_corpus.py --rows 1000
+      - name: Verify smoke corpus coverage
+        run: |
+          python - <<'PY'
+          import json
+          meta = json.load(open('target/olap-live/corpus-metadata.json'))
+          assert meta['rows'] == 1000
+          assert meta['providerServiceCombinations'] == 16
+          assert meta['providerOutcomeCombinations'] == 16
+          assert meta['synthetic'] is True
+          print('OLAP smoke corpus: PASS')
+          PY
+
+  live-bakeoff:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Validate harness and generate shared corpus
+        env:
+          ROWS: ${{ inputs.rows }}
+        run: |
+          python scripts/validate_olap_live_harness.py
+          python scripts/generate_olap_live_corpus.py --rows "$ROWS"
+          mkdir -p target/olap-live
+
+      - name: Start pinned Kafka 4.3.1 and publish corpus once
+        run: |
+          docker network create baudot-olap
+          docker pull apache/kafka:4.3.1
+          docker run -d \
+            --name kafka \
+            --hostname kafka \
+            --network baudot-olap \
+            -e KAFKA_NODE_ID=1 \
+            -e KAFKA_PROCESS_ROLES=broker,controller \
+            -e KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092 \
+            -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+            -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
+            -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
+            -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093 \
+            -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+            -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
+            -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
+            -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=false \
+            apache/kafka:4.3.1
+
+          ready=0
+          for attempt in $(seq 1 90); do
+            if docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs kafka
+            exit 1
+          fi
+
+          docker exec kafka /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server kafka:9092 \
+            --create \
+            --topic baudot.olap.cdr.v1 \
+            --partitions 1 \
+            --replication-factor 1
+
+          cat target/olap-live/cdr_analytics_v1.jsonl | \
+            docker exec -i kafka /opt/kafka/bin/kafka-console-producer.sh \
+              --bootstrap-server kafka:9092 \
+              --topic baudot.olap.cdr.v1
+
+          docker exec kafka /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server kafka:9092 \
+            --describe --topic baudot.olap.cdr.v1 \
+            > target/olap-live/kafka-topic.txt
+          docker image inspect apache/kafka:4.3.1 --format '{{.Id}}' \
+            > target/olap-live/kafka-image-id.txt
+
+      - name: Start pinned Pinot 1.5.1
+        run: |
+          docker pull apachepinot/pinot:1.5.1
+          docker run -d --name pinot-zk --hostname pinot-zk --network baudot-olap \
+            apachepinot/pinot:1.5.1 StartZookeeper -zkPort 2181
+          sleep 4
+          docker run -d --name pinot-controller --hostname pinot-controller --network baudot-olap -p 9000:9000 \
+            apachepinot/pinot:1.5.1 StartController -zkAddress pinot-zk:2181
+          docker run -d --name pinot-broker --hostname pinot-broker --network baudot-olap -p 8099:8099 \
+            apachepinot/pinot:1.5.1 StartBroker -zkAddress pinot-zk:2181
+          docker run -d --name pinot-server --hostname pinot-server --network baudot-olap -p 8098:8098 \
+            apachepinot/pinot:1.5.1 StartServer -zkAddress pinot-zk:2181
+
+          ready=0
+          for attempt in $(seq 1 120); do
+            if curl -fsS http://localhost:9000/schemas >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs pinot-controller
+            docker logs pinot-broker
+            docker logs pinot-server
+            exit 1
+          fi
+
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            --data-binary @interop/olap/pinot/cdr_analytics_v1.schema.json \
+            http://localhost:9000/schemas > target/olap-live/pinot-schema-response.json
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            --data-binary @interop/olap/pinot/cdr_analytics_v1.realtime.table.json \
+            http://localhost:9000/tables > target/olap-live/pinot-table-response.json
+
+      - name: Wait for Pinot catch-up and benchmark
+        env:
+          ROWS: ${{ inputs.rows }}
+        run: |
+          python scripts/run_olap_live_benchmark.py wait \
+            --engine pinot --endpoint http://localhost:8099 \
+            --expected "$ROWS" --timeout 360 \
+            --out target/olap-live/pinot-wait.json
+          python scripts/run_olap_live_benchmark.py bench \
+            --engine pinot --endpoint http://localhost:8099 \
+            --out target/olap-live/pinot-benchmark.json
+          docker stats --no-stream --format '{{json .}}' \
+            pinot-controller pinot-broker pinot-server pinot-zk \
+            > target/olap-live/pinot-docker-stats.jsonl
+          docker image inspect apachepinot/pinot:1.5.1 --format '{{.Id}}' \
+            > target/olap-live/pinot-image-id.txt
+
+      - name: Stop Pinot before Druid run
+        run: docker rm -f pinot-controller pinot-broker pinot-server pinot-zk >/dev/null 2>&1 || true
+
+      - name: Start pinned Druid 37.0.0 from official Docker topology
+        run: |
+          docker pull apache/druid:37.0.0
+          docker pull postgres:17.6
+          docker pull zookeeper:3.5.10
+          docker volume create druid_shared >/dev/null
+
+          cat > target/olap-live/druid.env <<'EOF'
+          DRUID_SINGLE_NODE_CONF=micro-quickstart
+          DRUID_XMX=512m
+          DRUID_XMS=512m
+          DRUID_MAXDIRECTMEMORYSIZE=768m
+          druid_emitter_logging_logLevel=info
+          druid_extensions_loadList=["druid-kafka-indexing-service","druid-datasketches","postgresql-metadata-storage"]
+          druid_zk_service_host=druid-zk
+          druid_metadata_storage_type=postgresql
+          druid_metadata_storage_connector_connectURI=jdbc:postgresql://druid-postgres:5432/druid
+          druid_metadata_storage_connector_user=druid
+          druid_metadata_storage_connector_password=FoolishPassword
+          druid_storage_type=local
+          druid_storage_storageDirectory=/opt/shared/segments
+          druid_indexer_logs_type=file
+          druid_indexer_logs_directory=/opt/shared/indexing-logs
+          druid_processing_numThreads=2
+          druid_processing_numMergeBuffers=2
+          druid_worker_capacity=1
+          druid_indexer_runner_javaOptsArray=["-server","-Xmx384m","-Xms384m","-XX:MaxDirectMemorySize=512m","-Duser.timezone=UTC","-Dfile.encoding=UTF-8"]
+          EOF
+
+          docker run -d --name druid-zk --hostname druid-zk --network baudot-olap \
+            zookeeper:3.5.10
+          docker run -d --name druid-postgres --hostname druid-postgres --network baudot-olap \
+            -e POSTGRES_PASSWORD=FoolishPassword -e POSTGRES_USER=druid -e POSTGRES_DB=druid \
+            postgres:17.6
+
+          sleep 6
+          for spec in \
+            'coordinator:8081:coordinator' \
+            'broker:8082:broker' \
+            'historical:8083:historical' \
+            'middlemanager:8091:middleManager' \
+            'router:8888:router'; do
+            name=${spec%%:*}
+            rest=${spec#*:}
+            port=${rest%%:*}
+            command=${rest#*:}
+            docker run -d \
+              --name "druid-$name" --hostname "druid-$name" --network baudot-olap \
+              --env-file target/olap-live/druid.env \
+              -v druid_shared:/opt/shared \
+              -p "$port:$port" \
+              apache/druid:37.0.0 "$command"
+          done
+
+          ready=0
+          for attempt in $(seq 1 150); do
+            if curl -fsS http://localhost:8888/status/health >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            for name in coordinator broker historical middlemanager router; do docker logs "druid-$name" || true; done
+            exit 1
+          fi
+
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            --data-binary @interop/olap/druid/cdr_analytics_v1.kafka-supervisor.json \
+            http://localhost:8081/druid/indexer/v1/supervisor \
+            > target/olap-live/druid-supervisor-response.json
+
+      - name: Wait for Druid catch-up and benchmark
+        env:
+          ROWS: ${{ inputs.rows }}
+        run: |
+          python scripts/run_olap_live_benchmark.py wait \
+            --engine druid --endpoint http://localhost:8888 \
+            --expected "$ROWS" --timeout 480 \
+            --out target/olap-live/druid-wait.json
+          python scripts/run_olap_live_benchmark.py bench \
+            --engine druid --endpoint http://localhost:8888 \
+            --out target/olap-live/druid-benchmark.json
+          docker stats --no-stream --format '{{json .}}' \
+            druid-coordinator druid-broker druid-historical druid-middlemanager druid-router \
+            druid-zk druid-postgres \
+            > target/olap-live/druid-docker-stats.jsonl
+          docker image inspect apache/druid:37.0.0 --format '{{.Id}}' \
+            > target/olap-live/druid-image-id.txt
+
+      - name: Seal same-corpus benchmark evidence
+        run: |
+          python scripts/summarize_olap_live_bakeoff.py \
+            --pinot target/olap-live/pinot-benchmark.json \
+            --druid target/olap-live/druid-benchmark.json \
+            --pinot-wait target/olap-live/pinot-wait.json \
+            --druid-wait target/olap-live/druid-wait.json \
+            --corpus target/olap-live/corpus-metadata.json \
+            --out target/olap-live/olap-live-benchmark.json
+          sha256sum target/olap-live/* > target/olap-live/SHA256SUMS.txt
+
+      - name: Preserve live OLAP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: olap-live-bakeoff-evidence
+          path: target/olap-live/
+          if-no-files-found: warn
+
+      - name: Clean up live stacks
+        if: always()
+        run: |
+          docker rm -f \
+            pinot-controller pinot-broker pinot-server pinot-zk \
+            druid-coordinator druid-broker druid-historical druid-middlemanager druid-router \
+            druid-zk druid-postgres kafka >/dev/null 2>&1 || true
+          docker network rm baudot-olap >/dev/null 2>&1 || true
+          docker volume rm druid_shared >/dev/null 2>&1 || true

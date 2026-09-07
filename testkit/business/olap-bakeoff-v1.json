@@ -1,0 +1,118 @@
+{
+  "schema": "baudot.olap-bakeoff@1",
+  "decision": {
+    "initialCdrAnalyticsStore": "apache-pinot",
+    "secondaryCandidate": "apache-druid",
+    "dualStoreByDefault": false,
+    "reason": "Prefer one OLAP store for the first live CDR analytics path; Pinot currently fits Kafka-first low-latency CDR serving best. Keep Druid as a benchmarkable alternate for rollup-heavy time-series workloads rather than operating both by default."
+  },
+  "candidates": {
+    "apache-pinot": {
+      "version": "1.5.1",
+      "releaseCommit": "020ff0d0538b2079d4cf4cb2676a191c87c95d4d",
+      "supersetDriver": "pinotdb",
+      "directKafkaIngestion": true,
+      "explicitKafka4Support": true,
+      "realTimeServing": true,
+      "multiStageQueryEngine": true
+    },
+    "apache-druid": {
+      "version": "37.0.0",
+      "releaseCommit": "b206640c830bc2c3bdc2867cfb317c902a0e1acb",
+      "supersetDriver": "pydruid",
+      "directKafkaIngestion": true,
+      "explicitKafka4Support": false,
+      "realTimeServing": true,
+      "multiStageQueryEngine": true
+    }
+  },
+  "projection": {
+    "name": "cdr_analytics_v1",
+    "source": "baudot.synthetic.cdr.v1",
+    "fields": [
+      "eventTime",
+      "eventId",
+      "callId",
+      "providerId",
+      "serviceType",
+      "direction",
+      "durationSeconds",
+      "outcome",
+      "sourceObservationCount"
+    ],
+    "forbiddenFields": [
+      "fromTn",
+      "toTn",
+      "subscriberId",
+      "subscriberName",
+      "claimApproved",
+      "paymentAuthorized",
+      "compensable",
+      "providerCertified",
+      "accessibilityReady",
+      "rawPayload"
+    ]
+  },
+  "benchmarkQueries": [
+    {
+      "id": "OLAP-Q001",
+      "purpose": "near-real-time provider/service volume",
+      "shape": "count by providerId, serviceType over trailing 15 minutes",
+      "latencyClass": "interactive"
+    },
+    {
+      "id": "OLAP-Q002",
+      "purpose": "duration distribution",
+      "shape": "p50/p95 durationSeconds by providerId over trailing 24 hours",
+      "latencyClass": "interactive"
+    },
+    {
+      "id": "OLAP-Q003",
+      "purpose": "historical operations trend",
+      "shape": "hourly call count and total duration by serviceType over 30 days",
+      "latencyClass": "dashboard"
+    },
+    {
+      "id": "OLAP-Q004",
+      "purpose": "outcome drilldown",
+      "shape": "count by outcome/providerId over trailing 24 hours",
+      "latencyClass": "interactive"
+    },
+    {
+      "id": "OLAP-Q005",
+      "purpose": "single-call technical drilldown",
+      "shape": "lookup by opaque callId",
+      "latencyClass": "interactive"
+    }
+  ],
+  "hardGates": {
+    "mustConsumeKafkaDirectly": true,
+    "mustBeSupportedBySuperset": true,
+    "mustKeepTelephoneNumbersOutOfProjection": true,
+    "mustRemainReadOnlyWithRespectToBusinessAuthority": true,
+    "mustSupportOpaqueCallIdDrilldown": true
+  },
+  "authorityBoundary": {
+    "queryResultIsCallTruth": false,
+    "queryResultIsCompensabilityDecision": false,
+    "queryResultIsClaimApproval": false,
+    "queryResultIsPaymentAuthorization": false,
+    "queryResultIsAccessibilityVerdict": false
+  },
+  "nextThreshold": {
+    "liveBakeoffRequired": true,
+    "sameKafkaCorpus": true,
+    "sameProjection": true,
+    "sameQueries": true,
+    "windowAnchor": "2026-08-31T00:00:00Z",
+    "optInWorkflow": ".github/workflows/olap-live-bakeoff.yml",
+    "measure": [
+      "catchupMs",
+      "queryP50Ms",
+      "queryP95Ms",
+      "replayCorrectness",
+      "resourceFootprint",
+      "operationalSteps"
+    ]
+  }
+}
