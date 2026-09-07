@@ -137,6 +137,7 @@ struct PaymentAuthorizationDecision {
 };
 
 struct ProviderDisbursementIntentFacts {
+    std::string syntheticBusinessTransactionId{};
     std::string eventType{};
     std::string postingDate{};
     std::string amountUsd{};
@@ -150,6 +151,8 @@ struct ProviderDisbursementIntentFacts {
 struct ProviderDisbursementIntentDecision {
     bool readyForPosting{false};
     std::string syntheticBusinessTransactionId{};
+    std::string sourceProviderPayableBusinessTransactionId{};
+    std::string paymentAuthorizationId{};
     std::string eventType{};
     std::string amountUsd{};
     std::string debitAccount{};
