@@ -152,6 +152,16 @@ add_celix_bundle(VrsCompensabilityBundle
 )
 baudot_configure_bundle(VrsCompensabilityBundle)
 
+add_celix_bundle(FundClaimAuthorityBundle
+  SOURCES src/fund_claim_authority_bundle.cc
+  SYMBOLIC_NAME "Baudot_FundClaimAuthority"
+  NAME "Baudot Fund Claim Authority"
+  FILENAME "baudot_fund_claim_authority"
+  VERSION "0.1.0"
+  GROUP "baudot/celix-lab"
+)
+baudot_configure_bundle(FundClaimAuthorityBundle)
+
 function(baudot_add_probe target profile_definition)
   add_celix_bundle(${target}
     SOURCES src/composition_probe_bundle.cc
@@ -220,6 +230,25 @@ endfunction()
 baudot_add_compensability_probe(VrsCompensabilityEstablishedProbeBundle BAUDOT_COMP_EXTERNALLY_ESTABLISHED)
 baudot_add_compensability_probe(VrsCompensabilityPendingProbeBundle BAUDOT_COMP_PENDING)
 baudot_add_compensability_probe(VrsCompensabilityPlacementOnlyProbeBundle BAUDOT_COMP_PLACEMENT_ONLY)
+
+function(baudot_add_claim_probe target profile_definition)
+  add_celix_bundle(${target}
+    SOURCES src/fund_claim_composition_probe_bundle.cc
+    SYMBOLIC_NAME "Baudot_${target}"
+    NAME "Baudot ${target}"
+    FILENAME "baudot_${target}"
+    VERSION "0.1.0"
+    GROUP "baudot/celix-lab"
+  )
+  baudot_configure_bundle(${target})
+  target_compile_definitions(${target} PRIVATE ${profile_definition})
+endfunction()
+
+baudot_add_claim_probe(FundClaimApprovedProbeBundle BAUDOT_CLAIM_APPROVED)
+baudot_add_claim_probe(FundClaimCompensabilityPendingProbeBundle BAUDOT_CLAIM_COMPENSABILITY_PENDING)
+baudot_add_claim_probe(FundClaimRateMissingProbeBundle BAUDOT_CLAIM_RATE_MISSING)
+baudot_add_claim_probe(FundClaimPendingProbeBundle BAUDOT_CLAIM_PENDING)
+baudot_add_claim_probe(FundClaimAmountMismatchProbeBundle BAUDOT_CLAIM_AMOUNT_MISMATCH)
 
 # A standalone framework driver is intentionally used for dependency lifecycle
 # evidence. It stops only the parser bundle while admission and RTT remain live.
@@ -394,3 +423,26 @@ add_celix_container(baudot_celix_compensability_placement_only
     Celix::shell
     Celix::shell_tui
 )
+
+function(baudot_add_claim_container target probe_bundle)
+  add_celix_container(${target}
+    BUNDLES
+      EvidenceEmitterBundle
+      PjsipSignalingParserBundle
+      PjsipCallAdmissionBundle
+      AuthenticatedActorContextBundle
+      RangerAllowAuthorizationBundle
+      TrsBusinessAuthorityBundle
+      VrsCompensabilityBundle
+      FundClaimAuthorityBundle
+      ${probe_bundle}
+      Celix::shell
+      Celix::shell_tui
+  )
+endfunction()
+
+baudot_add_claim_container(baudot_celix_fund_claim_approved FundClaimApprovedProbeBundle)
+baudot_add_claim_container(baudot_celix_fund_claim_compensability_pending FundClaimCompensabilityPendingProbeBundle)
+baudot_add_claim_container(baudot_celix_fund_claim_rate_missing FundClaimRateMissingProbeBundle)
+baudot_add_claim_container(baudot_celix_fund_claim_pending FundClaimPendingProbeBundle)
+baudot_add_claim_container(baudot_celix_fund_claim_amount_mismatch FundClaimAmountMismatchProbeBundle)
