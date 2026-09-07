@@ -25,7 +25,7 @@ providerDisbursement
   businessAuthority = baudot-synthetic-payment-authorization
 ```
 
-That distinction is preserved mechanically in Celix.
+The checked-in live Fund smoke fixture also gives claim accrual and disbursement separate event ids (`EVT-CLAIM-0001` and `EVT-DISBURSE-0001`). The Celix model preserves that distinction instead of reusing the provider-payable transaction id as the disbursement idempotency key.
 
 ## New service contracts
 
@@ -45,11 +45,14 @@ IProviderDisbursementIntentService 1.0.0
 It rejects payment authority unless:
 
 1. the provider-payable intent is ready;
-2. the Fineract provider-payable journal is posted;
+2. the provider-payable journal is actually posted;
 3. business-transaction lineage matches exactly;
-4. an explicit payment decision is `approved`;
-5. a stable authorization id is present; and
-6. the authorized amount exactly matches the posted payable amount.
+4. posted ledger evidence carries a ledger transaction id;
+5. an explicit payment decision is `approved`;
+6. a stable payment authorization id is present; and
+7. the authorized amount exactly matches the posted payable amount.
+
+The service depends on the typed `posted` result, not adapter-specific verdict text. A future live adapter therefore does not gain or lose payment authority merely by changing a diagnostic verdict string.
 
 A positive result is:
 
@@ -63,7 +66,17 @@ That verdict authorizes only the next Baudot decision boundary. It does not post
 
 `IProviderDisbursementIntentService` consumes a `PaymentAuthorizationDecision` and explicit accounting-intent facts.
 
-It admits only:
+It requires a new disbursement business transaction id and preserves three distinct lineage values:
+
+```text
+disbursementBusinessTransactionId
+sourceProviderPayableBusinessTransactionId
+paymentAuthorizationId
+```
+
+The disbursement id must be non-empty and distinct from the provider-payable transaction id.
+
+It otherwise admits only:
 
 ```text
 eventType = providerDisbursement
@@ -136,10 +149,14 @@ Only payment/disbursement facts vary.
 ```text
 PaymentAuthorization
   PAYMENT_AUTHORIZED
+  authorizationId=payment-auth-celix-001
   authorizedAmountUsd=8830.00
 
 ProviderDisbursementIntent
   PROVIDER_DISBURSEMENT_INTENT_READY
+  businessTransactionId=disburse-vrs-celix-payment-001
+  sourceProviderPayableBusinessTransactionId=claim-vrs-celix-payment-001
+  paymentAuthorizationId=payment-auth-celix-001
   Dr 2100
   Cr 1100
   amountUsd=8830.00
@@ -198,7 +215,7 @@ PROVIDER_DISBURSEMENT_INTENT_REJECTED_JOURNAL_MAPPING
 
 ### 5. Duplicate disbursement replay
 
-Payment authorization succeeds, but prior disbursement evidence for the same synthetic business transaction id is present.
+Payment authorization succeeds, but prior disbursement evidence for the same disbursement transaction id is present.
 
 Required result:
 
@@ -226,7 +243,7 @@ The runner builds the Celix containers, executes the five payment profiles, capt
 scripts/validate_celix_payment_authorization.py
 ```
 
-The validator requires upstream evidence through the posted provider-payable journal to remain identical across every profile.
+The validator requires upstream evidence through the posted provider-payable journal to remain identical across every profile and verifies the separate disbursement id, payable lineage, and payment-authorization lineage on the ready path.
 
 ## Claim boundary
 
@@ -242,4 +259,4 @@ A green local qualification establishes only the synthetic service composition d
 
 ## Next threshold
 
-The next slice should add a separate disbursement execution adapter. It should consume only a ready `ProviderDisbursementIntentDecision`, preserve the canonical Dr 2100 / Cr 1100 contract and idempotency lineage, and still keep external bank/cash settlement as a separate authority boundary.
+The next slice should add a separate disbursement execution adapter. It should consume only a ready `ProviderDisbursementIntentDecision`, preserve the canonical Dr 2100 / Cr 1100 contract and the distinct disbursement/payable/payment lineage, and still keep external bank/cash settlement as a separate authority boundary.
