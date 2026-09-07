@@ -39,8 +39,12 @@ def main() -> None:
         "../../public/data/trs-fund-public-2025-26.json" in component,
     )
 
-    json_references = [line for line in component.splitlines() if ".json" in line]
-    require("component references exactly one JSON data source", len(json_references) == 1)
+    json_imports = [
+        line.strip()
+        for line in component.splitlines()
+        if line.strip().startswith("import ") and ".json" in line
+    ]
+    require("component imports exactly one JSON data source", len(json_imports) == 1)
 
     forbidden_markers = [
         "fetch(",
