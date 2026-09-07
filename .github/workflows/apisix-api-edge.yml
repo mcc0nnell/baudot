@@ -1,0 +1,199 @@
+name: apisix-api-edge
+
+on:
+  push:
+    paths:
+      - 'testkit/business/apisix-api-edge-v1.json'
+      - 'interop/apisix/live/**'
+      - 'scripts/validate_apisix_api_edge.py'
+      - 'scripts/apisix_live_mock.py'
+      - 'docs/apisix-api-edge.md'
+      - '.github/workflows/apisix-api-edge.yml'
+  pull_request:
+    paths:
+      - 'testkit/business/apisix-api-edge-v1.json'
+      - 'interop/apisix/live/**'
+      - 'scripts/validate_apisix_api_edge.py'
+      - 'scripts/apisix_live_mock.py'
+      - 'docs/apisix-api-edge.md'
+      - '.github/workflows/apisix-api-edge.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Compile APISIX validators and synthetic edge peer
+        run: python -m py_compile scripts/validate_apisix_api_edge.py scripts/apisix_live_mock.py
+      - name: Validate APISIX API-edge contract
+        run: python scripts/validate_apisix_api_edge.py
+      - name: Verify pinned APISIX release source
+        run: |
+          git init --quiet target/apisix-source
+          git -C target/apisix-source remote add origin https://github.com/apache/apisix.git
+          git -C target/apisix-source fetch --quiet --depth=1 origin 0796d9c2cbedb1f8bf8194292ff526599f4fde20
+          test "$(git -C target/apisix-source rev-parse FETCH_HEAD)" = "0796d9c2cbedb1f8bf8194292ff526599f4fde20"
+
+  live-edge:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Render synthetic TLS standalone configuration
+        run: |
+          mkdir -p target/apisix-live
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout target/apisix-live/key.pem \
+            -out target/apisix-live/cert.pem \
+            -days 1 \
+            -subj '/CN=baudot.invalid' \
+            -addext 'subjectAltName=DNS:baudot.invalid'
+          cp interop/apisix/live/config.yaml target/apisix-live/config.yaml
+          python - <<'PY'
+          from pathlib import Path
+          template = Path('interop/apisix/live/apisix-standalone.yaml.template').read_text()
+          cert = Path('target/apisix-live/cert.pem').read_text().rstrip('\n')
+          key = Path('target/apisix-live/key.pem').read_text().rstrip('\n')
+          indent = lambda text: '\n'.join('        ' + line for line in text.splitlines())
+          rendered = template.replace('__CERT_PEM__', indent(cert)).replace('__KEY_PEM__', indent(key))
+          Path('target/apisix-live/apisix.yaml').write_text(rendered)
+          PY
+
+      - name: Start synthetic OIDC and Ranger-deny peer
+        run: |
+          docker network create baudot-edge
+          docker pull python:3.13-slim
+          docker run -d --name baudot-edge-mock --network baudot-edge \
+            -p 127.0.0.1:18080:8080 \
+            -v "$PWD/scripts/apisix_live_mock.py:/app/mock.py:ro" \
+            -v "$PWD/target/apisix-live:/evidence" \
+            python:3.13-slim python /app/mock.py
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS -X POST -d 'token=good-token' \
+              http://127.0.0.1:18080/introspect | grep -q '"active": true'; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-edge-mock
+            exit 1
+          fi
+
+      - name: Start pinned APISIX 3.18.0 standalone TLS edge
+        run: |
+          docker pull apache/apisix:3.18.0-debian
+          docker run -d --name baudot-apisix --network baudot-edge \
+            -p 127.0.0.1:9443:9443 \
+            -e APISIX_STAND_ALONE=true \
+            -v "$PWD/target/apisix-live/config.yaml:/usr/local/apisix/conf/config.yaml:ro" \
+            -v "$PWD/target/apisix-live/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro" \
+            apache/apisix:3.18.0-debian
+          ready=0
+          for attempt in $(seq 1 60); do
+            code=$(curl -sk --resolve baudot.invalid:9443:127.0.0.1 \
+              -o target/apisix-live/readiness-body.txt -w '%{http_code}' \
+              https://baudot.invalid:9443/itrs/query || true)
+            if [ "$code" = "401" ]; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-apisix
+            exit 1
+          fi
+          docker inspect --format='{{.Image}}' baudot-apisix > target/apisix-live/apisix-image-id.txt
+
+      - name: Prove authentication policy and rate-limit boundaries
+        run: |
+          missing=$(curl -sk --resolve baudot.invalid:9443:127.0.0.1 \
+            -o target/apisix-live/missing-token.txt -w '%{http_code}' \
+            https://baudot.invalid:9443/itrs/query)
+          test "$missing" = "401"
+
+          invalid=$(curl -sk --resolve baudot.invalid:9443:127.0.0.1 \
+            -H 'Authorization: Bearer invalid-token' \
+            -o target/apisix-live/invalid-token.txt -w '%{http_code}' \
+            https://baudot.invalid:9443/itrs/query)
+          test "$invalid" = "401"
+
+          missing_scope=$(curl -sk --resolve baudot.invalid:9443:127.0.0.1 \
+            -H 'Authorization: Bearer missing-scope-token' \
+            -o target/apisix-live/missing-scope.txt -w '%{http_code}' \
+            https://baudot.invalid:9443/itrs/query)
+          test "$missing_scope" = "403"
+          grep -q 'required scopes' target/apisix-live/missing-scope.txt
+
+          first=$(curl -sk --resolve baudot.invalid:9443:127.0.0.1 \
+            -H 'Authorization: Bearer good-token' \
+            -o target/apisix-live/good-1.txt -w '%{http_code}' \
+            https://baudot.invalid:9443/itrs/query)
+          test "$first" = "403"
+          grep -q 'synthetic-ranger' target/apisix-live/good-1.txt
+
+          second=$(curl -sk --resolve baudot.invalid:9443:127.0.0.1 \
+            -H 'Authorization: Bearer good-token' \
+            -o target/apisix-live/good-2.txt -w '%{http_code}' \
+            https://baudot.invalid:9443/itrs/query)
+          test "$second" = "403"
+
+          third=$(curl -sk --resolve baudot.invalid:9443:127.0.0.1 \
+            -H 'Authorization: Bearer good-token' \
+            -o target/apisix-live/good-3.txt -w '%{http_code}' \
+            https://baudot.invalid:9443/itrs/query)
+          test "$third" = "429"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          observation = json.loads(Path('target/apisix-live/upstream-observation.json').read_text())
+          assert observation['rangerDecision'] == 'DENY'
+          assert observation['status'] == 403
+          assert observation['forbiddenHeadersObserved'] == []
+          evidence = {
+              'schema': 'baudot.apisix-live-evidence@1',
+              'missingTokenStatus': 401,
+              'invalidTokenStatus': 401,
+              'missingScopeStatus': 403,
+              'authenticatedDownstreamDenyStatus': 403,
+              'rateLimitedStatus': 429,
+              'forbiddenCredentialHeadersObservedUpstream': [],
+              'gatewayAuthenticationIsRangerAuthorization': False,
+              'gatewaySuccessIsBusinessSuccess': False,
+          }
+          Path('target/apisix-live/evidence.json').write_text(json.dumps(evidence, indent=2, sort_keys=True) + '\n')
+          PY
+
+      - name: Check APISIX logs do not expose synthetic credentials
+        run: |
+          docker logs baudot-apisix > target/apisix-live/apisix.log 2>&1
+          ! grep -F 'good-token' target/apisix-live/apisix.log
+          ! grep -F 'synthetic-secret' target/apisix-live/apisix.log
+          ! grep -F 'Authorization: Bearer' target/apisix-live/apisix.log
+
+      - name: Preserve bounded APISIX evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apisix-api-edge-evidence
+          path: target/apisix-live/
+          if-no-files-found: warn
+
+      - name: Stop live APISIX edge
+        if: always()
+        run: |
+          docker rm -f baudot-apisix baudot-edge-mock >/dev/null 2>&1 || true
+          docker network rm baudot-edge >/dev/null 2>&1 || true

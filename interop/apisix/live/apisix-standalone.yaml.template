@@ -1,0 +1,48 @@
+routes:
+  -
+    id: baudot-itrs-live
+    uri: /itrs/*
+    methods:
+      - GET
+    plugins:
+      openid-connect:
+        client_id: baudot-edge
+        client_secret: synthetic-secret
+        discovery: http://baudot-edge-mock:8080/.well-known/openid-configuration
+        bearer_only: true
+        introspection_endpoint: http://baudot-edge-mock:8080/introspect
+        introspection_endpoint_auth_method: client_secret_post
+        required_scopes:
+          - itrs
+        set_access_token_header: false
+        set_userinfo_header: false
+        unauth_action: deny
+        realm: baudot-edge
+      limit-count:
+        count: 2
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+        policy: local
+      proxy-rewrite:
+        headers:
+          remove:
+            - Authorization
+            - X-Access-Token
+            - X-Userinfo
+            - X-ID-Token
+            - X-Refresh-Token
+            - X-Raw-ID-Token
+    upstream:
+      type: roundrobin
+      nodes:
+        "baudot-edge-mock:8081": 1
+ssls:
+  -
+    cert: |
+__CERT_PEM__
+    key: |
+__KEY_PEM__
+    sni: baudot.invalid
+#END
