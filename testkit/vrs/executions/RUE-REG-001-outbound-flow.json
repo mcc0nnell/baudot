@@ -33,6 +33,14 @@
     "recovery backoff timing is not exercised; immediate replacement is deterministic harness acceleration",
     "outbound-flow proof does not establish media or accessibility readiness"
   ],
+  "requiredBeforeProven": [
+    "portable external/local runner produces the declared evidence bundle",
+    "first flow receives Require: outbound after authenticated registration",
+    "CRLF ping and pong are observed on the registered connection",
+    "client detects the controlled first-flow failure",
+    "replacement registration preserves the AOR/+sip.instance/reg-id binding key",
+    "an inbound SIP request and correlated response traverse the replacement flow"
+  ],
   "claimBoundary": {
     "doesNotEstablish": [
       "RFC 5626 flow-recovery backoff conformance",
