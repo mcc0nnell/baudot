@@ -5,8 +5,14 @@
   "entrypoint": "org.mcc0nnell.baudot.harness.RueOutboundFlowProbe",
   "runner": "scripts/run-rue-outbound-flow.sh",
   "authority": [
-    "ietf-rfc9248",
-    "ietf-rfc5626"
+    "ietf-rfc9248"
+  ],
+  "sourceReferences": [
+    {
+      "title": "RFC 5626 - Managing Client-Initiated Connections in SIP",
+      "url": "https://www.rfc-editor.org/rfc/rfc5626.html",
+      "use": "Direct behavioral source for Require: outbound, CRLF keepalive, flow failure/replacement, and AOR/+sip.instance/reg-id binding semantics; retained as a source reference rather than inventing a matrix authority id."
+    }
   ],
   "objective": "Prove one controlled outbound flow, CRLF keepalive response, detected connection loss, replacement registration with the same AOR/+sip.instance/reg-id binding key, and inbound request delivery over the replacement TLS flow.",
   "positiveFacts": [
