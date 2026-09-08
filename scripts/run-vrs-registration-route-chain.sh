@@ -62,9 +62,15 @@ BAUDOT_RUE_REG_TRANSPORT="$transport" \
 # The private key and synthetic credential container are harness plumbing, not evidence.
 rm -rf "$keystore_dir"
 
+# Prove bounded outbound-flow behavior independently; markers alone remain
+# insufficient until Require: outbound, keepalive, flow loss, replacement
+# registration, and inbound delivery on the replacement flow are observed.
+bash scripts/run-rue-outbound-flow.sh
+
 bash scripts/run-rue-provider-selection.sh
 bash scripts/run-rue-one-stage-dial-around.sh
 python -m scripts.validate_rue_dial_execution
 python -m scripts.validate_vrs_registration_route_chain
+python -m scripts.validate_vrs_outbound_route_chain
 
-cat target/evidence/VRS-REGISTRATION-ROUTE-CHAIN/summary.json
+cat target/evidence/VRS-OUTBOUND-ROUTE-CHAIN/summary.json
