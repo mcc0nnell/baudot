@@ -1,0 +1,93 @@
+name: vrs-public-contract
+
+on:
+  pull_request:
+    paths:
+      - "docs/vrs-public-interoperability-osint.md"
+      - "docs/vrs-public-implementation-archaeology.md"
+      - "testkit/vrs/**"
+      - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/validate_vrs_public_donors.py"
+      - "scripts/validate_rue_dial_config_fixtures.py"
+      - "scripts/select_rue_provider.py"
+      - "scripts/run-rue-provider-selection.sh"
+      - "scripts/validate_rue_dial_execution.py"
+      - "scripts/run-rue-one-stage-dial-around.sh"
+      - "scripts/validate_rue_rtt_negotiation.py"
+      - "scripts/validate_rue_rtt_live_execution.py"
+      - "scripts/run-rue-rtt-negotiation-live.sh"
+      - "tests/test_rue_provider_selection.py"
+      - "tests/test_rue_rtt_negotiation.py"
+      - "src/main/java/org/mcc0nnell/baudot/harness/RueOneStageDialAroundProbe.java"
+      - "src/main/java/org/mcc0nnell/baudot/harness/RueRttNegotiationProbe.java"
+      - ".github/workflows/vrs-public-contract.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/vrs-public-interoperability-osint.md"
+      - "docs/vrs-public-implementation-archaeology.md"
+      - "testkit/vrs/**"
+      - "scripts/validate_vrs_public_matrix.py"
+      - "scripts/validate_vrs_public_donors.py"
+      - "scripts/validate_rue_dial_config_fixtures.py"
+      - "scripts/select_rue_provider.py"
+      - "scripts/run-rue-provider-selection.sh"
+      - "scripts/validate_rue_dial_execution.py"
+      - "scripts/run-rue-one-stage-dial-around.sh"
+      - "scripts/validate_rue_rtt_negotiation.py"
+      - "scripts/validate_rue_rtt_live_execution.py"
+      - "scripts/run-rue-rtt-negotiation-live.sh"
+      - "tests/test_rue_provider_selection.py"
+      - "tests/test_rue_rtt_negotiation.py"
+      - "src/main/java/org/mcc0nnell/baudot/harness/RueOneStageDialAroundProbe.java"
+      - "src/main/java/org/mcc0nnell/baudot/harness/RueRttNegotiationProbe.java"
+      - ".github/workflows/vrs-public-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Validate public VRS/RUE research matrix and fixtures
+        run: python -m scripts.validate_vrs_public_matrix
+      - name: Validate pinned public implementation donor boundaries
+        run: python -m scripts.validate_vrs_public_donors
+      - name: Validate ProviderConfig and two-stage dial-around fixtures
+        run: python -m scripts.validate_rue_dial_config_fixtures
+      - name: Test deterministic provider selection
+        run: python -m unittest tests.test_rue_provider_selection
+      - name: Preserve provider selection evidence
+        run: bash scripts/run-rue-provider-selection.sh
+      - name: Execute live one-stage dial-around route proof
+        run: bash scripts/run-rue-one-stage-dial-around.sh
+      - name: Independently reduce live route evidence
+        run: python -m scripts.validate_rue_dial_execution
+      - name: Test RTT negotiation/readiness reducer
+        run: python -m unittest tests.test_rue_rtt_negotiation
+      - name: Exercise synthetic RTT negotiation/readiness arms
+        run: python -m scripts.validate_rue_rtt_negotiation
+      - name: Execute and independently reduce live JAIN RTT negotiation arms
+        run: bash scripts/run-rue-rtt-negotiation-live.sh
+      - name: Preserve VRS/RUE evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vrs-rue-public-contract-evidence
+          path: |
+            target/evidence/RUE-PROV-001
+            target/evidence/RUE-DIAL-001
+            target/evidence/RUE-RTT-NEGOTIATION
+            target/evidence/RUE-RTT-NEGOTIATION-LIVE
+          if-no-files-found: error

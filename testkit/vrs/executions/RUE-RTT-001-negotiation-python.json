@@ -1,0 +1,46 @@
+{
+  "id": "RUE-RTT-001-negotiation-python",
+  "matrixRow": "RUE-RTT-001",
+  "status": "runnable-candidate",
+  "authority": "RFC 9248 sections 6.2 and 6.6",
+  "entrypoint": "scripts.validate_rue_rtt_negotiation",
+  "fixture": "testkit/vrs/fixtures/rue-rtt-negotiation-arms-v1.json",
+  "evidence": "target/evidence/RUE-RTT-NEGOTIATION",
+  "arms": [
+    {
+      "id": "local-enabled-remote-absent",
+      "purpose": "Prove that local RTT availability cannot manufacture negotiation when the remote SDP lacks a T.140 text media offer."
+    },
+    {
+      "id": "remote-offered-local-disabled",
+      "purpose": "Prove that a manipulated local-policy negative cannot become negotiated or ready merely because the remote SDP offers T.140."
+    },
+    {
+      "id": "both-enabled-negotiated-no-media-yet",
+      "purpose": "Positive negotiation control proving that successful T.140 SDP negotiation remains weaker than independently observed T.140 readiness."
+    }
+  ],
+  "requiredFacts": [
+    "remote T.140 capability is parsed from an m=text section with t140/1000 mapping",
+    "local RTT policy is preserved independently from remote capability",
+    "answer T.140 acceptance is preserved independently from both",
+    "rttNegotiated=true requires local policy + remote T.140 offer + answer acceptance",
+    "rttReady=true requires rttNegotiated=true + firstT140CharacterObserved=true",
+    "negotiated-but-no-text remains rttReady=false"
+  ],
+  "claimBoundary": {
+    "provesOnly": [
+      "Baudot can independently classify controlled RTT negotiation/readiness states",
+      "remote capability, local policy, SDP negotiation, first text observation, and terminal readiness remain separate evidence facts",
+      "successful T.140 negotiation does not itself establish RTT usability"
+    ],
+    "doesNotEstablish": [
+      "current VRS provider behavior",
+      "RFC 9248 conformance",
+      "RFC 4103 packet conformance",
+      "RFC 2198 redundancy conformance",
+      "a standards requirement to disable RTT in any session",
+      "production RTT readiness"
+    ]
+  }
+}

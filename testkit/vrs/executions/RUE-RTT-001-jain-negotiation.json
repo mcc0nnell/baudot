@@ -1,0 +1,46 @@
+{
+  "id": "RUE-RTT-001-jain-negotiation",
+  "matrixRow": "RUE-RTT-001",
+  "status": "runnable-candidate",
+  "authority": "RFC 9248 sections 6.2 and 6.6",
+  "entrypoint": "org.mcc0nnell.baudot.harness.RueRttNegotiationProbe",
+  "runner": "scripts/run-rue-rtt-negotiation-live.sh",
+  "independentReducer": "scripts/validate_rue_rtt_live_execution.py",
+  "evidence": "target/evidence/RUE-RTT-NEGOTIATION-LIVE",
+  "topology": [
+    "synthetic remote peer and synthetic RUE run as independent JAIN SIP stacks on loopback",
+    "remote peer sends a real SIP INVITE containing the arm-specific SDP offer",
+    "RUE preserves the offer bytes it actually receives",
+    "RUE returns a real 200 OK containing the arm-specific SDP answer",
+    "remote peer preserves the answer bytes it actually receives and sends ACK",
+    "no RTT datagram is originated by this negotiation-only execution",
+    "an independent Python reducer parses the preserved offer/answer instead of trusting Java configuration flags"
+  ],
+  "requiredFacts": [
+    "all three SIP dialogs establish",
+    "all three ACKs are observed",
+    "remote T.140 capability is derived from preserved offer SDP",
+    "answer acceptance is derived from preserved answer SDP and treats port-zero m=text as rejected",
+    "the manipulated local RTT policy remains an independent test input",
+    "rttNegotiated=true occurs only in the both-enabled arm",
+    "firstT140CharacterObserved=false in every negotiation-only arm",
+    "rttReady=false in every negotiation-only arm",
+    "Java is explicitly not verdict authority"
+  ],
+  "claimBoundary": {
+    "provesOnly": [
+      "the controlled RTT negotiation arms can be exercised through real JAIN SIP offer/answer dialogs",
+      "the independent reducer can distinguish absent, rejected, and active T.140 SDP states from captured bytes",
+      "successful T.140 SDP negotiation remains insufficient for RTT readiness without observed T.140 media"
+    ],
+    "doesNotEstablish": [
+      "RFC 9248 conformance",
+      "RFC 4103 packet conformance",
+      "RFC 2198 redundancy conformance",
+      "current VRS provider behavior",
+      "production SIP interoperability",
+      "RTT readiness",
+      "a standards requirement to disable RTT in a session"
+    ]
+  }
+}
