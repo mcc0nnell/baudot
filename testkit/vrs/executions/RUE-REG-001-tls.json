@@ -1,0 +1,31 @@
+{
+  "id": "RUE-REG-001-tls",
+  "matrixRow": "RUE-REG-001",
+  "status": "runnable-candidate",
+  "entrypoint": "org.mcc0nnell.baudot.harness.RueRegistrationTlsProbe",
+  "runner": "scripts/run-vrs-registration-route-chain.sh",
+  "inputs": [
+    "testkit/part64/fixtures/registration-valid.json",
+    "testkit/part64/fixtures/numbering-directory.json",
+    "testkit/vrs/fixtures/rue-provider-dns-v1.json"
+  ],
+  "requiredEvidence": [
+    "synthetic TND URI and route owner preserved",
+    "SIPS+D2T selected before non-TLS SIP services in controlled discovery fixture",
+    "TLS handshake observed against an ephemeral provider-domain certificate",
+    "initial REGISTER challenged with Digest authentication",
+    "authenticated REGISTER independently verified and accepted",
+    "Supported: outbound and Contact ;ob markers observed",
+    "authorization evidence redacted before persistence"
+  ],
+  "doesNotEstablish": [
+    "live TRS Numbering Directory behavior",
+    "live DNS behavior",
+    "public CA trust or production TLS security",
+    "RFC 3263 conformance",
+    "RFC 5626 outbound-flow conformance",
+    "SIP conformance",
+    "RFC 9248 conformance",
+    "provider certification or production VRS interoperability"
+  ]
+}

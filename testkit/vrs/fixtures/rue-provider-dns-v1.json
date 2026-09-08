@@ -1,0 +1,61 @@
+{
+  "schema": "baudot.synthetic-rue-provider-dns@1",
+  "synthetic": true,
+  "providerDomain": "provider-a.example",
+  "naptr": [
+    {
+      "order": 10,
+      "preference": 10,
+      "flags": "S",
+      "service": "SIPS+D2T",
+      "replacement": "_sips._tcp.provider-a.example."
+    },
+    {
+      "order": 20,
+      "preference": 10,
+      "flags": "S",
+      "service": "SIP+D2T",
+      "replacement": "_sip._tcp.provider-a.example."
+    },
+    {
+      "order": 30,
+      "preference": 10,
+      "flags": "S",
+      "service": "SIP+D2U",
+      "replacement": "_sip._udp.provider-a.example."
+    }
+  ],
+  "srv": {
+    "_sips._tcp.provider-a.example.": [
+      {
+        "priority": 10,
+        "weight": 0,
+        "port": 5161,
+        "target": "sip-tls.provider-a.example."
+      }
+    ],
+    "_sip._tcp.provider-a.example.": [
+      {
+        "priority": 10,
+        "weight": 0,
+        "port": 5160,
+        "target": "sip-tcp.provider-a.example."
+      }
+    ],
+    "_sip._udp.provider-a.example.": [
+      {
+        "priority": 10,
+        "weight": 0,
+        "port": 5160,
+        "target": "sip-udp.provider-a.example."
+      }
+    ]
+  },
+  "address": {
+    "sip-tls.provider-a.example.": "127.0.0.1",
+    "sip-tcp.provider-a.example.": "127.0.0.1",
+    "sip-udp.provider-a.example.": "127.0.0.1"
+  },
+  "selectionRule": "lowest NAPTR order, then preference; SIPS+D2T is therefore selected before SIP+D2T and SIP+D2U in this controlled fixture",
+  "claimBoundary": "Reserved example domains and loopback addresses only. This fixture models deterministic RFC 3263-style service selection; it is not live DNS, TND, provider, TLS PKI, or RFC 3263 conformance evidence."
+}

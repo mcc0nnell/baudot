@@ -1,0 +1,82 @@
+{
+  "schema": "baudot.part64-requirements@1",
+  "status": "test-design-authority",
+  "scope": "synthetic-vrs-registration-numbering-validation",
+  "authority": {
+    "title": "47 CFR Part 64, Subpart F",
+    "source": "eCFR",
+    "accessed": "2026-09-06"
+  },
+  "safety": {
+    "liveTrsNumberingDirectory": false,
+    "realSubscriberData": false,
+    "providerCredentials": false,
+    "productionCallRecords": false,
+    "realEmergencyCalls": false
+  },
+  "requirements": [
+    {
+      "id": "PART64-611-REG",
+      "citation": "47 CFR 64.611",
+      "appliesTo": "VRS registration and default-provider state",
+      "testableClaim": "Synthetic registration preserves default provider, NANP number, eligibility, identity-verification, and Registered Location state as distinct facts.",
+      "scenario": "ITRS-REG-001",
+      "strongerClaimsExcluded": [
+        "live provider registration",
+        "NANP assignment authority",
+        "FCC eligibility determination",
+        "TRS Fund compensability"
+      ]
+    },
+    {
+      "id": "PART64-613-NUM",
+      "citation": "47 CFR 64.613",
+      "appliesTo": "TRS numbering-directory routing",
+      "testableClaim": "A reserved NANP number resolves through a synthetic directory to an expected synthetic URI and route owner.",
+      "scenario": "ITRS-NUM-001",
+      "strongerClaimsExcluded": [
+        "live TRS Numbering Directory behavior",
+        "provider authorization",
+        "call validation",
+        "SIP dialog establishment"
+      ]
+    },
+    {
+      "id": "PART64-615-VAL-PASS",
+      "citation": "47 CFR 64.615",
+      "appliesTo": "pre-call VRS user validation",
+      "testableClaim": "An eligible, identity-verified synthetic registration can pass a pre-call validation gate before ordinary call placement.",
+      "scenario": "ITRS-VAL-001",
+      "strongerClaimsExcluded": [
+        "call connection",
+        "media readiness",
+        "compensability",
+        "reimbursement"
+      ]
+    },
+    {
+      "id": "PART64-615-VAL-FAIL",
+      "citation": "47 CFR 64.615",
+      "appliesTo": "pre-call VRS user validation failure",
+      "testableClaim": "A synthetic route may exist while pre-call validation fails; routability must not be promoted into validation.",
+      "scenario": "ITRS-VAL-002",
+      "strongerClaimsExcluded": [
+        "provider defect",
+        "live service denial",
+        "FCC enforcement conclusion"
+      ]
+    },
+    {
+      "id": "PART64-615-EMERG",
+      "citation": "47 CFR 64.615",
+      "appliesTo": "emergency-call validation exception behavior",
+      "testableClaim": "Emergency-policy handling is represented only as an offline synthetic state-machine branch.",
+      "scenario": "ITRS-VAL-911",
+      "strongerClaimsExcluded": [
+        "real 911 routing",
+        "PSAP reachability",
+        "emergency-call compliance"
+      ]
+    }
+  ]
+}
