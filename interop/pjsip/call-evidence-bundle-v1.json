@@ -1,0 +1,82 @@
+{
+  "schema": "baudot.call-evidence-bundle-contract@1",
+  "bundleSchema": "baudot.call-evidence-bundle@1",
+  "description": "Observe-only evidence contract for deterministic analysis of synthetic or tokenized failed-call artifacts. Analysis may derive findings but cannot alter routing, retry, termination, registration, numbering, or provider selection.",
+  "authority": {
+    "mode": "OBSERVE",
+    "mayMutateLiveCallState": false,
+    "mayRetryCall": false,
+    "mayTerminateCall": false,
+    "maySelectRoute": false,
+    "mayUpdateRegistration": false,
+    "mayUpdateNumbering": false
+  },
+  "requiredTopLevelFields": [
+    "schema",
+    "callId",
+    "privacy",
+    "observations",
+    "declaredOutcome",
+    "claimBoundary"
+  ],
+  "privacy": {
+    "requiredIdentityMode": "synthetic-or-tokenized",
+    "forbiddenFieldsAnywhere": [
+      "telephoneNumber",
+      "callingPartyNumber",
+      "calledPartyNumber",
+      "subscriberName",
+      "subscriberEmail",
+      "rawAuthorization",
+      "sipAuthorization",
+      "accessToken",
+      "refreshToken"
+    ]
+  },
+  "observation": {
+    "requiredFields": [
+      "id",
+      "sequence",
+      "kind",
+      "source",
+      "status",
+      "detail"
+    ],
+    "allowedKinds": [
+      "signaling.ingress.invite",
+      "routing.itrs.lookup",
+      "routing.provider.selection",
+      "signaling.downstream.invite",
+      "signaling.downstream.provisional",
+      "signaling.downstream.final",
+      "signaling.dialog.established"
+    ],
+    "allowedStatuses": [
+      "OBSERVED",
+      "SUCCEEDED",
+      "SELECTED",
+      "SENT",
+      "RECEIVED",
+      "ESTABLISHED"
+    ]
+  },
+  "rules": [
+    {
+      "id": "CALL-RULE-DOWNSTREAM-503",
+      "match": {
+        "kind": "signaling.downstream.final",
+        "status": "RECEIVED",
+        "attributes.sipStatus": 503
+      },
+      "verdict": "DOWNSTREAM_FINAL_503_OBSERVED",
+      "failureBoundary": "downstream-signaling-boundary",
+      "failurePhase": "downstream-final-response"
+    }
+  ],
+  "claimBoundary": {
+    "productionRootCauseClaimed": false,
+    "providerFaultClaimed": false,
+    "regulatoryComplianceClaimed": false,
+    "liveCallControlAuthorityClaimed": false
+  }
+}
