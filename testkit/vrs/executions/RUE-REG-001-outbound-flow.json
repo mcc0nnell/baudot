@@ -30,10 +30,12 @@
     "registration success without Require: outbound is insufficient",
     "replacement registration with a changed instance-id or reg-id fails",
     "replacement registration without an inbound request traversing the replacement flow is insufficient",
+    "recovery backoff timing is not exercised; immediate replacement is deterministic harness acceleration",
     "outbound-flow proof does not establish media or accessibility readiness"
   ],
   "claimBoundary": {
     "doesNotEstablish": [
+      "RFC 5626 flow-recovery backoff conformance",
       "RFC 5626 conformance",
       "RFC 9248 conformance",
       "production provider behavior",
