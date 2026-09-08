@@ -49,7 +49,7 @@ That field means only that this controlled flow establishment/replacement behavi
 
 This accelerated harness does not exercise RFC 5626 recovery backoff timing, multiple outbound-proxy-set members, NAT/SBC traversal, production Path behavior, 430/439 handling, long-running keepalive timing, public-PKI TLS, or provider failover policy.
 
-In particular, the harness closes the first loopback flow and forms the replacement immediately so the evidence lane remains deterministic and fast. Therefore:
+In particular, the harness closes the first loopback flow and forms the replacement immediately so the evidence lane remains deterministic and fast. RFC 5626 defines recovery backoff after failed-flow attempts; that timing is deliberately outside this slice. Therefore:
 
 ```text
 outbound flow behavior observed
