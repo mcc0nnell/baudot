@@ -1,0 +1,41 @@
+{
+  "id": "RUE-REG-001-outbound-flow",
+  "matrixRow": "RUE-REG-001",
+  "status": "runnable-candidate",
+  "entrypoint": "org.mcc0nnell.baudot.harness.RueOutboundFlowProbe",
+  "runner": "scripts/run-rue-outbound-flow.sh",
+  "authority": [
+    "ietf-rfc9248",
+    "ietf-rfc5626"
+  ],
+  "objective": "Prove one controlled outbound flow, CRLF keepalive response, detected connection loss, replacement registration with the same AOR/+sip.instance/reg-id binding key, and inbound request delivery over the replacement TLS flow.",
+  "positiveFacts": [
+    "requireOutboundObserved",
+    "crlfKeepalivePongObserved",
+    "flowFailureDetected",
+    "replacementBindingKeyPreserved",
+    "replacementRegistrationAccepted",
+    "inboundRequestObservedOnReplacementFlow",
+    "inboundResponseObservedOnReplacementFlow",
+    "outboundFlowProven"
+  ],
+  "negativeControls": [
+    "Supported/outbound markers alone are insufficient",
+    "registration success without Require: outbound is insufficient",
+    "replacement registration with a changed instance-id or reg-id fails",
+    "replacement registration without an inbound request traversing the replacement flow is insufficient",
+    "outbound-flow proof does not establish media or accessibility readiness"
+  ],
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "RFC 5626 conformance",
+      "RFC 9248 conformance",
+      "production provider behavior",
+      "public-CA TLS security",
+      "NAT/SBC behavior",
+      "media readiness",
+      "RTT readiness",
+      "video readiness"
+    ]
+  }
+}
