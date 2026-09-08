@@ -1,128 +1,87 @@
-# VRS registration and routing composition
+# VRS registration, outbound flow, and routing evidence chain
 
-Status: runnable candidate / clean-room composition
+Status: runnable-candidate / clean-room
 
-This slice composes Baudot's public RFC 9248-facing VRS/RUE contract with the synthetic Part 64 registration and TRS Numbering Directory model without promoting success at one layer into authority at another.
+This slice composes Baudot's public VRS/RUE interoperability contract with its synthetic Part 64 registration/TND contract and a bounded RFC 5626 outbound-flow proof.
 
-## Evidence chain
+## Chain
 
 ```text
-synthetic registration record
-  -> synthetic TND NANP-to-SIP URI mapping
-  -> provider domain preserved
+synthetic registration
+  -> TND NANP-to-SIP URI
+  -> provider domain
   -> deterministic RFC 3263-style NAPTR/SRV selection
   -> SIPS+D2T selected
-  -> ephemeral loopback TLS handshake
-  -> initial SIP REGISTER
-  -> Digest challenge
+  -> ephemeral loopback TLS
+  -> challenged SIP REGISTER
   -> verified authenticated REGISTER
   -> registration accepted
-  -> independent RFC 9248 provider selection
-  -> existing one-stage dial-around INVITE
-  -> selected Provider-B peer observes preserved target/source identity
+  -> outbound registration receives Require: outbound
+  -> CRLF keepalive round trip
+  -> controlled flow loss detected
+  -> same AOR/+sip.instance/reg-id re-registers on replacement TLS flow
+  -> inbound SIP request traverses replacement flow
+  -> RFC 9248 provider selection
+  -> Provider-B one-stage dial-around
+  -> selected peer observes preserved routing identity
   -> dialog established
 ```
 
-Each arrow remains an independently observed or reduced fact.
+Every transition is preserved as an independent fact.
 
-## Core non-equivalence
+## Core invariant
 
 ```text
 number assigned
 != TND route exists
-!= provider domain resolved
-!= service endpoint selected
-!= TLS handshake succeeded
+!= provider service selected
+!= TLS established
 != REGISTER sent
-!= authentication challenged
 != authentication verified
 != registration accepted
+!= outbound flow established
+!= flow replacement observed
 != dial-around provider selected
 != INVITE reached selected provider
 != dialog established
 != per-call validation
 != TRS business authority
-!= media ready
-!= RTT ready
-!= video ready
-!= compensable
-!= Fund claim approved
+!= media/RTT/video readiness
+!= compensability
+!= Fund claim authority
 ```
 
-The final reducer therefore records Part 64 per-call validation as `NOT_COMPOSED` and TRS business/Fund authority as `NOT_DERIVED` even when the synthetic registration and dial-around signaling legs succeed.
+The first registration arm deliberately remains marker-level evidence. `Supported: outbound`, `reg-id`, `+sip.instance`, or `;ob` syntax alone cannot produce outbound-flow authority.
 
-## Controlled discovery
+The separate outbound-flow lane requires `Require: outbound`, a CRLF keepalive/pong, detected TLS flow loss, replacement registration with the same binding key, and an inbound request/response across the replacement connection before its bounded reducer emits `rfc5626.outbound.flow.proven=true`.
 
-`testkit/vrs/fixtures/rue-provider-dns-v1.json` is not a DNS capture. It is a deterministic, reserved-domain fixture used to exercise the ordering and evidence boundary of provider-domain service discovery. In the positive arm:
+That field is not an RFC 5626 conformance verdict. Recovery backoff timing, multiple outbound proxies, NAT/SBC behavior, public Path behavior, 430/439 handling, long-running keepalive timing, and production TLS remain unproven.
+
+## Evidence boundaries
+
+The composed reducer intentionally keeps these facts false or unclaimed:
 
 ```text
-provider-a.example
-  NAPTR 10/10 SIPS+D2T -> _sips._tcp.provider-a.example.
-  SRV   10/0  port 5161 -> sip-tls.provider-a.example.
-  address                 -> 127.0.0.1
+RFC 5626 conformance = NOT_CLAIMED
+per-call validation = NOT_COMPOSED
+TRS business authority = NOT_DERIVED
+compensability = NOT_DERIVED
+Fund claim authority = NOT_DERIVED
+media readiness = false
+RTT readiness = false
+video readiness = false
 ```
 
-The reducer records:
-
-```text
-liveDnsQueried = false
-liveTndQueried = false
-```
-
-A future live-authorized lane may replace the fixture with an external DNS observation, but no public test may silently promote historical `.1.itrs.us` behavior, production TND data, or a provider endpoint into normative authority.
-
-## Challenged TLS registration
-
-`RueRegistrationTlsProbe` creates an ephemeral self-signed certificate for `provider-a.example`, trusted only inside the loopback harness. It then exercises:
-
-1. TLS handshake;
-2. provider-domain presence in the certificate SAN;
-3. initial `REGISTER`;
-4. `401` Digest challenge;
-5. independently verified Digest response;
-6. accepted second `REGISTER`;
-7. `Supported: outbound`; and
-8. Contact `;ob` / `reg-id` / `+sip.instance` markers.
-
-The authorization value is redacted before evidence persistence. The ephemeral PKCS#12 file is deleted before the runner exits.
-
-Critically:
-
-```text
-Supported: outbound + Contact ;ob observed
-!= RFC 5626 outbound flow proven
-```
-
-The result keeps `rfc5626.outbound.flow.proven=false` until an actual outbound-flow behavior test exists.
-
-## Dial-around composition
-
-After registration, the portable runner reuses the existing RFC 9248 provider-selection and JAIN SIP one-stage dial-around lane. Provider A remains the source/default-provider identity while Provider B is the explicit dial-around route.
-
-Successful signaling still records:
-
-```text
-media.readiness.proven = false
-rtt.readiness.proven   = false
-video.readiness.proven = false
-```
+No live TND, live DNS, production provider, real subscriber data, or emergency service endpoint is queried.
 
 ## Portable execution
-
-No GitHub Actions workflow is introduced for this slice. Run the complete candidate locally or from WindAnvil/Jenkins/another external CI executor:
 
 ```bash
 bash scripts/run-vrs-registration-route-chain.sh
 ```
 
-The runner executes the public VRS and Part 64 validators, reduces synthetic discovery, creates and destroys the ephemeral TLS material, runs challenged registration, executes the existing Provider-B selection/dial-around lane, and independently reduces the complete evidence chain.
+The runner is intended for local execution, WindAnvil, Jenkins, or another external CI plane. This stack adds no GitHub Actions workflow and removes the VRS Actions wrapper inherited from the earlier branch.
 
-Final summary:
+## Promotion rule
 
-```text
-target/evidence/VRS-REGISTRATION-ROUTE-CHAIN/summary.json
-```
-
-## Claim boundary
-
-A green run establishes only that this controlled synthetic composition preserved the declared identities and evidence boundaries. It does not establish live TND or DNS behavior, provider interoperability, provider certification, SIP/RFC 3263/RFC 5626/RFC 9248 conformance, production TLS security, per-call eligibility validation, TRS business authority, emergency behavior, media readiness, compensability, reimbursement, or regulatory compliance.
+Keep the branch at `runnable-candidate` until the portable runner produces the declared evidence bundle in an independent execution environment. A green synthetic run establishes only this controlled composition, not production interoperability or standards conformance.
