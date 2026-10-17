@@ -1,0 +1,59 @@
+{
+  "schema": "baudot.call-evidence-bundle@1",
+  "callId": "call-synth-503-001",
+  "privacy": {
+    "identityMode": "synthetic-or-tokenized"
+  },
+  "observations": [
+    {
+      "id": "e1",
+      "sequence": 1,
+      "kind": "signaling.ingress.invite",
+      "source": "pjsip-ingress",
+      "status": "OBSERVED",
+      "detail": "synthetic INVITE observed at ingress"
+    },
+    {
+      "id": "e2",
+      "sequence": 2,
+      "kind": "routing.itrs.lookup",
+      "source": "itrs-fixture",
+      "status": "SUCCEEDED",
+      "detail": "synthetic iTRS route lookup returned a provider route"
+    },
+    {
+      "id": "e3",
+      "sequence": 3,
+      "kind": "routing.provider.selection",
+      "source": "baudot-route-fixture",
+      "status": "SELECTED",
+      "detail": "synthetic provider route selected"
+    },
+    {
+      "id": "e4",
+      "sequence": 4,
+      "kind": "signaling.downstream.invite",
+      "source": "pjsip-egress",
+      "status": "SENT",
+      "detail": "downstream INVITE emitted"
+    },
+    {
+      "id": "e5",
+      "sequence": 5,
+      "kind": "signaling.downstream.final",
+      "source": "pjsip-egress",
+      "status": "RECEIVED",
+      "detail": "downstream 503 Service Unavailable received",
+      "attributes": {
+        "sipStatus": 503
+      }
+    }
+  ],
+  "declaredOutcome": "CALL_FAILED_FIXTURE",
+  "claimBoundary": {
+    "syntheticFixture": true,
+    "productionRootCauseClaimed": false,
+    "providerFaultClaimed": false,
+    "regulatoryComplianceClaimed": false
+  }
+}
