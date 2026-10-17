@@ -51,6 +51,8 @@ baudot-testkit
 
 The first cross-project research integration is with ACE Omni: Omni can execute controlled communications experiments while Baudot owns the portable accessibility behavior and test vocabulary.
 
+Baudot also serves as the external assurance plane for [iTRS NG](https://github.com/mcc0nnell/itrs-ng): iTRS NG owns numbering, accessibility-resource selection, routing policy, provenance, and session intent, while Baudot owns executable communications scenarios, observations, preserved evidence, and independent reductions. The projects remain separate so a routing decision cannot become communications evidence merely by crossing a repository boundary.
+
 ## Synthetic TRS Fund proving ground
 
 Baudot also carries a public-data-calibrated **synthetic end-to-end TRS Fund proving ground**. This is not a generic banking demo and not a reconstruction of the Fund administrator's production systems.
