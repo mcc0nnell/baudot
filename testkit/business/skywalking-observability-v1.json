@@ -1,0 +1,104 @@
+{
+  "schema": "baudot.skywalking-observability@1",
+  "skywalking": {
+    "version": "11.0.0",
+    "releaseCommit": "6f1fd78e872f1d380a14f271c26e8d68eb2430fc",
+    "repository": "apache/skywalking",
+    "role": "technical-observability"
+  },
+  "authority": {
+    "skywalkingIsEvidenceLedger": false,
+    "traceProvesAuthorization": false,
+    "traceProvesProtocolValidity": false,
+    "traceProvesCallTruth": false,
+    "traceProvesCompensability": false,
+    "alarmCreatesBusinessDecision": false,
+    "telemetryCreatesAccessibilityVerdict": false
+  },
+  "telemetry": {
+    "signals": ["trace", "metric", "log", "technical-alarm"],
+    "allowedCorrelationAttributes": [
+      "baudot.correlation_id",
+      "baudot.operation_class",
+      "baudot.fixture_id",
+      "baudot.component_role",
+      "baudot.synthetic_provider_id"
+    ],
+    "forbiddenAttributes": [
+      "subscriber_id",
+      "subscriber_name",
+      "telephone_number",
+      "from_tn",
+      "to_tn",
+      "raw_request_body",
+      "raw_response_body",
+      "authorization_header",
+      "password",
+      "access_token",
+      "refresh_token",
+      "claim_approved",
+      "payment_authorized",
+      "compensable",
+      "subscriber_eligible",
+      "accessibility_ready"
+    ],
+    "rawBusinessPayloadCaptureAllowed": false,
+    "rawSubscriberIdentifierCaptureAllowed": false
+  },
+  "components": [
+    "baudot-itrs-service",
+    "ranger-pdp-adapter",
+    "camel-integration",
+    "kafka-cdr-producer",
+    "kafka-cdr-consumer",
+    "ofbiz-equipment-adapter",
+    "fineract-fund-adapter",
+    "airflow-batch-runner",
+    "superset-backend",
+    "tika-solr-ingestion"
+  ],
+  "traceProfiles": [
+    {
+      "id": "TRACE-ITRS-001",
+      "name": "iTRS authorization path",
+      "spans": ["application-auth", "ranger-authorize", "itrs-protocol-gate", "itrs-execute"],
+      "terminalBusinessClaim": null
+    },
+    {
+      "id": "TRACE-EQUIP-001",
+      "name": "equipment fulfillment path",
+      "spans": ["eligibility-reference-read", "ofbiz-order", "ofbiz-shipment", "kafka-equipment-event"],
+      "terminalBusinessClaim": null
+    },
+    {
+      "id": "TRACE-CDR-001",
+      "name": "CDR projection path",
+      "spans": ["kafka-cdr-consume", "projection-transform", "reporting-view-write"],
+      "terminalBusinessClaim": null
+    },
+    {
+      "id": "TRACE-FUND-001",
+      "name": "authorized Fund posting execution path",
+      "spans": ["journal-intent-read", "fineract-post", "fineract-readback", "reconciliation"],
+      "terminalBusinessClaim": null
+    }
+  ],
+  "alarmProfiles": [
+    {"id": "ALARM-001", "condition": "ranger-pdp-error-rate", "classification": "technical-only"},
+    {"id": "ALARM-002", "condition": "kafka-consumer-lag", "classification": "technical-only"},
+    {"id": "ALARM-003", "condition": "ofbiz-adapter-error-rate", "classification": "technical-only"},
+    {"id": "ALARM-004", "condition": "fineract-adapter-reconciliation-failure", "classification": "technical-only"}
+  ],
+  "deploymentBoundary": {
+    "publicInternetAdminApiAllowed": false,
+    "adminApiRequiresExternalProtection": true,
+    "productionTelemetryRetentionDefinedHere": false
+  },
+  "claimBoundary": {
+    "productionSkyWalkingCompatibilityClaimed": false,
+    "productionObservabilityCompletenessClaimed": false,
+    "securityAccreditationClaimed": false,
+    "businessEvidenceAuthorityClaimed": false,
+    "accessibilityReadinessClaimed": false
+  }
+}
