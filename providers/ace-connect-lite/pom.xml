@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.mcc0nnell.baudot</groupId>
+    <artifactId>baudot-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../parent/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>baudot-provider-ace-connect-lite</artifactId>
+  <name>Baudot Provider Fixture: ACE Connect Lite</name>
+  <description>Baudot integration profile for the MITRE/FCC ACE Connect Lite VRS interoperability implementation.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.mcc0nnell.baudot</groupId>
+      <artifactId>baudot-provider-spi</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

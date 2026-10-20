@@ -1,0 +1,35 @@
+name: parent-reactor
+
+on:
+  pull_request:
+    paths:
+      - 'parent/**'
+      - 'providers/**'
+      - 'docs/adr/0003-baudot-parent-and-provider-fixtures.md'
+      - '.github/workflows/parent-reactor.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'parent/**'
+      - 'providers/**'
+      - '.github/workflows/parent-reactor.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Verify parent reactor
+        run: mvn -B -ntp -f parent/pom.xml verify
