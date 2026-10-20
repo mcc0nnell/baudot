@@ -1,0 +1,285 @@
+<section class="assurance-graph" aria-labelledby="assurance-graph-title">
+  <p class="eyebrow">Interactive evidence map</p>
+  <h2 id="assurance-graph-title">From observation to scoped claim</h2>
+  <p class="lede">
+    Baudot keeps source facts separate, preserves them before reduction, and only promotes the claim that the evidence actually supports.
+  </p>
+  <div
+    id="baudot-assurance-graph"
+    class="chart"
+    role="img"
+    aria-describedby="assurance-graph-summary"
+  ></div>
+  <p id="assurance-graph-summary" class="sr-only">
+    Protocol, network, reference-parser, ledger, and scenario-manifest observations flow into a preserved evidence bundle, then through independent reduction and reconciliation into a scoped claim. Broader claims remain explicitly not established.
+  </p>
+  <details>
+    <summary>Read the graph as text</summary>
+    <ol>
+      <li>Source-specific observations remain attributable to the implementation or probe that produced them.</li>
+      <li>The observations and run metadata are preserved in an evidence bundle before any verdict is reduced.</li>
+      <li>An independent reducer or reconciler evaluates only the authority owned by that layer.</li>
+      <li>The result is a scoped claim. Broader conformance, authorization, production-readiness, or policy claims remain not established unless separately evidenced.</li>
+    </ol>
+  </details>
+</section>
+
+<script>
+  import * as echarts from 'echarts/core';
+  import { GraphChart } from 'echarts/charts';
+  import { AriaComponent, TooltipComponent } from 'echarts/components';
+  import { SVGRenderer } from 'echarts/renderers';
+
+  echarts.use([GraphChart, AriaComponent, TooltipComponent, SVGRenderer]);
+
+  const element = document.getElementById('baudot-assurance-graph');
+
+  if (element) {
+    const readVar = (name, fallback) =>
+      getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
+    const option = () => {
+      const accent = readVar('--sl-color-accent', '#35c8e8');
+      const accentLow = readVar('--sl-color-accent-low', '#062c38');
+      const text = readVar('--sl-color-text', '#e4eef1');
+      const muted = readVar('--sl-color-gray-3', '#7e949c');
+      const panel = readVar('--sl-color-bg-nav', '#172b32');
+      const line = readVar('--sl-color-gray-4', '#4c626b');
+
+      const sourceStyle = { color: panel, borderColor: muted, borderWidth: 1.5 };
+      const keyStyle = { color: accentLow, borderColor: accent, borderWidth: 2 };
+      const boundaryStyle = { color: panel, borderColor: line, borderWidth: 1.5, borderType: 'dashed' };
+
+      return {
+        aria: {
+          show: true,
+          description:
+            'Baudot evidence flow. Source-specific observations feed a preserved evidence bundle. Independent reduction and reconciliation produce a scoped claim. Broader claims remain not established unless separately evidenced.',
+        },
+        tooltip: {
+          trigger: 'item',
+          formatter: ({ data }) => data?.detail || data?.name || '',
+        },
+        series: [
+          {
+            type: 'graph',
+            layout: 'none',
+            roam: true,
+            symbolSize: 62,
+            edgeSymbol: ['none', 'arrow'],
+            edgeSymbolSize: [0, 8],
+            label: {
+              show: true,
+              color: text,
+              fontSize: 12,
+              lineHeight: 16,
+              width: 112,
+              overflow: 'break',
+              align: 'center',
+            },
+            lineStyle: {
+              color: line,
+              width: 1.5,
+              opacity: 0.9,
+            },
+            emphasis: {
+              focus: 'adjacency',
+              lineStyle: { width: 3 },
+            },
+            data: [
+              {
+                name: 'Protocol\nobservation',
+                x: 50,
+                y: 42,
+                symbol: 'roundRect',
+                itemStyle: sourceStyle,
+                detail: 'Example: SIP dialog state reported by the SIP stack.',
+              },
+              {
+                name: 'Network\nobservation',
+                x: 50,
+                y: 112,
+                symbol: 'roundRect',
+                itemStyle: sourceStyle,
+                detail: 'Example: datagram traversal reported by a network probe.',
+              },
+              {
+                name: 'Reference\nobservation',
+                x: 50,
+                y: 182,
+                symbol: 'roundRect',
+                itemStyle: sourceStyle,
+                detail: 'Example: T.140 classification reported by an independent reference parser.',
+              },
+              {
+                name: 'Ledger\nobservation',
+                x: 50,
+                y: 252,
+                symbol: 'roundRect',
+                itemStyle: sourceStyle,
+                detail: 'Example: accepted journal and transaction identifiers reported by Fineract.',
+              },
+              {
+                name: 'Scenario\nmanifest',
+                x: 50,
+                y: 322,
+                symbol: 'roundRect',
+                itemStyle: sourceStyle,
+                detail: 'Pinned implementation, scenario inputs, build identity, and declared claim boundary.',
+              },
+              {
+                name: 'Preserved\nevidence bundle',
+                x: 265,
+                y: 182,
+                symbol: 'roundRect',
+                symbolSize: 82,
+                itemStyle: keyStyle,
+                detail: 'Raw observations and run metadata are preserved before reduction.',
+              },
+              {
+                name: 'Independent\nreducer / reconciler',
+                x: 485,
+                y: 182,
+                symbol: 'diamond',
+                symbolSize: 88,
+                itemStyle: keyStyle,
+                detail: 'A separate authority reduces the evidence without letting the implementation grade itself.',
+              },
+              {
+                name: 'Scoped\nclaim',
+                x: 690,
+                y: 132,
+                symbol: 'roundRect',
+                symbolSize: 76,
+                itemStyle: keyStyle,
+                detail: 'Only the claim supported by the preserved observations and declared profile is promoted.',
+              },
+              {
+                name: 'Broader claims\nnot established',
+                x: 690,
+                y: 252,
+                symbol: 'roundRect',
+                symbolSize: 84,
+                itemStyle: boundaryStyle,
+                detail: 'Production readiness, general conformance, authorization, or policy validity require separate evidence.',
+              },
+            ],
+            links: [
+              { source: 'Protocol\nobservation', target: 'Preserved\nevidence bundle' },
+              { source: 'Network\nobservation', target: 'Preserved\nevidence bundle' },
+              { source: 'Reference\nobservation', target: 'Preserved\nevidence bundle' },
+              { source: 'Ledger\nobservation', target: 'Preserved\nevidence bundle' },
+              { source: 'Scenario\nmanifest', target: 'Preserved\nevidence bundle' },
+              { source: 'Preserved\nevidence bundle', target: 'Independent\nreducer / reconciler' },
+              { source: 'Independent\nreducer / reconciler', target: 'Scoped\nclaim' },
+              {
+                source: 'Independent\nreducer / reconciler',
+                target: 'Broader claims\nnot established',
+                lineStyle: { type: 'dashed', color: muted },
+              },
+            ],
+          },
+        ],
+      };
+    };
+
+    const chart = echarts.init(element, undefined, { renderer: 'svg' });
+    chart.setOption(option());
+
+    const resizeObserver = new ResizeObserver(() => chart.resize());
+    resizeObserver.observe(element);
+
+    const themeObserver = new MutationObserver(() => chart.setOption(option(), true));
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        resizeObserver.disconnect();
+        themeObserver.disconnect();
+        chart.dispose();
+      },
+      { once: true },
+    );
+  }
+</script>
+
+<style>
+  .assurance-graph {
+    margin-block: 1.25rem 2rem;
+    padding: 1rem 1rem 0.9rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.8rem;
+    background: color-mix(in srgb, var(--sl-color-bg-nav) 86%, transparent);
+  }
+
+  .eyebrow {
+    margin: 0;
+    color: var(--sl-color-accent-high);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .assurance-graph h2 {
+    margin-block: 0.25rem 0.35rem;
+    font-size: clamp(1.15rem, 2vw, 1.5rem);
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 68ch;
+    color: var(--sl-color-gray-2);
+  }
+
+  .chart {
+    width: 100%;
+    height: 390px;
+    margin-block: 0.75rem;
+  }
+
+  details {
+    border-top: 1px solid var(--sl-color-gray-5);
+    padding-top: 0.75rem;
+    color: var(--sl-color-gray-2);
+    font-size: 0.9rem;
+  }
+
+  summary {
+    cursor: pointer;
+    color: var(--sl-color-text);
+    font-weight: 600;
+  }
+
+  details ol {
+    margin-bottom: 0;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 50rem) {
+    .chart {
+      height: 470px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chart {
+      scroll-behavior: auto;
+    }
+  }
+</style>
