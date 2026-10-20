@@ -1,0 +1,19 @@
+{
+  "version": "0.1",
+  "selectionId": "sel-invalid-0001",
+  "target": "tel:+12025550123",
+  "resolutionDigest": "sha256:resolution-invalid-0001",
+  "requestDigest": "sha256:request-invalid-0001",
+  "evaluatedAt": "2026-09-05T23:40:00Z",
+  "candidates": [
+    {
+      "uri": "sip:callee@127.0.0.1:5088;transport=udp",
+      "priority": 1,
+      "preferenceScore": 0,
+      "outcome": "selected",
+      "matchedPreferred": []
+    }
+  ],
+  "terminal": "selected",
+  "selectedEndpoint": "sip:other@127.0.0.1:5088;transport=udp"
+}
