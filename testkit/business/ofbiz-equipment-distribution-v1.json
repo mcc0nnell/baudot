@@ -1,0 +1,112 @@
+{
+  "schema": "baudot.ofbiz-equipment-distribution@1",
+  "ofbiz": {
+    "releaseBranch": "release24.09",
+    "pinnedCommit": "d65f164191f331fc77da198701ab97df9bff5564",
+    "repository": "apache/ofbiz-framework",
+    "referenceEntities": {
+      "product": ["Product"],
+      "facility": ["Facility"],
+      "inventory": ["InventoryItem", "InventoryItemDetail"],
+      "order": ["OrderHeader", "OrderItem"],
+      "shipment": ["Shipment", "ShipmentItem"],
+      "return": ["ReturnHeader", "ReturnItem"]
+    }
+  },
+  "authority": {
+    "eligibilityOwner": "external-program-policy",
+    "fulfillmentStateOwner": "ofbiz-reference-profile",
+    "ofbizMayCreateEligibility": false,
+    "inventoryAvailabilityProvesEligibility": false,
+    "orderCreationProvesEligibility": false,
+    "shipmentCompletionProvesEligibility": false
+  },
+  "catalog": [
+    {
+      "sku": "SYN-RTT-PHONE-01",
+      "description": "Synthetic accessible communications device",
+      "serialized": true
+    },
+    {
+      "sku": "SYN-VRS-TABLET-01",
+      "description": "Synthetic video communications device",
+      "serialized": true
+    }
+  ],
+  "facility": {
+    "facilityId": "SYN-TRS-WAREHOUSE-A",
+    "description": "Synthetic equipment distribution warehouse"
+  },
+  "scenarios": [
+    {
+      "id": "EQUIP-001",
+      "description": "Externally eligible subscriber receives in-stock device",
+      "initialInventory": {"SYN-RTT-PHONE-01": 2},
+      "eligibility": {"decisionRef": "eligibility:synthetic:001", "approved": true},
+      "commands": [
+        {"type": "fulfill", "requestId": "req-001", "subscriberId": "subscriber-001", "sku": "SYN-RTT-PHONE-01", "quantity": 1}
+      ],
+      "expected": {"orders": 1, "shipments": 1, "returns": 0, "available": {"SYN-RTT-PHONE-01": 1}, "quarantine": {"SYN-RTT-PHONE-01": 0}, "rejections": 0, "backorders": 0}
+    },
+    {
+      "id": "EQUIP-002",
+      "description": "No external eligibility means no OFBiz fulfillment state",
+      "initialInventory": {"SYN-RTT-PHONE-01": 2},
+      "eligibility": {"decisionRef": "eligibility:synthetic:002", "approved": false},
+      "commands": [
+        {"type": "fulfill", "requestId": "req-002", "subscriberId": "subscriber-002", "sku": "SYN-RTT-PHONE-01", "quantity": 1}
+      ],
+      "expected": {"orders": 0, "shipments": 0, "returns": 0, "available": {"SYN-RTT-PHONE-01": 2}, "quarantine": {"SYN-RTT-PHONE-01": 0}, "rejections": 1, "backorders": 0}
+    },
+    {
+      "id": "EQUIP-003",
+      "description": "Eligible request with insufficient stock remains unshipped",
+      "initialInventory": {"SYN-VRS-TABLET-01": 0},
+      "eligibility": {"decisionRef": "eligibility:synthetic:003", "approved": true},
+      "commands": [
+        {"type": "fulfill", "requestId": "req-003", "subscriberId": "subscriber-003", "sku": "SYN-VRS-TABLET-01", "quantity": 1}
+      ],
+      "expected": {"orders": 1, "shipments": 0, "returns": 0, "available": {"SYN-VRS-TABLET-01": 0}, "quarantine": {"SYN-VRS-TABLET-01": 0}, "rejections": 0, "backorders": 1}
+    },
+    {
+      "id": "EQUIP-004",
+      "description": "Duplicate fulfillment request is idempotent",
+      "initialInventory": {"SYN-RTT-PHONE-01": 2},
+      "eligibility": {"decisionRef": "eligibility:synthetic:004", "approved": true},
+      "commands": [
+        {"type": "fulfill", "requestId": "req-004", "subscriberId": "subscriber-004", "sku": "SYN-RTT-PHONE-01", "quantity": 1},
+        {"type": "fulfill", "requestId": "req-004", "subscriberId": "subscriber-004", "sku": "SYN-RTT-PHONE-01", "quantity": 1}
+      ],
+      "expected": {"orders": 1, "shipments": 1, "returns": 0, "available": {"SYN-RTT-PHONE-01": 1}, "quarantine": {"SYN-RTT-PHONE-01": 0}, "rejections": 0, "backorders": 0, "idempotentReplays": 1}
+    },
+    {
+      "id": "EQUIP-005",
+      "description": "Defective return is quarantined rather than silently restocked",
+      "initialInventory": {"SYN-RTT-PHONE-01": 2},
+      "eligibility": {"decisionRef": "eligibility:synthetic:005", "approved": true},
+      "commands": [
+        {"type": "fulfill", "requestId": "req-005-a", "subscriberId": "subscriber-005", "sku": "SYN-RTT-PHONE-01", "quantity": 1},
+        {"type": "return", "requestId": "req-005-b", "originalRequestId": "req-005-a", "sku": "SYN-RTT-PHONE-01", "quantity": 1, "condition": "defective"}
+      ],
+      "expected": {"orders": 1, "shipments": 1, "returns": 1, "available": {"SYN-RTT-PHONE-01": 1}, "quarantine": {"SYN-RTT-PHONE-01": 1}, "rejections": 0, "backorders": 0}
+    },
+    {
+      "id": "EQUIP-006",
+      "description": "Replacement after defective return creates a distinct shipment",
+      "initialInventory": {"SYN-RTT-PHONE-01": 3},
+      "eligibility": {"decisionRef": "eligibility:synthetic:006", "approved": true},
+      "commands": [
+        {"type": "fulfill", "requestId": "req-006-a", "subscriberId": "subscriber-006", "sku": "SYN-RTT-PHONE-01", "quantity": 1},
+        {"type": "return", "requestId": "req-006-b", "originalRequestId": "req-006-a", "sku": "SYN-RTT-PHONE-01", "quantity": 1, "condition": "defective"},
+        {"type": "replacement", "requestId": "req-006-c", "originalRequestId": "req-006-a", "subscriberId": "subscriber-006", "sku": "SYN-RTT-PHONE-01", "quantity": 1}
+      ],
+      "expected": {"orders": 2, "shipments": 2, "returns": 1, "available": {"SYN-RTT-PHONE-01": 1}, "quarantine": {"SYN-RTT-PHONE-01": 1}, "rejections": 0, "backorders": 0}
+    }
+  ],
+  "claimBoundary": {
+    "productionSubscriberDataUsed": false,
+    "productionEligibilityClaimed": false,
+    "productionOfbizCompatibilityClaimed": false,
+    "shipmentProvesEligibility": false
+  }
+}
