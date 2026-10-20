@@ -1,0 +1,57 @@
+{
+  "schema": "baudot.rue-rtt-negotiation-arms@1",
+  "status": "fixture-ready",
+  "synthetic": true,
+  "authority": "RFC 9248 sections 6.2 and 6.6",
+  "purpose": "Keep local RTT policy, remote SDP capability, negotiated T.140, first observed T.140 text, and terminal RTT readiness as separate facts.",
+  "claimBoundary": [
+    "These cases are controlled Baudot readiness-policy tests, not statements about current VRS provider behavior.",
+    "Absence of T.140 in one synthetic session is classified as a session fact and is not by itself a provider-conformance finding.",
+    "The local-disabled arm is a manipulated negative control, not a claim that RFC 9248 permits an implementation to omit mandatory RTT capability.",
+    "rttReady remains false until independently validated non-empty T.140 is observed."
+  ],
+  "cases": [
+    {
+      "id": "local-enabled-remote-absent",
+      "localRttEnabled": true,
+      "remoteOffer": "v=0\r\no=- 3747 3747 IN IP4 203.0.113.20\r\ns=Baudot synthetic remote-no-rtt\r\nc=IN IP4 203.0.113.20\r\nt=0 0\r\nm=audio 49170 RTP/AVP 0\r\na=rtpmap:0 PCMU/8000\r\n",
+      "answerAcceptsT140": false,
+      "firstT140CharacterObserved": false,
+      "expected": {
+        "remoteOffersT140": false,
+        "rttNegotiated": false,
+        "firstT140CharacterObserved": false,
+        "rttReady": false,
+        "reason": "remote-no-t140"
+      }
+    },
+    {
+      "id": "remote-offered-local-disabled",
+      "localRttEnabled": false,
+      "remoteOffer": "v=0\r\no=- 3748 3748 IN IP4 203.0.113.21\r\ns=Baudot synthetic local-rtt-off\r\nc=IN IP4 203.0.113.21\r\nt=0 0\r\nm=audio 49172 RTP/AVP 0\r\na=rtpmap:0 PCMU/8000\r\nm=text 49174 RTP/AVP 98\r\na=rtpmap:98 t140/1000\r\n",
+      "answerAcceptsT140": false,
+      "firstT140CharacterObserved": false,
+      "expected": {
+        "remoteOffersT140": true,
+        "rttNegotiated": false,
+        "firstT140CharacterObserved": false,
+        "rttReady": false,
+        "reason": "local-rtt-disabled"
+      }
+    },
+    {
+      "id": "both-enabled-negotiated-no-media-yet",
+      "localRttEnabled": true,
+      "remoteOffer": "v=0\r\no=- 3749 3749 IN IP4 203.0.113.22\r\ns=Baudot synthetic negotiated-no-media\r\nc=IN IP4 203.0.113.22\r\nt=0 0\r\nm=audio 49176 RTP/AVP 0\r\na=rtpmap:0 PCMU/8000\r\nm=text 49178 RTP/AVP 98\r\na=rtpmap:98 t140/1000\r\n",
+      "answerAcceptsT140": true,
+      "firstT140CharacterObserved": false,
+      "expected": {
+        "remoteOffersT140": true,
+        "rttNegotiated": true,
+        "firstT140CharacterObserved": false,
+        "rttReady": false,
+        "reason": "negotiated-awaiting-t140"
+      }
+    }
+  ]
+}
