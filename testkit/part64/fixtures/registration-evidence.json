@@ -1,0 +1,14 @@
+{
+  "schema": "baudot.synthetic-vrs-registration-evidence@1",
+  "scenario": "ITRS-REG-001",
+  "eligibilityCertificationPresent": true,
+  "registrationDatabaseConsentAcknowledged": true,
+  "registrationDatabaseSubmission": "synthetic-complete",
+  "identityAttributes": {
+    "present": true,
+    "valuesStoredInPublicFixture": false
+  },
+  "registeredLocationPresent": true,
+  "confidentialityBoundary": "no-real-registration-or-certification-data",
+  "provenance": "baudot-authored-synthetic-fixture"
+}

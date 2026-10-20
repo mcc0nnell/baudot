@@ -1,0 +1,29 @@
+name: part64-registration-numbering
+
+on:
+  push:
+    paths:
+      - "docs/part64-registration-numbering-validation.md"
+      - "testkit/part64/**"
+      - "scripts/validate_part64_registration_numbering.py"
+      - ".github/workflows/part64-registration-numbering.yml"
+  pull_request:
+    paths:
+      - "docs/part64-registration-numbering-validation.md"
+      - "testkit/part64/**"
+      - "scripts/validate_part64_registration_numbering.py"
+      - ".github/workflows/part64-registration-numbering.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Part 64 synthetic contract
+        run: python scripts/validate_part64_registration_numbering.py
