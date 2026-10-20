@@ -1,0 +1,72 @@
+name: rtt-network-loss-wiretap-lab
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  routed-network-loss:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Install network prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wireguard-tools iproute2 nftables
+          sudo modprobe wireguard
+
+      - name: Install and verify Sandia Wiretap v0.9.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=0.9.0
+          asset="wiretap_${version}_linux_amd64.tar.gz"
+          base="https://github.com/sandialabs/wiretap/releases/download/v${version}"
+          mkdir -p /tmp/baudot-wiretap
+          cd /tmp/baudot-wiretap
+          curl -fsSLO "$base/checksums.txt"
+          curl -fsSLO "$base/$asset"
+          grep -E "[[:space:]]${asset}$" checksums.txt | sha256sum -c -
+          mkdir extracted
+          tar -xzf "$asset" -C extracted
+          binary=$(find extracted -type f -name wiretap -print -quit)
+          test -n "$binary"
+          sudo install -m 0755 "$binary" /usr/local/bin/wiretap
+          wiretap --version
+
+      - name: Run routed host-network loss recovery scenario
+        run: sudo -E bash scripts/wiretap/rtt-network-loss-routed-lab.sh
+
+      - name: Verify routed network-loss evidence manifest
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          manifests=(target/evidence-routed/005-rtt-network-loss-recovery-wiretap/**/bundle.manifest.sha256)
+          if (( ${#manifests[@]} == 0 )); then
+            echo "No routed network-loss RTT evidence bundle manifest found" >&2
+            exit 1
+          fi
+          for manifest in "${manifests[@]}"; do
+            (cd "$(dirname "$manifest")" && sha256sum -c bundle.manifest.sha256)
+          done
+
+      - name: Preserve routed network-loss evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-wiretap-rtt-network-loss-evidence-005
+          path: target/evidence-routed/005-rtt-network-loss-recovery-wiretap
+          if-no-files-found: error
