@@ -7,6 +7,7 @@ on:
       - "interop/fineract/**"
       - "scripts/run_fineract_fund_lane.py"
       - "scripts/run_fineract_fund_closure_probe.py"
+      - "scripts/run_fineract_fund_governance_probe.py"
       - ".github/workflows/trs-fund-fineract-live.yml"
   workflow_dispatch:
 
@@ -102,6 +103,17 @@ jobs:
           FINERACT_WAIT_SECONDS: "60"
           TRS_FUND_EVIDENCE_DIR: artifacts/trs-fund-fineract
         run: python scripts/run_fineract_fund_closure_probe.py
+
+      - name: Prove live governance boundary
+        env:
+          FINERACT_BASE_URL: https://localhost:8443/fineract-provider/api/v1
+          FINERACT_USERNAME: mifos
+          FINERACT_PASSWORD: password
+          FINERACT_TENANT: default
+          FINERACT_INSECURE_TLS: "1"
+          FINERACT_WAIT_SECONDS: "60"
+          TRS_FUND_EVIDENCE_DIR: artifacts/trs-fund-fineract
+        run: python scripts/run_fineract_fund_governance_probe.py
 
       - name: Capture Fineract logs
         if: always()

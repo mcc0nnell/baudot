@@ -8,7 +8,8 @@
   "policyProvenance": {
     "fundCalibration": "testkit/fund/rolka-loube-2025-26.json",
     "contributorAssessment": "testkit/fund/contributor-assessments-2026-27.json",
-    "journalContract": "interop/fineract/journal-contract-v1.json"
+    "journalContract": "interop/fineract/journal-contract-v1.json",
+    "governanceContract": "testkit/fund/governance-boundaries-v1.json"
   },
   "events": [
     {
@@ -53,6 +54,43 @@
       "memo": "Synthetic accounting correction used only to prove period-closure behavior"
     },
     "expectedFineractErrorCode": "error.msg.glJournalEntry.invalid.accounting.closed"
+  },
+  "governanceProbe": {
+    "unauthorizedBalancedPayment": {
+      "id": "FUND-GOV-LIVE-001",
+      "event": {
+        "id": "EVT-GOV-DENY-0001",
+        "type": "providerDisbursement",
+        "amount": "1.00",
+        "memo": "Synthetic balanced payment that lacks payment authority"
+      },
+      "authorizationFacts": {
+        "eventAuthentic": true,
+        "serviceValid": true,
+        "providerAuthorized": true,
+        "programEligible": true,
+        "paymentAuthorized": false
+      },
+      "expectedAuthorizationVerdict": "NOT_AUTHORIZED_FOR_LEDGER"
+    },
+    "authorizedLedgerRejection": {
+      "id": "FUND-GOV-LIVE-002",
+      "postingDate": "2026-09-05",
+      "event": {
+        "id": "EVT-GOV-LEDGER-REJECT-0001",
+        "type": "providerDisbursement",
+        "amount": "1.00",
+        "memo": "Synthetic fully authorized payment expected to fail at the closed ledger boundary"
+      },
+      "authorizationFacts": {
+        "eventAuthentic": true,
+        "serviceValid": true,
+        "providerAuthorized": true,
+        "programEligible": true,
+        "paymentAuthorized": true
+      },
+      "expectedAuthorizationVerdict": "AUTHORIZED_FOR_LEDGER"
+    }
   },
   "expectedFinalBalances": {
     "1100": "4000.00",
