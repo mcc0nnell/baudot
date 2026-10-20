@@ -1,0 +1,112 @@
+name: kafka-cdr-spine
+
+on:
+  pull_request:
+    paths:
+      - "docs/kafka-cdr-spine.md"
+      - "testkit/business/kafka-cdr-lane-v1.json"
+      - "scripts/run_kafka_cdr_lane.py"
+      - ".github/workflows/kafka-cdr-spine.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/kafka-cdr-spine.md"
+      - "testkit/business/kafka-cdr-lane-v1.json"
+      - "scripts/run_kafka_cdr_lane.py"
+      - ".github/workflows/kafka-cdr-spine.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  kafka-cdr:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Validate CDR contract and prepare keyed records
+        run: python scripts/run_kafka_cdr_lane.py prepare
+
+      - name: Start pinned Apache Kafka 4.3.1
+        run: |
+          docker pull apache/kafka:4.3.1
+          docker run -d --name baudot-kafka -p 9092:9092 apache/kafka:4.3.1
+          ready=0
+          for attempt in $(seq 1 60); do
+            if docker exec baudot-kafka /opt/kafka/bin/kafka-topics.sh \
+              --bootstrap-server localhost:9092 --list >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs baudot-kafka
+            exit 1
+          fi
+          docker inspect --format='{{.Image}}' baudot-kafka > target/kafka-cdr/docker-image-id.txt
+          docker exec baudot-kafka /opt/kafka/bin/kafka-topics.sh --version \
+            > target/kafka-cdr/kafka-version.txt
+
+      - name: Create deterministic CDR topic
+        run: |
+          docker exec baudot-kafka /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server localhost:9092 \
+            --create \
+            --topic baudot.synthetic.cdr.v1 \
+            --partitions 1 \
+            --replication-factor 1
+          docker exec baudot-kafka /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server localhost:9092 \
+            --describe \
+            --topic baudot.synthetic.cdr.v1 \
+            > target/kafka-cdr/topic-description.txt
+
+      - name: Publish keyed synthetic CDRs
+        run: |
+          cat target/kafka-cdr/producer.txt | \
+            docker exec -i baudot-kafka /opt/kafka/bin/kafka-console-producer.sh \
+              --bootstrap-server localhost:9092 \
+              --topic baudot.synthetic.cdr.v1 \
+              --property parse.key=true \
+              --property 'key.separator=|'
+
+      - name: Consume and replay from the beginning
+        run: |
+          docker exec baudot-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+            --bootstrap-server localhost:9092 \
+            --topic baudot.synthetic.cdr.v1 \
+            --from-beginning \
+            --max-messages 4 \
+            --timeout-ms 20000 \
+            --property print.key=true \
+            --property 'key.separator=|' \
+            > target/kafka-cdr/consumed.txt
+
+          docker exec baudot-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+            --bootstrap-server localhost:9092 \
+            --topic baudot.synthetic.cdr.v1 \
+            --from-beginning \
+            --max-messages 4 \
+            --timeout-ms 20000 \
+            --property print.key=true \
+            --property 'key.separator=|' \
+            > target/kafka-cdr/replay.txt
+
+      - name: Independently verify CDR publication and replay
+        run: python scripts/run_kafka_cdr_lane.py verify
+
+      - name: Preserve Kafka CDR evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kafka-cdr-spine-evidence
+          path: target/kafka-cdr/
+          if-no-files-found: warn
+
+      - name: Stop Kafka
+        if: always()
+        run: docker rm -f baudot-kafka >/dev/null 2>&1 || true
