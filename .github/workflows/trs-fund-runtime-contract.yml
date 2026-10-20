@@ -1,0 +1,40 @@
+name: trs-fund-runtime-contract
+
+on:
+  pull_request:
+    paths:
+      - "docs/trs-fund-public-ledger.md"
+      - "docs/trs-fund-fineract-runtime.md"
+      - "testkit/fund/**"
+      - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_trs_fund_runtime_contract.py"
+      - ".github/workflows/trs-fund-public-model.yml"
+      - ".github/workflows/trs-fund-runtime-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/trs-fund-public-ledger.md"
+      - "docs/trs-fund-fineract-runtime.md"
+      - "testkit/fund/**"
+      - "interop/fineract/**"
+      - "scripts/validate_trs_fund_public_model.py"
+      - "scripts/validate_trs_fund_runtime_contract.py"
+      - ".github/workflows/trs-fund-public-model.yml"
+      - ".github/workflows/trs-fund-runtime-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate canonical public TRS Fund model
+        run: python scripts/validate_trs_fund_public_model.py
+      - name: Validate synthetic Fund runtime lifecycle
+        run: python scripts/validate_trs_fund_runtime_contract.py

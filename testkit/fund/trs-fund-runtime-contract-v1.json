@@ -1,0 +1,109 @@
+{
+  "schema": "baudot.trs-fund-runtime-contract@1",
+  "status": "experimental",
+  "dependsOn": {
+    "publicCalibration": "baudot.trs-fund-public-calibration@1",
+    "journalContract": "baudot.fineract-trs-journal-contract@1"
+  },
+  "authority": {
+    "claimDecision": "outside-fineract",
+    "rateSelection": "outside-fineract",
+    "financialState": "apache-fineract-reference-ledger",
+    "settlement": "synthetic-payment-fixture",
+    "fineractMayDecideCompensability": false,
+    "fineractMaySelectRates": false,
+    "fineractMayAuthorizeProductionPayment": false
+  },
+  "fineractProfile": {
+    "implementation": "Apache Fineract",
+    "targetVersion": "1.15.0",
+    "role": "external-ledger-implementation-under-test",
+    "liveRuntimeRequiredByThisContract": false,
+    "operations": [
+      "create-journal-entry",
+      "read-journal-entry",
+      "reverse-journal-entry"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "FUND-001",
+      "name": "approved-claim-posts-provider-payable",
+      "syntheticBusinessTransactionId": "claim-vrs-001",
+      "idempotencyKey": "fund-claim-vrs-001",
+      "upstreamDecision": "approved",
+      "approvedAmount": "60.00",
+      "journalEvent": "providerClaimApproved",
+      "expectedEntries": [
+        {"account": "5100", "side": "debit", "amount": "60.00"},
+        {"account": "2100", "side": "credit", "amount": "60.00"}
+      ]
+    },
+    {
+      "id": "FUND-002",
+      "name": "settlement-clears-provider-payable",
+      "syntheticBusinessTransactionId": "payment-vrs-001",
+      "settles": "claim-vrs-001",
+      "amount": "60.00",
+      "journalEvent": "providerDisbursement",
+      "expectedEntries": [
+        {"account": "2100", "side": "debit", "amount": "60.00"},
+        {"account": "1100", "side": "credit", "amount": "60.00"}
+      ]
+    },
+    {
+      "id": "FUND-003",
+      "name": "duplicate-approved-claim-replay-has-zero-additional-posting",
+      "syntheticBusinessTransactionId": "claim-vrs-001-replay",
+      "replays": "claim-vrs-001",
+      "idempotencyKey": "fund-claim-vrs-001",
+      "expectedEntries": [],
+      "expectedAdditionalFinancialEffect": "0.00"
+    },
+    {
+      "id": "FUND-004",
+      "name": "downward-adjustment-is-explicit-compensating-entry",
+      "syntheticBusinessTransactionId": "adjustment-vrs-002-a",
+      "adjusts": "claim-vrs-002",
+      "originalApprovedAmount": "60.00",
+      "adjustedApprovedAmount": "54.00",
+      "amount": "6.00",
+      "entryKind": "compensating-entry",
+      "inverseOfJournalEvent": "providerClaimApproved",
+      "expectedEntries": [
+        {"account": "2100", "side": "debit", "amount": "6.00"},
+        {"account": "5100", "side": "credit", "amount": "6.00"}
+      ]
+    },
+    {
+      "id": "FUND-005",
+      "name": "erroneous-approved-claim-is-reversed-not-deleted",
+      "syntheticBusinessTransactionId": "claim-vrs-003-reversal",
+      "originalTransactionId": "journal-vrs-003",
+      "reversalTransactionId": "journal-vrs-003-reversal",
+      "reversalOf": "journal-vrs-003",
+      "amount": "24.00",
+      "inverseOfJournalEvent": "providerClaimApproved",
+      "originalEntries": [
+        {"account": "5100", "side": "debit", "amount": "24.00"},
+        {"account": "2100", "side": "credit", "amount": "24.00"}
+      ],
+      "expectedEntries": [
+        {"account": "2100", "side": "debit", "amount": "24.00"},
+        {"account": "5100", "side": "credit", "amount": "24.00"}
+      ],
+      "originalTransactionMustRemainAddressable": true
+    }
+  ],
+  "claimBoundary": {
+    "publicFundArithmeticOwnedHere": false,
+    "rateSelectionOwnedHere": false,
+    "accountCatalogOwnedHere": false,
+    "productionTrsFundAccounting": false,
+    "productionAdministratorCompatibility": false,
+    "productionProviderReimbursement": false,
+    "fccPaymentAuthorization": false,
+    "fineractConformance": false,
+    "syntheticLifecycleEvidenceOnly": true
+  }
+}
