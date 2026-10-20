@@ -1,0 +1,141 @@
+{
+  "schema": "baudot.superset-trs-analytics@1",
+  "superset": {
+    "version": "6.1.0",
+    "releaseCommit": "c83fb2bb1dcfac41ac51bcebd82471f4a7180d18",
+    "repository": "apache/superset",
+    "role": "business-intelligence-read-model"
+  },
+  "authority": {
+    "supersetIsSystemOfRecord": false,
+    "dashboardMetricCreatesPolicy": false,
+    "dashboardMetricCreatesEligibility": false,
+    "dashboardMetricCreatesCompensability": false,
+    "dashboardMetricCreatesClaimApproval": false,
+    "dashboardMetricCreatesLedgerPosting": false,
+    "dashboardMetricCreatesAccessibilityVerdict": false,
+    "analyticsQueriesMayMutateSourceSystems": false
+  },
+  "privacyBoundary": {
+    "subscriberLevelTelephoneNumbersExposed": false,
+    "subscriberNamesExposed": false,
+    "productionSubscriberDataUsed": false,
+    "minimumAggregation": "day-provider-service",
+    "syntheticOnly": true
+  },
+  "datasets": [
+    {
+      "id": "cdr_daily",
+      "displayName": "CDR Daily",
+      "sourceSystem": "kafka-cdr-projection",
+      "sourceContract": "baudot.cdr@1",
+      "grain": "day-provider-service",
+      "sql": "SELECT service_day, provider_id, service_type, call_count, total_duration_seconds FROM analytics_cdr_daily",
+      "dimensions": ["service_day", "provider_id", "service_type"],
+      "metrics": ["call_count", "total_duration_seconds"],
+      "forbiddenFields": ["from_tn", "to_tn", "subscriber_id", "compensable", "claim_approved"]
+    },
+    {
+      "id": "equipment_daily",
+      "displayName": "Equipment Fulfillment Daily",
+      "sourceSystem": "ofbiz-reporting-projection",
+      "sourceContract": "baudot.ofbiz-equipment-distribution@1",
+      "grain": "day-sku-facility",
+      "sql": "SELECT service_day, facility_id, sku, orders_created, shipments_completed, returns_received, replacements_shipped, backorders_open, quarantine_count FROM analytics_equipment_daily",
+      "dimensions": ["service_day", "facility_id", "sku"],
+      "metrics": ["orders_created", "shipments_completed", "returns_received", "replacements_shipped", "backorders_open", "quarantine_count"],
+      "forbiddenFields": ["subscriber_id", "eligibility_approved", "eligibility_decision_ref"]
+    },
+    {
+      "id": "fund_monthly",
+      "displayName": "TRS Fund Monthly",
+      "sourceSystem": "fineract-reporting-projection",
+      "sourceContract": "baudot.fineract-trs-journal-contract@1",
+      "grain": "month-account-class",
+      "sql": "SELECT service_month, account_class, debit_total, credit_total, ending_balance FROM analytics_fund_monthly",
+      "dimensions": ["service_month", "account_class"],
+      "metrics": ["debit_total", "credit_total", "ending_balance"],
+      "forbiddenFields": ["claim_approved", "payment_authorized", "contributor_liability_authorized"]
+    },
+    {
+      "id": "policy_daily",
+      "displayName": "Policy Decisions Daily",
+      "sourceSystem": "ranger-audit-projection",
+      "sourceContract": "baudot.ranger-itrs-pdp-contract@1",
+      "grain": "day-resource-action-decision",
+      "sql": "SELECT service_day, resource_type, action, decision, decision_count FROM analytics_policy_daily",
+      "dimensions": ["service_day", "resource_type", "action", "decision"],
+      "metrics": ["decision_count"],
+      "forbiddenFields": ["subject", "telephone_number", "subscriber_id", "protocol_valid"]
+    }
+  ],
+  "dashboards": [
+    {
+      "id": "trs-operations-overview",
+      "title": "TRS Operations Overview",
+      "datasets": ["cdr_daily", "equipment_daily", "fund_monthly", "policy_daily"],
+      "charts": [
+        "Calls by service and provider",
+        "Equipment shipments and backorders",
+        "Fund ending balance by month",
+        "Policy allow/deny counts"
+      ]
+    },
+    {
+      "id": "provider-call-operations",
+      "title": "Provider and Call Operations",
+      "datasets": ["cdr_daily"],
+      "charts": [
+        "Daily call count",
+        "Total call duration",
+        "Service mix by provider"
+      ]
+    },
+    {
+      "id": "equipment-distribution",
+      "title": "Equipment Distribution",
+      "datasets": ["equipment_daily"],
+      "charts": [
+        "Shipments by SKU",
+        "Open backorders",
+        "Returns and replacements",
+        "Quarantine inventory"
+      ]
+    },
+    {
+      "id": "trs-fund",
+      "title": "TRS Fund",
+      "datasets": ["fund_monthly"],
+      "charts": [
+        "Monthly debits and credits",
+        "Ending balances by account class"
+      ]
+    },
+    {
+      "id": "authorization-audit",
+      "title": "Authorization Audit",
+      "datasets": ["policy_daily"],
+      "charts": [
+        "Allow/deny trend",
+        "Decisions by resource type",
+        "Decisions by action"
+      ]
+    }
+  ],
+  "sourceProjectionBoundary": {
+    "supersetReadsKafkaDirectly": false,
+    "supersetReadsOfbizTransactionalTablesDirectly": false,
+    "supersetReadsFineractTransactionalTablesDirectly": false,
+    "supersetReadsRangerOperationalTablesDirectly": false,
+    "requiresReadOnlyReportingViews": true,
+    "projectionMayBeBuiltByCamelOrNifi": true
+  },
+  "claimBoundary": {
+    "productionSupersetCompatibilityClaimed": false,
+    "productionDashboardAccuracyClaimed": false,
+    "regulatoryReportingClaimed": false,
+    "financialStatementAccuracyClaimed": false,
+    "callCompensabilityClaimed": false,
+    "subscriberEligibilityClaimed": false
+  }
+}
