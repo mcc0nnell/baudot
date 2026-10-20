@@ -1,0 +1,111 @@
+name: tty-v18-oracle
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SPANDSP_COMMIT: 8f1e1646bdec99eac5fd2cd92c35563f736b9b89
+  MINIMODEM_COMMIT: bb2f34cf5148f101563aa926e201d306edbacbd3
+  ORACLE_PREFIX: ${{ github.workspace }}/target/oracles/prefix
+
+jobs:
+  cross-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Baudot
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned SpanDSP
+        uses: actions/checkout@v4
+        with:
+          repository: freeswitch/spandsp
+          ref: ${{ env.SPANDSP_COMMIT }}
+          path: target/oracles/spandsp-src
+
+      - name: Checkout pinned minimodem
+        uses: actions/checkout@v4
+        with:
+          repository: kamalmostafa/minimodem
+          ref: ${{ env.MINIMODEM_COMMIT }}
+          path: target/oracles/minimodem-src
+
+      - name: Verify external source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C target/oracles/spandsp-src rev-parse HEAD)" = "$SPANDSP_COMMIT"
+          test "$(git -C target/oracles/minimodem-src rev-parse HEAD)" = "$MINIMODEM_COMMIT"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            build-essential \
+            libfftw3-dev \
+            libjpeg-dev \
+            libsndfile1-dev \
+            libtiff-dev \
+            libtool \
+            pkg-config
+
+      - name: Build pinned SpanDSP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target/oracles/spandsp-src
+          ./autogen.sh
+          ./configure --prefix="$ORACLE_PREFIX"
+          make -j2
+          make install
+
+      - name: Build pinned minimodem
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target/oracles/minimodem-src
+          autoreconf -i
+          ./configure \
+            --prefix="$ORACLE_PREFIX" \
+            --without-alsa \
+            --without-pulseaudio \
+            --without-sndio
+          make -j2
+          make install
+
+      - name: Export pinned oracle toolchain
+        shell: bash
+        run: |
+          echo "$ORACLE_PREFIX/bin" >> "$GITHUB_PATH"
+          echo "PKG_CONFIG_PATH=$ORACLE_PREFIX/lib/pkgconfig:$ORACLE_PREFIX/lib64/pkgconfig" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$ORACLE_PREFIX/lib:$ORACLE_PREFIX/lib64" >> "$GITHUB_ENV"
+
+      - name: BAUDOT-TTY-001 cross-oracle WAV proof
+        shell: bash
+        env:
+          BAUDOT_SPANDSP_SOURCE_COMMIT: ${{ env.SPANDSP_COMMIT }}
+          BAUDOT_MINIMODEM_SOURCE_COMMIT: ${{ env.MINIMODEM_COMMIT }}
+        run: bash scripts/run-tty-v18-cross-oracle.sh
+
+      - name: BAUDOT-TTY-002 PCMU RTP survivability proof
+        shell: bash
+        run: bash scripts/run-tty-v18-pcmu-rtp.sh
+
+      - name: Preserve TTY evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baudot-tty-v18-evidence
+          path: |
+            target/evidence/tty-v18-cross-oracle
+            target/evidence/tty-v18-pcmu-rtp
+          if-no-files-found: error

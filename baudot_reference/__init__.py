@@ -24,6 +24,13 @@ from .rfc8865 import (
 )
 from .t140 import BaselineSemanticGap, PresentationResult, apply_t140_baseline, encode_utf8
 from .t140block import InvalidT140Block, T140Block, concatenate_blocks
+from .tty import (
+    InvalidTtyCode,
+    US_WEITBRECHT_4545,
+    WeitbrechtProfile,
+    frame_5bit_code,
+    frame_5bit_codes,
+)
 
 __all__ = [
     "BaselineSemanticGap",
@@ -49,4 +56,9 @@ __all__ = [
     "T140DataChannelMessage",
     "T140DataChannelProfile",
     "replacement_marker_for_possible_loss",
+    "InvalidTtyCode",
+    "US_WEITBRECHT_4545",
+    "WeitbrechtProfile",
+    "frame_5bit_code",
+    "frame_5bit_codes",
 ]
