@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+<scenario name="Baudot SIPP-HOSTILE-004 re-INVITE glare">
+
+  <send retrans="500" start_txn="initial">
+    <![CDATA[
+      INVITE sip:callee@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch];rport
+      Max-Forwards: 70
+      From: <sip:caller@[local_ip]:[local_port]>;tag=baudot-sipp-[call_number]
+      To: <sip:callee@[remote_ip]:[remote_port]>
+      Call-ID: [call_id]
+      CSeq: 1 INVITE
+      Contact: <sip:caller@[local_ip]:[local_port];transport=[transport]>
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=sipp 1 1 IN IP4 [local_ip]
+      s=baudot-sipp-initial
+      c=IN IP4 [local_ip]
+      t=0 0
+      m=text 41001 RTP/AVP 98
+      a=rtpmap:98 t140/1000
+      a=sendrecv
+    ]]>
+  </send>
+
+  <recv response="100" optional="true" response_txn="initial"/>
+  <recv response="180" optional="true" response_txn="initial"/>
+  <recv response="200" response_txn="initial" rrs="true"/>
+
+  <send ack_txn="initial">
+    <![CDATA[
+      ACK [next_url] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch];rport
+      Max-Forwards: 70
+      From: <sip:caller@[local_ip]:[local_port]>;tag=baudot-sipp-[call_number]
+      To: <sip:callee@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 1 ACK
+      Contact: <sip:caller@[local_ip]:[local_port];transport=[transport]>
+      [routes]
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <send retrans="1000" start_txn="reinvite2">
+    <![CDATA[
+      INVITE [next_url] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch];rport
+      Max-Forwards: 70
+      From: <sip:caller@[local_ip]:[local_port]>;tag=baudot-sipp-[call_number]
+      To: <sip:callee@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 2 INVITE
+      Contact: <sip:caller@[local_ip]:[local_port];transport=[transport]>
+      [routes]
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=sipp 2 2 IN IP4 [local_ip]
+      s=baudot-sipp-reinvite-2
+      c=IN IP4 [local_ip]
+      t=0 0
+      m=text 41002 RTP/AVP 98
+      a=rtpmap:98 t140/1000
+      a=sendrecv
+    ]]>
+  </send>
+
+  <recv response="100" response_txn="reinvite2"/>
+  <pause milliseconds="100"/>
+
+  <send retrans="1000" start_txn="reinvite3">
+    <![CDATA[
+      INVITE [next_url] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch];rport
+      Max-Forwards: 70
+      From: <sip:caller@[local_ip]:[local_port]>;tag=baudot-sipp-[call_number]
+      To: <sip:callee@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 3 INVITE
+      Contact: <sip:caller@[local_ip]:[local_port];transport=[transport]>
+      [routes]
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=sipp 3 3 IN IP4 [local_ip]
+      s=baudot-sipp-reinvite-3
+      c=IN IP4 [local_ip]
+      t=0 0
+      m=text 41003 RTP/AVP 98
+      a=rtpmap:98 t140/1000
+      a=sendrecv
+    ]]>
+  </send>
+
+  <recv response="100" optional="true" response_txn="reinvite3"/>
+  <recv response="491" response_txn="reinvite3"/>
+
+  <send ack_txn="reinvite3">
+    <![CDATA[
+      ACK [next_url] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch];rport
+      Max-Forwards: 70
+      From: <sip:caller@[local_ip]:[local_port]>;tag=baudot-sipp-[call_number]
+      To: <sip:callee@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 3 ACK
+      [routes]
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="200" response_txn="reinvite2"/>
+
+  <send ack_txn="reinvite2">
+    <![CDATA[
+      ACK [next_url] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch];rport
+      Max-Forwards: 70
+      From: <sip:caller@[local_ip]:[local_port]>;tag=baudot-sipp-[call_number]
+      To: <sip:callee@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 2 ACK
+      Contact: <sip:caller@[local_ip]:[local_port];transport=[transport]>
+      [routes]
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <pause milliseconds="250"/>
+</scenario>

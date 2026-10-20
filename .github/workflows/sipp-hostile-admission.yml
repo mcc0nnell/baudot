@@ -1,0 +1,141 @@
+name: sipp-hostile-admission
+
+on:
+  push:
+    paths:
+      - "interop/sipp/**"
+      - "scripts/sipp_trace.py"
+      - "scripts/run-sipp-reinvite-glare.sh"
+      - "scripts/validate_sipp_reinvite_glare.py"
+      - "scripts/run-sipp-delayed-refer-notify.sh"
+      - "scripts/validate_sipp_delayed_refer_notify.py"
+      - "src/main/java/org/mcc0nnell/baudot/harness/SippReinviteGlareTarget.java"
+      - "src/main/java/org/mcc0nnell/baudot/harness/SippDelayedReferNotifyTarget.java"
+      - ".github/workflows/sipp-hostile-admission.yml"
+  pull_request:
+    paths:
+      - "interop/sipp/**"
+      - "scripts/sipp_trace.py"
+      - "scripts/run-sipp-reinvite-glare.sh"
+      - "scripts/validate_sipp_reinvite_glare.py"
+      - "scripts/run-sipp-delayed-refer-notify.sh"
+      - "scripts/validate_sipp_delayed_refer_notify.py"
+      - "src/main/java/org/mcc0nnell/baudot/harness/SippReinviteGlareTarget.java"
+      - "src/main/java/org/mcc0nnell/baudot/harness/SippDelayedReferNotifyTarget.java"
+      - ".github/workflows/sipp-hostile-admission.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  sipp-hostile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Baudot
+        uses: actions/checkout@v4
+
+      - name: Fetch exact SIPp candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/SIPp/sipp.git /tmp/sipp
+          git -C /tmp/sipp fetch --depth=1 origin c496186356b9089fc70b311607be4d2853809625
+          git -C /tmp/sipp checkout --detach c496186356b9089fc70b311607be4d2853809625
+          test -z "$(git -C /tmp/sipp status --porcelain)"
+
+      - name: Admit exact scenario primitive surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/sipp-hostile
+          python interop/sipp/sipp_candidate_admission.py /tmp/sipp \
+            | tee evidence/sipp-hostile/source-admission.json
+
+      - name: Validate hostile scenario contract
+        run: python interop/sipp/validate_scenario_catalog.py
+
+      - name: Install minimal SIPp build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            cmake \
+            g++ \
+            gcc \
+            libgtest-dev \
+            libncurses-dev \
+            libpugixml-dev \
+            ninja-build
+
+      - name: Build exact SIPp stimulus executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S /tmp/sipp -B /tmp/sipp-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUSE_PCAP=0 \
+            -DUSE_GSL=0 \
+            -DUSE_SCTP=0 \
+            -DUSE_SYSTEM_PUGIXML=ON
+          cmake --build /tmp/sipp-build --parallel 2
+          set +e
+          /tmp/sipp-build/sipp -v | tee evidence/sipp-hostile/sipp-version.txt
+          SIPP_VERSION_STATUS=${PIPESTATUS[0]}
+          set -e
+          test "$SIPP_VERSION_STATUS" -eq 99
+          sha256sum /tmp/sipp-build/sipp | tee evidence/sipp-hostile/sipp-executable.sha256
+
+      - name: Execute live re-INVITE glare pressure
+        env:
+          SIPP_BIN: /tmp/sipp-build/sipp
+        run: bash scripts/run-sipp-reinvite-glare.sh
+
+      - name: Execute live delayed REFER NOTIFY pressure
+        env:
+          SIPP_BIN: /tmp/sipp-build/sipp
+        run: bash scripts/run-sipp-delayed-refer-notify.sh
+
+      - name: Seal static admission evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum \
+            interop/sipp/README.md \
+            interop/sipp/scenario-catalog.json \
+            interop/sipp/scenarios/reinvite-glare-uac.xml \
+            interop/sipp/scenarios/delayed-refer-notify-uas.xml \
+            interop/sipp/sipp_candidate_admission.py \
+            interop/sipp/validate_scenario_catalog.py \
+            scripts/sipp_trace.py \
+            scripts/run-sipp-reinvite-glare.sh \
+            scripts/validate_sipp_reinvite_glare.py \
+            scripts/run-sipp-delayed-refer-notify.sh \
+            scripts/validate_sipp_delayed_refer_notify.py \
+            src/main/java/org/mcc0nnell/baudot/harness/SippReinviteGlareTarget.java \
+            src/main/java/org/mcc0nnell/baudot/harness/SippDelayedReferNotifyTarget.java \
+            evidence/sipp-hostile/source-admission.json \
+            evidence/sipp-hostile/sipp-version.txt \
+            evidence/sipp-hostile/sipp-executable.sha256 \
+            > evidence/sipp-hostile/SHA256SUMS
+          cat evidence/sipp-hostile/SHA256SUMS
+
+      - name: Upload source-admission evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sipp-hostile-source-admission
+          path: evidence/sipp-hostile/
+          if-no-files-found: error
+
+      - name: Upload live glare evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sipp-hostile-004-live-glare
+          path: target/evidence/BAUDOT-INTEROP-003/sipp-hostile-004-jain-v1/
+          if-no-files-found: error
+
+      - name: Upload live delayed REFER NOTIFY evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sipp-hostile-002-live-delayed-refer-notify
+          path: target/evidence/BAUDOT-INTEROP-004/sipp-hostile-002-jain-v1/
+          if-no-files-found: error

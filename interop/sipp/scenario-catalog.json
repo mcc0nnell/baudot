@@ -1,0 +1,142 @@
+{
+  "version": "0.1",
+  "generator": {
+    "repository": "SIPp/sipp",
+    "commit": "c496186356b9089fc70b311607be4d2853809625",
+    "role": "hostile_signaling_stimulus_generator",
+    "oracleAdmitted": false,
+    "terminalVerdictAuthority": false
+  },
+  "supportedPrimitives": [
+    "raw_send_receive",
+    "udp_retransmission",
+    "loss_injection",
+    "explicit_pause",
+    "receive_timeout",
+    "optional_receive",
+    "transaction_correlation",
+    "sdp_ignore"
+  ],
+  "claimBoundary": {
+    "sipConformance": false,
+    "referConformance": false,
+    "reinviteConformance": false,
+    "rfc4103Conformance": false,
+    "t140Conformance": false,
+    "accessibilityConformance": false
+  },
+  "scenarios": [
+    {
+      "id": "SIPP-HOSTILE-001",
+      "name": "udp-invite-retransmission",
+      "target": "generic-dialog-establishment",
+      "primitives": ["raw_send_receive", "udp_retransmission", "transaction_correlation"],
+      "pressure": "Retransmit one INVITE transaction while the peer response is delayed.",
+      "requiredObservations": [
+        "wireRequestCopies",
+        "transactionIdentity",
+        "peerResponse",
+        "dialogPromotionCount"
+      ],
+      "mustRemainFalseFromGeneratorAlone": ["rttReady", "accessibilityReady"]
+    },
+    {
+      "id": "SIPP-HOSTILE-002",
+      "name": "delayed-refer-notify",
+      "target": "BAUDOT-INTEROP-004",
+      "primitives": ["raw_send_receive", "explicit_pause", "receive_timeout", "transaction_correlation"],
+      "pressure": "Accept REFER, then delay NOTIFY progression beyond the ordinary fast-path timing window.",
+      "requiredObservations": [
+        "referTransaction",
+        "notifySequence",
+        "replacementDialogState",
+        "oldLegState"
+      ],
+      "mustRemainFalseFromGeneratorAlone": ["replacementRttReady", "rttReady"]
+    },
+    {
+      "id": "SIPP-HOSTILE-003",
+      "name": "duplicate-refer",
+      "target": "BAUDOT-INTEROP-004",
+      "primitives": ["raw_send_receive", "explicit_pause", "transaction_correlation"],
+      "pressure": "Send a second REFER on the same dialog before the first transfer outcome is fully reduced.",
+      "requiredObservations": [
+        "referTransactionIdentities",
+        "notifyCorrelation",
+        "replacementTargetCorrelation",
+        "oldLegState"
+      ],
+      "mustRemainFalseFromGeneratorAlone": ["replacementRttReady", "rttReady"]
+    },
+    {
+      "id": "SIPP-HOSTILE-004",
+      "name": "reinvite-glare",
+      "target": "BAUDOT-INTEROP-003",
+      "primitives": ["raw_send_receive", "explicit_pause", "transaction_correlation"],
+      "pressure": "Send a later in-dialog INVITE while the earlier re-INVITE remains unresolved.",
+      "requiredObservations": [
+        "reinviteTransactionIdentities",
+        "responseCorrelation",
+        "sdpGenerationHashes",
+        "dialogState"
+      ],
+      "mustRemainFalseFromGeneratorAlone": ["sdpFresh", "rttReady"]
+    },
+    {
+      "id": "SIPP-HOSTILE-005",
+      "name": "stale-sdp-under-200",
+      "target": "BAUDOT-INTEROP-003",
+      "primitives": ["raw_send_receive", "sdp_ignore", "transaction_correlation"],
+      "pressure": "Return signaling success while preserving or replaying an older SDP generation.",
+      "requiredObservations": [
+        "sipStatus",
+        "intendedSdpHash",
+        "observedAnswerSdpHash",
+        "freshReceiverObservation"
+      ],
+      "mustRemainFalseFromGeneratorAlone": ["sdpFresh", "firstT140CharacterObserved", "rttReady"]
+    },
+    {
+      "id": "SIPP-HOSTILE-006",
+      "name": "malformed-rtt-sdp",
+      "target": "rfc4103-negotiation",
+      "primitives": ["raw_send_receive"],
+      "pressure": "Offer or answer an m=text line whose payload mapping is missing, conflicting, or otherwise unusable.",
+      "requiredObservations": [
+        "rawSdp",
+        "sdpHash",
+        "negotiationDisposition",
+        "mediaPathDisposition"
+      ],
+      "mustRemainFalseFromGeneratorAlone": ["rttNegotiated", "rttReady"]
+    },
+    {
+      "id": "SIPP-HOSTILE-007",
+      "name": "notify-success-without-replacement-rtt",
+      "target": "BAUDOT-INTEROP-004",
+      "primitives": ["raw_send_receive", "optional_receive", "receive_timeout"],
+      "pressure": "Complete REFER/NOTIFY signaling while withholding any independently reducible replacement-leg RTT.",
+      "requiredObservations": [
+        "referAccepted",
+        "notifyTerminalStatus",
+        "replacementDialogEstablished",
+        "rttDatagramObservation"
+      ],
+      "mustRemainFalseFromGeneratorAlone": ["firstT140CharacterObserved", "replacementRttReady", "rttReady"]
+    },
+    {
+      "id": "SIPP-HOSTILE-008",
+      "name": "premature-teardown-pressure",
+      "target": "BAUDOT-INTEROP-004",
+      "primitives": ["raw_send_receive", "explicit_pause"],
+      "pressure": "Attempt BYE on the original leg before independent replacement accessibility readiness exists.",
+      "requiredObservations": [
+        "replacementDialogState",
+        "terminalReadinessTokenState",
+        "byeAttempt",
+        "oldLegDisposition"
+      ],
+      "mustRemainFalseFromGeneratorAlone": ["replacementRttReady", "rttReady", "safeToReleaseOldLeg"]
+    }
+  ]
+}
