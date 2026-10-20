@@ -1,0 +1,91 @@
+{
+  "schema": "baudot.fineract-consumer-provider-boundary-scenarios@1",
+  "scenarios": [
+    {
+      "id": "provider-self-read",
+      "actorType": "provider-user",
+      "authenticated": true,
+      "providerAccessActive": true,
+      "actorProviderId": "provider-a.example",
+      "resourceProviderId": "provider-a.example",
+      "bffAbacAllowed": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/summary/accounts"
+      },
+      "ledgerAccepted": false,
+      "expectedAccessVerdict": "PROVIDER_ACCESS_AUTHORIZED",
+      "expectedDownstreamFineractRead": true,
+      "trsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "cross-provider-read-denied",
+      "actorType": "provider-user",
+      "authenticated": true,
+      "providerAccessActive": true,
+      "actorProviderId": "provider-a.example",
+      "resourceProviderId": "provider-b.example",
+      "bffAbacAllowed": false,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/savings"
+      },
+      "ledgerAccepted": true,
+      "expectedAccessVerdict": "PROVIDER_ACCESS_DENIED",
+      "expectedDownstreamFineractRead": false,
+      "trsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "revoked-provider-access-ledger-still-present",
+      "actorType": "provider-user",
+      "authenticated": true,
+      "providerAccessActive": false,
+      "actorProviderId": "provider-a.example",
+      "resourceProviderId": "provider-a.example",
+      "bffAbacAllowed": false,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/summary/accounts"
+      },
+      "ledgerAccepted": true,
+      "expectedAccessVerdict": "PROVIDER_ACCESS_DENIED",
+      "expectedDownstreamFineractRead": false,
+      "trsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "operator-must-use-baudot-control-plane",
+      "actorType": "operator",
+      "authenticated": true,
+      "providerAccessActive": true,
+      "actorProviderId": "provider-a.example",
+      "resourceProviderId": "provider-a.example",
+      "bffAbacAllowed": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/summary/accounts"
+      },
+      "ledgerAccepted": true,
+      "expectedAccessVerdict": "PROVIDER_ACCESS_DENIED",
+      "expectedDownstreamFineractRead": false,
+      "requiredSurface": "baudot-operator-control-plane",
+      "trsProgramAuthority": "NOT_DERIVED"
+    },
+    {
+      "id": "provider-write-surface-denied",
+      "actorType": "provider-user",
+      "authenticated": true,
+      "providerAccessActive": true,
+      "actorProviderId": "provider-a.example",
+      "resourceProviderId": "provider-a.example",
+      "bffAbacAllowed": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/transfers/initiate"
+      },
+      "ledgerAccepted": false,
+      "expectedAccessVerdict": "PROVIDER_ACCESS_DENIED",
+      "expectedDownstreamFineractRead": false,
+      "trsProgramAuthority": "NOT_DERIVED"
+    }
+  ]
+}
